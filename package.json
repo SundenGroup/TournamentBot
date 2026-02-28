@@ -1,0 +1,28 @@
+{
+  "name": "discord-tournament-bot",
+  "version": "1.0.0",
+  "description": "Discord bot for managing tournaments with single/double elimination, team play, and game-specific configurations",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "node --watch src/index.js",
+    "deploy-commands": "node src/deploy-commands.js"
+  },
+  "keywords": [
+    "discord",
+    "tournament",
+    "bot",
+    "esports",
+    "bracket"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "discord.js": "^14.14.1",
+    "dotenv": "^16.3.1",
+    "express": "^5.2.1",
+    "node-cron": "^3.0.3",
+    "stripe": "^20.3.1",
+    "uuid": "^9.0.1"
+  }
+}
