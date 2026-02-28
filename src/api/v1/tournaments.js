@@ -238,9 +238,8 @@ function formatTournamentDetail(t) {
 function formatParticipant(p, isSolo) {
   if (isSolo) {
     return {
-      id: p.odId || p.odId,
-      odId: p.odId,
-      odName: p.odName,
+      id: p.id,
+      username: p.username,
       displayName: p.displayName,
       seed: p.seed,
       checkedIn: p.checkedIn,
@@ -252,12 +251,13 @@ function formatParticipant(p, isSolo) {
     id: p.id,
     name: p.name,
     captain: p.captain ? {
-      odId: p.captain.odId,
-      odName: p.captain.odName,
+      id: p.captain.id,
+      username: p.captain.username,
+      displayName: p.captain.displayName,
     } : null,
     members: p.members?.map(m => ({
-      odId: m.odId,
-      odName: m.odName,
+      id: m.id,
+      username: m.username,
       displayName: m.displayName,
       pending: m.pending,
     })) || [],

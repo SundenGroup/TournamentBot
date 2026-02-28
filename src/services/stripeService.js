@@ -324,6 +324,31 @@ async function handleWebhook(event) {
       break;
     }
 
+    case 'invoice.payment_succeeded': {
+      const invoice = event.data.object;
+      const subscriptionId = invoice.subscription;
+
+      if (subscriptionId && invoice.billing_reason === 'subscription_cycle') {
+        const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+        const guildId = subscription.metadata.guild_id;
+
+        if (guildId) {
+          const tier = subscription.metadata.tier || getTierFromPriceId(subscription.items.data[0]?.price?.id);
+          const billingCycle = getBillingCycleFromPriceId(subscription.items.data[0]?.price?.id);
+
+          updateSubscription(guildId, {
+            tier,
+            billingCycle,
+            currentPeriodStart: new Date(subscription.current_period_start * 1000),
+            currentPeriodEnd: new Date(subscription.current_period_end * 1000),
+          });
+
+          console.log(`[Stripe] Renewal payment succeeded for guild ${guildId}: ${tier} (${billingCycle})`);
+        }
+      }
+      break;
+    }
+
     case 'invoice.payment_failed': {
       const invoice = event.data.object;
       const subscriptionId = invoice.subscription;
@@ -334,7 +359,7 @@ async function handleWebhook(event) {
 
         if (guildId) {
           console.log(`[Stripe] Payment failed for guild ${guildId}`);
-          // Could send a notification to the server here
+          // Grace period will be handled by getEffectiveTier() checking currentPeriodEnd
         }
       }
       break;

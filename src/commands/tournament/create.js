@@ -631,6 +631,9 @@ async function handleStart(interaction) {
 
     updateTournament(tournamentId, { bracket, status: 'active' });
 
+    // Trigger webhook
+    webhooks.onTournamentStarted(tournament);
+
     const embed = new EmbedBuilder()
       .setTitle(`🚀 ${tournament.title} — Tournament Started!`)
       .setColor(0x2ecc71);
@@ -749,6 +752,11 @@ async function handleReport(interaction) {
 
   const isSolo = tournament.settings.teamSize === 1;
 
+  // Validate score format if provided (e.g., "2-1", "16-14", "3-0")
+  if (score && !/^\d{1,3}-\d{1,3}$/.test(score.trim())) {
+    return interaction.reply({ content: '❌ Invalid score format. Use format like `2-1` or `16-14`.', ephemeral: true });
+  }
+
   try {
     service.advanceWinner(bracket, match.id, winnerId, score);
 
@@ -756,6 +764,14 @@ async function handleReport(interaction) {
     const loser = winnerId === p1Id ? match.participant2 : match.participant1;
     const winnerName = isSolo ? winner?.username : winner?.name;
     const loserName = isSolo ? loser?.username : loser?.name;
+
+    // Trigger webhook for match completion
+    webhooks.onMatchCompleted(tournament, {
+      ...match,
+      winner,
+      loser,
+      score: score || null,
+    });
 
     let response = `✅ **Match #${matchNumber}** reported: **${winnerName}** defeats **${loserName}**`;
     if (score) response += ` (${score})`;
@@ -774,6 +790,9 @@ async function handleReport(interaction) {
       const champName = isSolo ? results.winner?.username : results.winner?.name;
       response += `\n\n🏆 **Tournament Complete!** Champion: **${champName}**`;
       updateTournament(tournamentId, { status: 'completed' });
+
+      // Trigger tournament completed webhook
+      webhooks.onTournamentCompleted(tournament, results.standings || [results.winner, results.runnerUp, results.thirdPlace].filter(Boolean));
 
       await updateTournamentAnnouncement(interaction.client, tournament);
       triggerAutoCleanup(interaction.guild, tournament);
