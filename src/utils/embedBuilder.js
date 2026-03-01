@@ -5,12 +5,12 @@ const { getEffectiveTier } = require('../services/subscriptionService');
 /**
  * Apply branding to an embed if Business tier
  */
-function applyBranding(embed, guildId) {
+async function applyBranding(embed, guildId) {
   // Only apply branding for Business tier
   const tier = getEffectiveTier(guildId);
   if (tier !== 'business') return embed;
 
-  const branding = getBranding(guildId);
+  const branding = await getBranding(guildId);
   if (!branding) return embed;
 
   // Apply custom accent color
@@ -37,7 +37,7 @@ function applyBranding(embed, guildId) {
   return embed;
 }
 
-function createTournamentEmbed(tournament) {
+async function createTournamentEmbed(tournament) {
   const { game, settings, title, description, startTime, status, participants, teams } = tournament;
   const isSolo = settings.teamSize === 1;
   const currentCount = isSolo ? participants.length : teams.length;
@@ -114,7 +114,7 @@ function createTournamentEmbed(tournament) {
   }
 
   // Apply white-label branding for Business tier
-  applyBranding(embed, tournament.guildId);
+  await applyBranding(embed, tournament.guildId);
 
   return embed;
 }
@@ -194,7 +194,7 @@ function createTournamentButtons(tournament) {
   return rows;
 }
 
-function createParticipantListEmbed(tournament) {
+async function createParticipantListEmbed(tournament) {
   const { settings, participants, teams, title, status, guildId } = tournament;
   const isSolo = settings.teamSize === 1;
 
@@ -238,7 +238,7 @@ function createParticipantListEmbed(tournament) {
   }
 
   // Apply white-label branding for Business tier
-  applyBranding(embed, guildId);
+  await applyBranding(embed, guildId);
 
   return embed;
 }

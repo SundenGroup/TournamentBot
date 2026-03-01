@@ -1,27 +1,31 @@
-// Server-specific custom game presets
-// Will be replaced with database in future
+// Server-specific custom game presets — backed by PostgreSQL
 
-const serverPresets = new Map();
+const db = require('../db');
 
-function getServerPresets(guildId) {
-  return serverPresets.get(guildId) || [];
+async function getServerPresets(guildId) {
+  const rows = await db('server_presets').where('guild_id', guildId);
+  return rows.map(row => ({
+    key: row.key,
+    ...row.preset_data,
+  }));
 }
 
-function addServerPreset(guildId, preset) {
-  const presets = getServerPresets(guildId);
-  presets.push(preset);
-  serverPresets.set(guildId, presets);
+async function addServerPreset(guildId, preset) {
+  await db('server_presets').insert({
+    guild_id: guildId,
+    key: preset.key,
+    preset_data: JSON.stringify(preset),
+  });
   return preset;
 }
 
-function removeServerPreset(guildId, presetKey) {
-  const presets = getServerPresets(guildId);
-  const filtered = presets.filter(p => p.key !== presetKey);
-  serverPresets.set(guildId, filtered);
+async function removeServerPreset(guildId, presetKey) {
+  await db('server_presets')
+    .where({ guild_id: guildId, key: presetKey })
+    .del();
 }
 
 module.exports = {
-  serverPresets,
   getServerPresets,
   addServerPreset,
   removeServerPreset,

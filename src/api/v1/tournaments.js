@@ -10,8 +10,8 @@ const router = express.Router();
  * GET /tournaments
  * List all tournaments for the authenticated guild
  */
-router.get('/', (req, res) => {
-  const tournaments = getTournamentsByGuild(req.guildId);
+router.get('/', async (req, res) => {
+  const tournaments = await getTournamentsByGuild(req.guildId);
 
   const formatted = tournaments.map(t => formatTournamentSummary(t));
 
@@ -25,8 +25,8 @@ router.get('/', (req, res) => {
  * GET /tournaments/:id
  * Get tournament details
  */
-router.get('/:id', (req, res) => {
-  const tournament = getTournament(req.params.id);
+router.get('/:id', async (req, res) => {
+  const tournament = await getTournament(req.params.id);
 
   if (!tournament) {
     return res.status(404).json({
@@ -50,8 +50,8 @@ router.get('/:id', (req, res) => {
  * GET /tournaments/:id/bracket
  * Get full bracket state
  */
-router.get('/:id/bracket', (req, res) => {
-  const tournament = getTournament(req.params.id);
+router.get('/:id/bracket', async (req, res) => {
+  const tournament = await getTournament(req.params.id);
 
   if (!tournament) {
     return res.status(404).json({
@@ -85,8 +85,8 @@ router.get('/:id/bracket', (req, res) => {
  * GET /tournaments/:id/matches
  * Get all matches with results
  */
-router.get('/:id/matches', (req, res) => {
-  const tournament = getTournament(req.params.id);
+router.get('/:id/matches', async (req, res) => {
+  const tournament = await getTournament(req.params.id);
 
   if (!tournament) {
     return res.status(404).json({
@@ -122,8 +122,8 @@ router.get('/:id/matches', (req, res) => {
  * GET /tournaments/:id/participants
  * Get all participants/teams
  */
-router.get('/:id/participants', (req, res) => {
-  const tournament = getTournament(req.params.id);
+router.get('/:id/participants', async (req, res) => {
+  const tournament = await getTournament(req.params.id);
 
   if (!tournament) {
     return res.status(404).json({
@@ -154,8 +154,8 @@ router.get('/:id/participants', (req, res) => {
  * GET /tournaments/:id/standings
  * Get final standings (completed tournaments only)
  */
-router.get('/:id/standings', (req, res) => {
-  const tournament = getTournament(req.params.id);
+router.get('/:id/standings', async (req, res) => {
+  const tournament = await getTournament(req.params.id);
 
   if (!tournament) {
     return res.status(404).json({

@@ -207,7 +207,7 @@ async function createBillingPortalSession(guildId) {
     throw new Error('Stripe is not configured. Please set STRIPE_SECRET_KEY.');
   }
 
-  const sub = getSubscription(guildId);
+  const sub = await getSubscription(guildId);
   if (!sub?.stripeCustomerId) {
     throw new Error('No Stripe customer found for this server.');
   }
@@ -252,9 +252,9 @@ async function handleWebhook(event) {
           const expiryDate = new Date();
           expiryDate.setFullYear(expiryDate.getFullYear() + 1);
 
-          addTournamentTokens(guildId, amount, expiryDate);
+          await addTournamentTokens(guildId, amount, expiryDate);
 
-          addPurchaseHistory(guildId, {
+          await addPurchaseHistory(guildId, {
             type: 'tournament_tokens',
             amount,
             price: session.amount_total,
@@ -268,9 +268,9 @@ async function handleWebhook(event) {
         if (productType.startsWith('boost_')) {
           const amount = BOOST_AMOUNTS[productType];
 
-          addParticipantBoost(guildId, amount);
+          await addParticipantBoost(guildId, amount);
 
-          addPurchaseHistory(guildId, {
+          await addPurchaseHistory(guildId, {
             type: 'participant_boost',
             amount,
             price: session.amount_total,
@@ -292,7 +292,7 @@ async function handleWebhook(event) {
         const tier = subscription.metadata.tier || getTierFromPriceId(subscription.items.data[0]?.price?.id);
         const billingCycle = getBillingCycleFromPriceId(subscription.items.data[0]?.price?.id);
 
-        updateSubscription(guildId, {
+        await updateSubscription(guildId, {
           tier,
           billingCycle,
           currentPeriodStart: new Date(subscription.current_period_start * 1000),
@@ -309,7 +309,7 @@ async function handleWebhook(event) {
       const guildId = subscription.metadata.guild_id;
 
       if (guildId) {
-        updateSubscription(guildId, {
+        await updateSubscription(guildId, {
           tier: 'free',
           stripeSubscriptionId: null,
           billingCycle: null,
@@ -334,7 +334,7 @@ async function handleWebhook(event) {
           const tier = subscription.metadata.tier || getTierFromPriceId(subscription.items.data[0]?.price?.id);
           const billingCycle = getBillingCycleFromPriceId(subscription.items.data[0]?.price?.id);
 
-          updateSubscription(guildId, {
+          await updateSubscription(guildId, {
             tier,
             billingCycle,
             currentPeriodStart: new Date(subscription.current_period_start * 1000),
@@ -381,7 +381,7 @@ async function activateSubscription(guildId, data) {
     periodEnd.setMonth(periodEnd.getMonth() + 1);
   }
 
-  updateSubscription(guildId, {
+  await updateSubscription(guildId, {
     tier: data.tier,
     stripeCustomerId: data.stripeCustomerId,
     stripeSubscriptionId: data.stripeSubscriptionId,

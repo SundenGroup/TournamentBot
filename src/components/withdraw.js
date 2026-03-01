@@ -5,7 +5,7 @@ module.exports = {
   customId: 'withdraw',
   async execute(interaction, args) {
     const tournamentId = args[0];
-    const tournament = getTournament(tournamentId);
+    const tournament = await getTournament(tournamentId);
 
     if (!tournament) {
       return interaction.reply({ content: '❌ Tournament not found.', ephemeral: true });
@@ -14,7 +14,7 @@ module.exports = {
     const isSolo = tournament.settings.teamSize === 1;
 
     if (isSolo) {
-      const result = removeParticipant(tournamentId, interaction.user.id);
+      const result = await removeParticipant(tournamentId, interaction.user.id);
 
       if (!result.success) {
         return interaction.reply({ content: `❌ ${result.error}`, ephemeral: true });
@@ -26,7 +26,7 @@ module.exports = {
         ephemeral: true,
       });
     } else {
-      const result = removeTeam(tournamentId, interaction.user.id);
+      const result = await removeTeam(tournamentId, interaction.user.id);
 
       if (!result.success) {
         return interaction.reply({ content: `❌ ${result.error}`, ephemeral: true });

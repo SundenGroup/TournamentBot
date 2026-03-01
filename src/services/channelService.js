@@ -82,7 +82,7 @@ async function _createMatchRoom(guild, match, tournament) {
   ];
 
   // Add tournament admin roles
-  const settings = getServerSettings(guild.id);
+  const settings = await getServerSettings(guild.id);
   for (const roleId of settings.tournamentAdminRoles || []) {
     permissionOverwrites.push({
       id: roleId,
@@ -186,7 +186,7 @@ async function _createMatchRoom(guild, match, tournament) {
 }
 
 async function findOrCreateMatchCategory(guild, tournament) {
-  const settings = getServerSettings(guild.id);
+  const settings = await getServerSettings(guild.id);
 
   // Check if admin set a specific category
   if (settings.matchRoomCategory) {
@@ -407,7 +407,7 @@ async function _createBRGroupRoom(guild, group, tournament) {
   ];
 
   // Add tournament admin roles
-  const brSettings = getServerSettings(guild.id);
+  const brSettings = await getServerSettings(guild.id);
   for (const roleId of brSettings.tournamentAdminRoles || []) {
     permissionOverwrites.push({
       id: roleId,

@@ -132,8 +132,8 @@ function getSuggestedBoost(needed) {
 /**
  * Get effective tier for a guild (checks linked servers, grant expiry, and grace period)
  */
-function getEffectiveTier(guildId) {
-  const sub = getSubscription(guildId);
+async function getEffectiveTier(guildId) {
+  const sub = await getSubscription(guildId);
 
   if (!sub) return 'free';
 
@@ -141,14 +141,14 @@ function getEffectiveTier(guildId) {
   if (sub.manualGrant && sub.manualGrant.expiresAt) {
     const expiresAt = new Date(sub.manualGrant.expiresAt);
     if (expiresAt < new Date()) {
-      clearManualGrant(guildId);
+      await clearManualGrant(guildId);
       return 'free';
     }
   }
 
   // Check if linked to a Business subscription
   if (sub.parentSubscription) {
-    const parent = getSubscription(sub.parentSubscription);
+    const parent = await getSubscription(sub.parentSubscription);
     if (parent?.tier === 'business') {
       return 'business';
     }
@@ -161,7 +161,7 @@ function getEffectiveTier(guildId) {
       return sub.previousTier;
     } else {
       // Grace period expired - clear it
-      updateSubscription(guildId, {
+      await updateSubscription(guildId, {
         gracePeriodEnd: null,
         previousTier: null,
       });
@@ -174,8 +174,8 @@ function getEffectiveTier(guildId) {
 /**
  * Check if guild is in grace period
  */
-function isInGracePeriod(guildId) {
-  const sub = getSubscription(guildId);
+async function isInGracePeriod(guildId) {
+  const sub = await getSubscription(guildId);
   if (!sub?.gracePeriodEnd) return false;
   return new Date(sub.gracePeriodEnd) > new Date();
 }
@@ -183,11 +183,11 @@ function isInGracePeriod(guildId) {
 /**
  * Start grace period when subscription expires/cancels
  */
-function startGracePeriod(guildId, previousTier) {
+async function startGracePeriod(guildId, previousTier) {
   const gracePeriodEnd = new Date();
   gracePeriodEnd.setDate(gracePeriodEnd.getDate() + GRACE_PERIOD_DAYS);
 
-  return updateSubscription(guildId, {
+  return await updateSubscription(guildId, {
     tier: 'free',
     gracePeriodEnd,
     previousTier,
@@ -197,8 +197,8 @@ function startGracePeriod(guildId, previousTier) {
 /**
  * Start a free trial (7 days of Premium)
  */
-function startFreeTrial(guildId, grantedBy) {
-  const sub = getOrCreateSubscription(guildId);
+async function startFreeTrial(guildId, grantedBy) {
+  const sub = await getOrCreateSubscription(guildId);
 
   // Check if trial already used
   if (sub.trialUsed) {
@@ -206,7 +206,7 @@ function startFreeTrial(guildId, grantedBy) {
   }
 
   // Check if already has a paid tier
-  const currentTier = getEffectiveTier(guildId);
+  const currentTier = await getEffectiveTier(guildId);
   if (currentTier !== 'free') {
     return { success: false, reason: 'Server already has an active subscription' };
   }
@@ -215,8 +215,8 @@ function startFreeTrial(guildId, grantedBy) {
   const expiresAt = new Date();
   expiresAt.setDate(expiresAt.getDate() + 7);
 
-  setManualGrant(guildId, 'premium', expiresAt, 'Free trial', grantedBy);
-  updateSubscription(guildId, { trialUsed: true });
+  await setManualGrant(guildId, 'premium', expiresAt, 'Free trial', grantedBy);
+  await updateSubscription(guildId, { trialUsed: true });
 
   return { success: true, expiresAt };
 }
@@ -225,8 +225,8 @@ function startFreeTrial(guildId, grantedBy) {
  * Check if a feature is available for a guild
  * @returns {{ allowed: boolean, reason?: string, upgradeRequired?: string }}
  */
-function checkFeature(guildId, feature) {
-  const tier = getEffectiveTier(guildId);
+async function checkFeature(guildId, feature) {
+  const tier = await getEffectiveTier(guildId);
 
   if (PREMIUM_FEATURES.includes(feature)) {
     if (tier === 'free') {
@@ -264,8 +264,8 @@ function checkFeature(guildId, feature) {
 /**
  * Check if a participant limit is within tier allowance (including boosts)
  */
-function checkParticipantLimit(guildId, requestedLimit, boostToUse = null) {
-  const tier = getEffectiveTier(guildId);
+async function checkParticipantLimit(guildId, requestedLimit, boostToUse = null) {
+  const tier = await getEffectiveTier(guildId);
   const baseMax = TIER_LIMITS[tier].maxParticipants;
   const boostAmount = boostToUse || 0;
   const effectiveMax = Math.min(baseMax + boostAmount, 512); // Platform cap
@@ -289,9 +289,9 @@ function checkParticipantLimit(guildId, requestedLimit, boostToUse = null) {
 /**
  * Check monthly tournament limit (including tokens)
  */
-function checkTournamentLimit(guildId) {
-  const sub = getOrCreateSubscription(guildId);
-  const tier = getEffectiveTier(guildId);
+async function checkTournamentLimit(guildId) {
+  const sub = await getOrCreateSubscription(guildId);
+  const tier = await getEffectiveTier(guildId);
   const baseLimit = TIER_LIMITS[tier].tournamentsPerMonth;
 
   const used = sub.usage?.tournamentsThisMonth || 0;
@@ -330,9 +330,9 @@ function checkTournamentLimit(guildId) {
 /**
  * Check concurrent tournament limit
  */
-function checkConcurrentLimit(guildId) {
-  const sub = getOrCreateSubscription(guildId);
-  const tier = getEffectiveTier(guildId);
+async function checkConcurrentLimit(guildId) {
+  const sub = await getOrCreateSubscription(guildId);
+  const tier = await getEffectiveTier(guildId);
   const limit = TIER_LIMITS[tier].maxConcurrent;
   const current = sub.usage?.concurrentActive || 0;
 
@@ -354,25 +354,25 @@ function checkConcurrentLimit(guildId) {
 /**
  * Record tournament creation (consumes token if needed)
  */
-function recordTournamentCreation(guildId, participantBoostUsed = null) {
-  const sub = getOrCreateSubscription(guildId);
-  const tier = getEffectiveTier(guildId);
+async function recordTournamentCreation(guildId, participantBoostUsed = null) {
+  const sub = await getOrCreateSubscription(guildId);
+  const tier = await getEffectiveTier(guildId);
   const baseLimit = TIER_LIMITS[tier].tournamentsPerMonth;
 
   // Increment usage
-  incrementTournamentUsage(guildId);
-  incrementConcurrent(guildId);
+  await incrementTournamentUsage(guildId);
+  await incrementConcurrent(guildId);
 
   // Check if we need to consume a token
   const usedToken = sub.usage.tournamentsThisMonth > baseLimit;
   if (usedToken) {
-    consumeTournamentToken(guildId);
+    await consumeTournamentToken(guildId);
   }
 
   // Consume participant boost if used
   let usedBoost = null;
   if (participantBoostUsed) {
-    const consumed = consumeParticipantBoost(guildId, participantBoostUsed);
+    const consumed = await consumeParticipantBoost(guildId, participantBoostUsed);
     if (consumed) {
       usedBoost = participantBoostUsed;
     }
@@ -384,9 +384,9 @@ function recordTournamentCreation(guildId, participantBoostUsed = null) {
 /**
  * Record tournament completion (decrements concurrent count)
  */
-function recordTournamentCompletion(guildId) {
+async function recordTournamentCompletion(guildId) {
   const { decrementConcurrent } = require('../data/subscriptions');
-  decrementConcurrent(guildId);
+  await decrementConcurrent(guildId);
 }
 
 // ============================================================================
@@ -396,35 +396,36 @@ function recordTournamentCompletion(guildId) {
 /**
  * Grant a tier to a guild
  */
-function grantTier(guildId, tier, days, reason, grantedBy) {
+async function grantTier(guildId, tier, days, reason, grantedBy) {
   const expiresAt = new Date();
   expiresAt.setDate(expiresAt.getDate() + days);
 
-  return setManualGrant(guildId, tier, expiresAt, reason, grantedBy);
+  return await setManualGrant(guildId, tier, expiresAt, reason, grantedBy);
 }
 
 /**
  * Revoke a granted tier
  */
-function revokeTier(guildId) {
-  return clearManualGrant(guildId);
+async function revokeTier(guildId) {
+  return await clearManualGrant(guildId);
 }
 
 /**
  * Grant free tokens to a guild
  */
-function grantTokens(guildId, amount) {
+async function grantTokens(guildId, amount) {
   const expiryDate = new Date();
   expiryDate.setFullYear(expiryDate.getFullYear() + 1);
 
-  return addTournamentTokens(guildId, amount, expiryDate);
+  return await addTournamentTokens(guildId, amount, expiryDate);
 }
 
 /**
  * Get all active manual grants
  */
-function getActiveGrants() {
-  return getManualGrants().filter(sub => {
+async function getActiveGrants() {
+  const grants = await getManualGrants();
+  return grants.filter(sub => {
     if (!sub.manualGrant?.expiresAt) return false;
     return new Date(sub.manualGrant.expiresAt) > new Date();
   });
@@ -519,9 +520,9 @@ function getBoostPurchaseEmbed(participantCheck) {
 /**
  * Create subscription status embed
  */
-function getStatusEmbed(guildId) {
-  const sub = getOrCreateSubscription(guildId);
-  const tier = getEffectiveTier(guildId);
+async function getStatusEmbed(guildId) {
+  const sub = await getOrCreateSubscription(guildId);
+  const tier = await getEffectiveTier(guildId);
   const limits = TIER_LIMITS[tier];
 
   const tierEmoji = {

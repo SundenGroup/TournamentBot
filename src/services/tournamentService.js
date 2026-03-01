@@ -1,13 +1,48 @@
 const { v4: uuidv4 } = require('uuid');
+const db = require('../db');
 const { tournaments } = require('../data/store');
+const { rowToTournament } = require('../data/store');
 const { getPreset } = require('../config/gamePresets');
 const { DEFAULT_TOURNAMENT_SETTINGS } = require('../config/defaultSettings');
 const { getServerSettings } = require('../data/serverSettings');
 const webhooks = require('./webhookService');
 
-function createTournament(data) {
+// ============================================================================
+// Helpers: camelCase JS object → snake_case DB row
+// ============================================================================
+
+function tournamentToRow(t) {
+  return {
+    id: t.id,
+    guild_id: t.guildId,
+    channel_id: t.channelId,
+    message_id: t.messageId,
+    participant_list_message_id: t.participantListMessageId,
+    title: t.title,
+    description: t.description,
+    game: JSON.stringify(t.game),
+    settings: JSON.stringify(t.settings),
+    setup_mode: t.setupMode,
+    start_time: t.startTime,
+    status: t.status,
+    checkin_open: t.checkinOpen,
+    participants: JSON.stringify(t.participants),
+    teams: JSON.stringify(t.teams),
+    bracket: JSON.stringify(t.bracket),
+    created_by: t.createdBy,
+    created_at: t.createdAt,
+  };
+}
+
+// ============================================================================
+// Public API (all async, database-backed)
+// ============================================================================
+
+async function createTournament(data) {
   const id = uuidv4();
   const preset = getPreset(data.gamePreset);
+
+  const serverCfg = await getServerSettings(data.guildId);
 
   const tournament = {
     id,
@@ -54,7 +89,7 @@ function createTournament(data) {
       gamesPerStage: data.gamesPerStage ?? 3,
       advancingPerGroup: data.advancingPerGroup ?? null, // null = auto calculate
 
-      captainMode: data.captainMode ?? getServerSettings(data.guildId).captainMode ?? false,
+      captainMode: data.captainMode ?? serverCfg.captainMode ?? false,
     },
 
     setupMode: data.setupMode || 'simple',
@@ -73,6 +108,10 @@ function createTournament(data) {
     createdAt: new Date(),
   };
 
+  // Persist to database
+  await db('tournaments').insert(tournamentToRow(tournament));
+
+  // Update in-memory cache
   tournaments.set(id, tournament);
 
   // Trigger webhook
@@ -91,36 +130,111 @@ function getDefaultGameSettings(preset) {
   return settings;
 }
 
-function getTournament(id) {
-  return tournaments.get(id) || null;
-}
+async function getTournament(id) {
+  // Check memory cache first
+  if (tournaments.has(id)) {
+    return tournaments.get(id);
+  }
 
-function getTournamentsByGuild(guildId) {
-  return Array.from(tournaments.values()).filter(t => t.guildId === guildId);
-}
+  // Fall back to database
+  const row = await db('tournaments').where('id', id).first();
+  if (!row) return null;
 
-function getActiveTournaments(guildId) {
-  return getTournamentsByGuild(guildId).filter(t =>
-    ['registration', 'checkin', 'active'].includes(t.status)
-  );
-}
-
-function updateTournament(id, updates) {
-  const tournament = tournaments.get(id);
-  if (!tournament) return null;
-
-  Object.assign(tournament, updates);
+  const tournament = rowToTournament(row);
   tournaments.set(id, tournament);
   return tournament;
 }
 
-function deleteTournament(id) {
-  return tournaments.delete(id);
+async function getTournamentsByGuild(guildId) {
+  const rows = await db('tournaments').where('guild_id', guildId);
+  const results = rows.map(rowToTournament);
+
+  // Refresh cache for these tournaments
+  for (const t of results) {
+    tournaments.set(t.id, t);
+  }
+
+  return results;
 }
 
-function addParticipant(tournamentId, user) {
-  const tournament = tournaments.get(tournamentId);
-  if (!tournament) return { success: false, error: 'Tournament not found' };
+async function getActiveTournaments(guildId) {
+  const rows = await db('tournaments')
+    .where('guild_id', guildId)
+    .whereIn('status', ['registration', 'checkin', 'active']);
+
+  const results = rows.map(rowToTournament);
+
+  // Refresh cache
+  for (const t of results) {
+    tournaments.set(t.id, t);
+  }
+
+  return results;
+}
+
+async function updateTournament(id, updates) {
+  // Fetch current state from database to ensure we have the latest
+  const row = await db('tournaments').where('id', id).first();
+  if (!row) return null;
+
+  const tournament = rowToTournament(row);
+  Object.assign(tournament, updates);
+
+  // Build the columns that changed
+  const updateRow = {};
+  const fieldMap = {
+    guildId: 'guild_id',
+    channelId: 'channel_id',
+    messageId: 'message_id',
+    participantListMessageId: 'participant_list_message_id',
+    title: 'title',
+    description: 'description',
+    game: 'game',
+    settings: 'settings',
+    setupMode: 'setup_mode',
+    startTime: 'start_time',
+    status: 'status',
+    checkinOpen: 'checkin_open',
+    participants: 'participants',
+    teams: 'teams',
+    bracket: 'bracket',
+    createdBy: 'created_by',
+    createdAt: 'created_at',
+  };
+
+  const jsonFields = new Set(['game', 'settings', 'participants', 'teams', 'bracket']);
+
+  for (const [camel, snake] of Object.entries(fieldMap)) {
+    if (camel in updates) {
+      updateRow[snake] = jsonFields.has(camel)
+        ? JSON.stringify(updates[camel])
+        : updates[camel];
+    }
+  }
+
+  if (Object.keys(updateRow).length > 0) {
+    await db('tournaments').where('id', id).update(updateRow);
+  }
+
+  // Update in-memory cache
+  tournaments.set(id, tournament);
+  return tournament;
+}
+
+async function deleteTournament(id) {
+  const deleted = await db('tournaments').where('id', id).del();
+
+  // Remove from in-memory cache
+  tournaments.delete(id);
+
+  return deleted > 0;
+}
+
+async function addParticipant(tournamentId, user) {
+  const row = await db('tournaments').where('id', tournamentId).first();
+  if (!row) return { success: false, error: 'Tournament not found' };
+
+  const tournament = rowToTournament(row);
 
   if (tournament.status !== 'registration') {
     return { success: false, error: 'Registration is closed' };
@@ -146,6 +260,13 @@ function addParticipant(tournamentId, user) {
   };
 
   tournament.participants.push(participant);
+
+  // Persist updated participants to database
+  await db('tournaments')
+    .where('id', tournamentId)
+    .update({ participants: JSON.stringify(tournament.participants) });
+
+  // Update in-memory cache
   tournaments.set(tournamentId, tournament);
 
   // Trigger webhook
@@ -154,9 +275,11 @@ function addParticipant(tournamentId, user) {
   return { success: true, tournament };
 }
 
-function removeParticipant(tournamentId, userId) {
-  const tournament = tournaments.get(tournamentId);
-  if (!tournament) return { success: false, error: 'Tournament not found' };
+async function removeParticipant(tournamentId, userId) {
+  const row = await db('tournaments').where('id', tournamentId).first();
+  if (!row) return { success: false, error: 'Tournament not found' };
+
+  const tournament = rowToTournament(row);
 
   if (tournament.status !== 'registration') {
     return { success: false, error: 'Cannot withdraw after registration closes' };
@@ -169,6 +292,13 @@ function removeParticipant(tournamentId, userId) {
 
   const participant = tournament.participants[index];
   tournament.participants.splice(index, 1);
+
+  // Persist updated participants to database
+  await db('tournaments')
+    .where('id', tournamentId)
+    .update({ participants: JSON.stringify(tournament.participants) });
+
+  // Update in-memory cache
   tournaments.set(tournamentId, tournament);
 
   // Trigger webhook
@@ -177,9 +307,11 @@ function removeParticipant(tournamentId, userId) {
   return { success: true, tournament };
 }
 
-function addTeam(tournamentId, teamData) {
-  const tournament = tournaments.get(tournamentId);
-  if (!tournament) return { success: false, error: 'Tournament not found' };
+async function addTeam(tournamentId, teamData) {
+  const row = await db('tournaments').where('id', tournamentId).first();
+  if (!row) return { success: false, error: 'Tournament not found' };
+
+  const tournament = rowToTournament(row);
 
   if (tournament.status !== 'registration') {
     return { success: false, error: 'Registration is closed' };
@@ -229,6 +361,13 @@ function addTeam(tournamentId, teamData) {
   };
 
   tournament.teams.push(team);
+
+  // Persist updated teams to database
+  await db('tournaments')
+    .where('id', tournamentId)
+    .update({ teams: JSON.stringify(tournament.teams) });
+
+  // Update in-memory cache
   tournaments.set(tournamentId, tournament);
 
   // Trigger webhook
@@ -237,9 +376,11 @@ function addTeam(tournamentId, teamData) {
   return { success: true, tournament, team };
 }
 
-function removeTeam(tournamentId, captainId) {
-  const tournament = tournaments.get(tournamentId);
-  if (!tournament) return { success: false, error: 'Tournament not found' };
+async function removeTeam(tournamentId, captainId) {
+  const row = await db('tournaments').where('id', tournamentId).first();
+  if (!row) return { success: false, error: 'Tournament not found' };
+
+  const tournament = rowToTournament(row);
 
   if (tournament.status !== 'registration') {
     return { success: false, error: 'Cannot withdraw after registration closes' };
@@ -252,6 +393,13 @@ function removeTeam(tournamentId, captainId) {
 
   const team = tournament.teams[index];
   tournament.teams.splice(index, 1);
+
+  // Persist updated teams to database
+  await db('tournaments')
+    .where('id', tournamentId)
+    .update({ teams: JSON.stringify(tournament.teams) });
+
+  // Update in-memory cache
   tournaments.set(tournamentId, tournament);
 
   // Trigger webhook
@@ -260,13 +408,17 @@ function removeTeam(tournamentId, captainId) {
   return { success: true, tournament, team };
 }
 
-function findTournamentByMessage(messageId) {
-  for (const tournament of tournaments.values()) {
-    if (tournament.messageId === messageId || tournament.participantListMessageId === messageId) {
-      return tournament;
-    }
-  }
-  return null;
+async function findTournamentByMessage(messageId) {
+  const row = await db('tournaments')
+    .where('message_id', messageId)
+    .orWhere('participant_list_message_id', messageId)
+    .first();
+
+  if (!row) return null;
+
+  const tournament = rowToTournament(row);
+  tournaments.set(tournament.id, tournament);
+  return tournament;
 }
 
 async function resolveTeamMembers(guild, tournament) {
@@ -313,6 +465,14 @@ async function resolveTeamMembers(guild, tournament) {
       team.captain = { id: captainInMembers.id, username: captainInMembers.username, displayName: captainInMembers.displayName };
     }
   }
+
+  // Persist resolved team data back to database
+  await db('tournaments')
+    .where('id', tournament.id)
+    .update({ teams: JSON.stringify(tournament.teams) });
+
+  // Update in-memory cache
+  tournaments.set(tournament.id, tournament);
 
   return { resolved, failed };
 }

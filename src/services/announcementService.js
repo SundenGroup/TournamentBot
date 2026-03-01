@@ -5,7 +5,7 @@ async function getOrCreateAnnouncementChannel(guild) {
   const guildId = guild.id;
 
   // Check if we have a saved channel ID
-  let channelId = getAnnouncementChannelId(guildId);
+  let channelId = await getAnnouncementChannelId(guildId);
 
   if (channelId) {
     // Try to fetch the channel
@@ -20,7 +20,7 @@ async function getOrCreateAnnouncementChannel(guild) {
   }
 
   // Look for existing channel by name
-  const channelName = getAnnouncementChannelName(guildId);
+  const channelName = await getAnnouncementChannelName(guildId);
   let channel = guild.channels.cache.find(
     c => c.type === ChannelType.GuildText &&
     (c.name === channelName || c.name === 'tournament-announcements')
@@ -28,7 +28,7 @@ async function getOrCreateAnnouncementChannel(guild) {
 
   if (channel) {
     // Save the channel ID for future use
-    setAnnouncementChannel(guildId, channel.id, channel.name);
+    await setAnnouncementChannel(guildId, channel.id, channel.name);
     return channel;
   }
 
@@ -56,7 +56,7 @@ async function getOrCreateAnnouncementChannel(guild) {
       ],
     });
 
-    setAnnouncementChannel(guildId, channel.id, channel.name);
+    await setAnnouncementChannel(guildId, channel.id, channel.name);
     console.log(`Created announcement channel: ${channel.name} in ${guild.name}`);
     return channel;
   } catch (error) {

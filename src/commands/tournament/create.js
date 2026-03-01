@@ -202,7 +202,7 @@ module.exports = {
     const needsPermCheck = adminSubcommands.includes(subcommand) ||
       (group === 'seed' && adminSeedSubcommands.includes(subcommand));
 
-    if (needsPermCheck && !canManageTournaments(interaction.member)) {
+    if (needsPermCheck && !(await canManageTournaments(interaction.member))) {
       return interaction.reply({
         content: '❌ You do not have permission to manage tournaments.',
         ephemeral: true,
@@ -276,7 +276,7 @@ module.exports = {
     }
 
     if (focused.name === 'tournament') {
-      const tournaments = getActiveTournaments(interaction.guildId);
+      const tournaments = await getActiveTournaments(interaction.guildId);
       const choices = tournaments.map(t => ({
         name: `${t.game.icon} ${t.title}`,
         value: t.id,
@@ -290,7 +290,7 @@ module.exports = {
 
     if (focused.name === 'winner') {
       const tournamentId = interaction.options.getString('tournament');
-      const tournament = getTournament(tournamentId);
+      const tournament = await getTournament(tournamentId);
 
       if (!tournament || !tournament.bracket) {
         return interaction.respond([]);
@@ -312,7 +312,7 @@ module.exports = {
 
     if (focused.name === 'group') {
       const tournamentId = interaction.options.getString('tournament');
-      const tournament = getTournament(tournamentId);
+      const tournament = await getTournament(tournamentId);
 
       if (!tournament || !tournament.bracket || tournament.bracket.type !== 'battle_royale') {
         return interaction.respond([]);
@@ -343,7 +343,7 @@ module.exports = {
 
     if (focused.name === 'participant') {
       const tournamentId = interaction.options.getString('tournament');
-      const tournament = getTournament(tournamentId);
+      const tournament = await getTournament(tournamentId);
 
       if (!tournament) {
         return interaction.respond([]);
@@ -413,7 +413,7 @@ async function handleAdvancedCreate(interaction) {
   const { createSession } = require('../../data/wizardSessions');
   const { getPresetKeys, getFeaturedPresetKeys } = require('../../config/gamePresets');
 
-  const session = createSession(interaction.user.id, interaction.guildId);
+  const session = await createSession(interaction.user.id, interaction.guildId);
 
   const featuredKeys = getFeaturedPresetKeys();
   const allKeys = getPresetKeys();
@@ -461,7 +461,7 @@ async function handleAdvancedCreate(interaction) {
 async function handleList(interaction) {
   const { getTournamentsByGuild } = require('../../services/tournamentService');
 
-  const tournaments = getTournamentsByGuild(interaction.guildId);
+  const tournaments = await getTournamentsByGuild(interaction.guildId);
 
   if (tournaments.length === 0) {
     return interaction.reply({
@@ -492,13 +492,13 @@ async function handleList(interaction) {
 
 async function handleInfo(interaction) {
   const tournamentId = interaction.options.getString('tournament');
-  const tournament = getTournament(tournamentId);
+  const tournament = await getTournament(tournamentId);
 
   if (!tournament) {
     return interaction.reply({ content: '❌ Tournament not found.', ephemeral: true });
   }
 
-  const embed = createTournamentEmbed(tournament);
+  const embed = await createTournamentEmbed(tournament);
   await interaction.reply({ embeds: [embed], ephemeral: true });
 }
 
@@ -506,17 +506,17 @@ async function handleCancel(interaction) {
   const { canEditTournament } = require('../../utils/permissions');
 
   const tournamentId = interaction.options.getString('tournament');
-  const tournament = getTournament(tournamentId);
+  const tournament = await getTournament(tournamentId);
 
   if (!tournament) {
     return interaction.reply({ content: '❌ Tournament not found.', ephemeral: true });
   }
 
-  if (!canEditTournament(interaction.member, tournament)) {
+  if (!(await canEditTournament(interaction.member, tournament))) {
     return interaction.reply({ content: '❌ You do not have permission to cancel this tournament.', ephemeral: true });
   }
 
-  updateTournament(tournamentId, { status: 'cancelled' });
+  await updateTournament(tournamentId, { status: 'cancelled' });
 
   // Trigger webhook
   webhooks.onTournamentCancelled(tournament);
@@ -532,13 +532,13 @@ async function handleStart(interaction) {
   const { createMatchRoom } = require('../../services/channelService');
 
   const tournamentId = interaction.options.getString('tournament');
-  const tournament = getTournament(tournamentId);
+  const tournament = await getTournament(tournamentId);
 
   if (!tournament) {
     return interaction.reply({ content: '❌ Tournament not found.', ephemeral: true });
   }
 
-  if (!canEditTournament(interaction.member, tournament)) {
+  if (!(await canEditTournament(interaction.member, tournament))) {
     return interaction.reply({ content: '❌ You do not have permission to start this tournament.', ephemeral: true });
   }
 
@@ -555,7 +555,7 @@ async function handleStart(interaction) {
   }
 
   // Immediately mark as active to prevent concurrent starts
-  updateTournament(tournamentId, { status: 'active' });
+  await updateTournament(tournamentId, { status: 'active' });
 
   await interaction.deferReply();
 
@@ -567,7 +567,7 @@ async function handleStart(interaction) {
       if (resolved > 0 || failed > 0) {
         console.log(`Captain mode resolution for "${tournament.title}": ${resolved} resolved, ${failed} failed`);
       }
-      updateTournament(tournamentId, { teams: tournament.teams });
+      await updateTournament(tournamentId, { teams: tournament.teams });
     }
 
     const format = tournament.settings.format;
@@ -629,7 +629,7 @@ async function handleStart(interaction) {
       }
     }
 
-    updateTournament(tournamentId, { bracket, status: 'active' });
+    await updateTournament(tournamentId, { bracket, status: 'active' });
 
     // Trigger webhook
     webhooks.onTournamentStarted(tournament);
@@ -708,7 +708,7 @@ async function handleReport(interaction) {
   const winnerId = interaction.options.getString('winner');
   const score = interaction.options.getString('score');
 
-  const tournament = getTournament(tournamentId);
+  const tournament = await getTournament(tournamentId);
 
   if (!tournament) {
     return interaction.reply({ content: '❌ Tournament not found.', ephemeral: true });
@@ -783,19 +783,19 @@ async function handleReport(interaction) {
       }
     }
 
-    updateTournament(tournamentId, { bracket });
+    await updateTournament(tournamentId, { bracket });
 
     if (service.isComplete(bracket)) {
       const results = service.getResults(bracket);
       const champName = isSolo ? results.winner?.username : results.winner?.name;
       response += `\n\n🏆 **Tournament Complete!** Champion: **${champName}**`;
-      updateTournament(tournamentId, { status: 'completed' });
+      await updateTournament(tournamentId, { status: 'completed' });
 
       // Trigger tournament completed webhook
       webhooks.onTournamentCompleted(tournament, results.standings || [results.winner, results.runnerUp, results.thirdPlace].filter(Boolean));
 
       await updateTournamentAnnouncement(interaction.client, tournament);
-      triggerAutoCleanup(interaction.guild, tournament);
+      await triggerAutoCleanup(interaction.guild, tournament);
     }
 
     return interaction.reply({ content: response });
@@ -816,7 +816,7 @@ async function updateTournamentAnnouncement(client, tournament) {
 
     tournament.status = 'completed';
 
-    const embed = createTournamentEmbed(tournament);
+    const embed = await createTournamentEmbed(tournament);
     const buttons = createTournamentButtons(tournament);
 
     await message.edit({ embeds: [embed], components: buttons });
@@ -831,7 +831,7 @@ async function handleBRReport(interaction) {
   const gameNumber = interaction.options.getInteger('game_number');
   const placementsStr = interaction.options.getString('placements');
 
-  const tournament = getTournament(tournamentId);
+  const tournament = await getTournament(tournamentId);
 
   if (!tournament) {
     return interaction.reply({ content: '❌ Tournament not found.', ephemeral: true });
@@ -943,7 +943,7 @@ async function handleBRReport(interaction) {
       const results = battleRoyale.getResults(bracket);
       const champName = isSolo ? results.winner?.username : results.winner?.name;
       response += `\n🏆 **Tournament Complete!** Champion: **${champName}**`;
-      updateTournament(tournamentId, { status: 'completed' });
+      await updateTournament(tournamentId, { status: 'completed' });
 
       await updateTournamentAnnouncement(interaction.client, tournament);
     } else if (bracket.currentStage === 'finals') {
@@ -973,10 +973,10 @@ async function handleBRReport(interaction) {
 
     if (bracket.currentStage === 'complete' || (bracket.currentStage === 'finals' && battleRoyale.isComplete(bracket))) {
       await announceBRTournamentComplete(interaction.client, tournament, bracket);
-      triggerAutoCleanup(interaction.guild, tournament);
+      await triggerAutoCleanup(interaction.guild, tournament);
     }
 
-    updateTournament(tournamentId, { bracket });
+    await updateTournament(tournamentId, { bracket });
 
     return interaction.reply({ content: response });
 
@@ -1121,8 +1121,8 @@ async function announceBRTournamentComplete(client, tournament, bracket) {
   }
 }
 
-function triggerAutoCleanup(guild, tournament) {
-  const settings = getServerSettings(guild.id);
+async function triggerAutoCleanup(guild, tournament) {
+  const settings = await getServerSettings(guild.id);
   if (!settings.autoCleanup) return;
 
   const channelIds = collectTournamentChannels(tournament.bracket);
@@ -1138,7 +1138,7 @@ function triggerAutoCleanup(guild, tournament) {
       if (mode === 'delete') {
         clearBracketChannelIds(tournament.bracket);
       }
-      updateTournament(tournament.id, { bracket: tournament.bracket });
+      await updateTournament(tournament.id, { bracket: tournament.bracket });
       console.log(`Auto-cleanup complete: ${count}/${channelIds.length} channels processed for "${tournament.title}"`);
     } catch (error) {
       console.error('Auto-cleanup error:', error);
@@ -1150,7 +1150,7 @@ function triggerAutoCleanup(guild, tournament) {
 
 async function handleBracket(interaction) {
   const tournamentId = interaction.options.getString('tournament');
-  const tournament = getTournament(tournamentId);
+  const tournament = await getTournament(tournamentId);
 
   if (!tournament) {
     return interaction.reply({ content: '❌ Tournament not found.', ephemeral: true });
@@ -1458,7 +1458,7 @@ async function handleSeedSet(interaction) {
   const tournamentId = interaction.options.getString('tournament');
   const participantId = interaction.options.getString('participant');
   const seed = interaction.options.getInteger('seed');
-  const tournament = getTournament(tournamentId);
+  const tournament = await getTournament(tournamentId);
 
   if (!tournament) {
     return interaction.reply({ content: '❌ Tournament not found.', ephemeral: true });
@@ -1490,9 +1490,9 @@ async function handleSeedSet(interaction) {
   participant.seed = seed;
 
   if (isSolo) {
-    updateTournament(tournamentId, { participants: tournament.participants });
+    await updateTournament(tournamentId, { participants: tournament.participants });
   } else {
-    updateTournament(tournamentId, { teams: tournament.teams });
+    await updateTournament(tournamentId, { teams: tournament.teams });
   }
 
   const name = isSolo ? participant.username : participant.name;
@@ -1504,7 +1504,7 @@ async function handleSeedSet(interaction) {
 
 async function handleSeedList(interaction) {
   const tournamentId = interaction.options.getString('tournament');
-  const tournament = getTournament(tournamentId);
+  const tournament = await getTournament(tournamentId);
 
   if (!tournament) {
     return interaction.reply({ content: '❌ Tournament not found.', ephemeral: true });
@@ -1550,7 +1550,7 @@ async function handleSeedList(interaction) {
 
 async function handleSeedRandomize(interaction) {
   const tournamentId = interaction.options.getString('tournament');
-  const tournament = getTournament(tournamentId);
+  const tournament = await getTournament(tournamentId);
 
   if (!tournament) {
     return interaction.reply({ content: '❌ Tournament not found.', ephemeral: true });
@@ -1585,9 +1585,9 @@ async function handleSeedRandomize(interaction) {
   }
 
   if (isSolo) {
-    updateTournament(tournamentId, { participants: tournament.participants });
+    await updateTournament(tournamentId, { participants: tournament.participants });
   } else {
-    updateTournament(tournamentId, { teams: tournament.teams });
+    await updateTournament(tournamentId, { teams: tournament.teams });
   }
 
   return interaction.reply({
@@ -1598,7 +1598,7 @@ async function handleSeedRandomize(interaction) {
 
 async function handleSeedClear(interaction) {
   const tournamentId = interaction.options.getString('tournament');
-  const tournament = getTournament(tournamentId);
+  const tournament = await getTournament(tournamentId);
 
   if (!tournament) {
     return interaction.reply({ content: '❌ Tournament not found.', ephemeral: true });
@@ -1612,9 +1612,9 @@ async function handleSeedClear(interaction) {
   }
 
   if (isSolo) {
-    updateTournament(tournamentId, { participants: tournament.participants });
+    await updateTournament(tournamentId, { participants: tournament.participants });
   } else {
-    updateTournament(tournamentId, { teams: tournament.teams });
+    await updateTournament(tournamentId, { teams: tournament.teams });
   }
 
   return interaction.reply({

@@ -7,7 +7,7 @@ module.exports = {
   customId: 'wizardBasic',
   async execute(interaction, args) {
     const sessionId = args[0];
-    const session = getSession(sessionId);
+    const session = await getSession(sessionId);
 
     if (!session) {
       return interaction.reply({
@@ -78,7 +78,7 @@ module.exports = {
       updates.seedingEnabled = false;
     }
 
-    updateSession(sessionId, updates);
+    await updateSession(sessionId, updates);
 
     // Build and send the settings message
     const message = buildSettingsMessage(session);

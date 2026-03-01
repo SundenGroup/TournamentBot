@@ -52,15 +52,15 @@ module.exports = {
     // === Subscription checks ===
 
     // 1. Check concurrent limit
-    const concurrentCheck = checkConcurrentLimit(guildId);
+    const concurrentCheck = await checkConcurrentLimit(guildId);
     if (!concurrentCheck.allowed) {
       return interaction.reply({
-        ...getUpgradeEmbed('concurrent', getEffectiveTier(guildId), concurrentCheck.reason),
+        ...getUpgradeEmbed('concurrent', await getEffectiveTier(guildId), concurrentCheck.reason),
       });
     }
 
     // 2. Check tournament limit (may use token)
-    const limitCheck = checkTournamentLimit(guildId);
+    const limitCheck = await checkTournamentLimit(guildId);
     if (!limitCheck.allowed) {
       return interaction.reply({
         ...getTokenPurchaseEmbed(limitCheck),
@@ -69,14 +69,14 @@ module.exports = {
 
     // 3. Check participant limit (and try to use a boost if available)
     let boostToUse = null;
-    let participantCheck = checkParticipantLimit(guildId, maxParticipants);
+    let participantCheck = await checkParticipantLimit(guildId, maxParticipants);
 
     if (!participantCheck.allowed) {
       // Check if we have an available boost that would cover it
-      const tier = getEffectiveTier(guildId);
+      const tier = await getEffectiveTier(guildId);
       const baseMax = TIER_LIMITS[tier].maxParticipants;
       const needed = maxParticipants - baseMax;
-      const tokenBalance = getTokenBalance(guildId);
+      const tokenBalance = await getTokenBalance(guildId);
 
       // Find smallest boost that covers the need
       const availableBoosts = tokenBalance.participantBoosts
@@ -86,7 +86,7 @@ module.exports = {
       if (availableBoosts.length > 0) {
         // Use the smallest sufficient boost
         boostToUse = availableBoosts[0].amount;
-        participantCheck = checkParticipantLimit(guildId, maxParticipants, boostToUse);
+        participantCheck = await checkParticipantLimit(guildId, maxParticipants, boostToUse);
         console.log(`[Subscription] Guild ${guildId} auto-applying +${boostToUse} participant boost`);
       }
 
@@ -107,7 +107,7 @@ module.exports = {
     const announcementChannel = await getOrCreateAnnouncementChannel(interaction.guild);
     const targetChannel = announcementChannel || interaction.channel;
 
-    const tournament = createTournament({
+    const tournament = await createTournament({
       guildId: interaction.guildId,
       channelId: targetChannel.id,
       title,
@@ -120,9 +120,9 @@ module.exports = {
       createdBy: interaction.user.id,
     });
 
-    const embed = createTournamentEmbed(tournament);
+    const embed = await createTournamentEmbed(tournament);
     const buttons = createTournamentButtons(tournament);
-    const participantEmbed = createParticipantListEmbed(tournament);
+    const participantEmbed = await createParticipantListEmbed(tournament);
 
     await interaction.reply({
       content: `✅ Tournament created! Announced in ${targetChannel}.`,
@@ -132,7 +132,7 @@ module.exports = {
     const mainMessage = await targetChannel.send({ embeds: [embed], components: buttons });
     const listMessage = await targetChannel.send({ embeds: [participantEmbed] });
 
-    updateTournament(tournament.id, {
+    await updateTournament(tournament.id, {
       messageId: mainMessage.id,
       participantListMessageId: listMessage.id,
     });
@@ -140,7 +140,7 @@ module.exports = {
     scheduleReminders(tournament, interaction.client);
 
     // Record usage (consumes token and/or boost if needed)
-    const { usedToken, usedBoost } = recordTournamentCreation(guildId, boostToUse);
+    const { usedToken, usedBoost } = await recordTournamentCreation(guildId, boostToUse);
     if (usedToken) {
       console.log(`[Subscription] Guild ${guildId} consumed tournament token`);
     }

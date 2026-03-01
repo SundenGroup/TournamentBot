@@ -135,6 +135,10 @@ async function openCheckin(tournament, client) {
   current.checkinOpen = true;
   tournaments.set(tournament.id, current);
 
+  // Persist to database
+  const { updateTournament } = require('./tournamentService');
+  await updateTournament(tournament.id, { status: 'checkin', checkinOpen: true });
+
   // Update tournament message with check-in button
   try {
     const { ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
@@ -165,7 +169,7 @@ async function openCheckin(tournament, client) {
 
     if (current.messageId) {
       const mainMessage = await channel.messages.fetch(current.messageId);
-      const embed = createTournamentEmbed(current);
+      const embed = await createTournamentEmbed(current);
       await mainMessage.edit({ embeds: [embed], components: [buttons] });
     }
 
@@ -231,6 +235,14 @@ async function handleTournamentStart(tournament, client) {
 
   current.checkinOpen = false;
   tournaments.set(tournament.id, current);
+
+  // Persist to database
+  const { updateTournament } = require('./tournamentService');
+  await updateTournament(tournament.id, {
+    checkinOpen: false,
+    participants: current.participants,
+    teams: current.teams,
+  });
 
   // Notify channel that tournament is ready to start
   try {

@@ -14,14 +14,14 @@ module.exports = {
   customId: 'startTournament',
   async execute(interaction, args) {
     const tournamentId = args[0];
-    const tournament = getTournament(tournamentId);
+    const tournament = await getTournament(tournamentId);
 
     if (!tournament) {
       return interaction.reply({ content: '❌ Tournament not found.', ephemeral: true });
     }
 
     // Check permissions - admin only
-    if (!canManageTournaments(interaction.member)) {
+    if (!(await canManageTournaments(interaction.member))) {
       return interaction.reply({ content: '❌ Only tournament admins can start tournaments.', ephemeral: true });
     }
 
@@ -38,7 +38,7 @@ module.exports = {
     }
 
     // Immediately mark as active to prevent concurrent starts
-    updateTournament(tournamentId, { status: 'active' });
+    await updateTournament(tournamentId, { status: 'active' });
 
     await interaction.deferReply({ ephemeral: true });
 
@@ -50,7 +50,7 @@ module.exports = {
         if (resolved > 0 || failed > 0) {
           console.log(`Captain mode resolution for "${tournament.title}": ${resolved} resolved, ${failed} failed`);
         }
-        updateTournament(tournamentId, { teams: tournament.teams });
+        await updateTournament(tournamentId, { teams: tournament.teams });
       }
 
       // Select service based on format
@@ -115,7 +115,7 @@ module.exports = {
         }
       }
 
-      updateTournament(tournamentId, { bracket, status: 'active' });
+      await updateTournament(tournamentId, { bracket, status: 'active' });
 
       // Trigger webhook
       webhooks.onTournamentStarted(tournament);
@@ -179,14 +179,14 @@ async function updateTournamentMessages(interaction, tournament) {
 
     if (tournament.messageId) {
       const mainMessage = await channel.messages.fetch(tournament.messageId);
-      const embed = createTournamentEmbed(tournament);
+      const embed = await createTournamentEmbed(tournament);
       const buttons = createTournamentButtons(tournament);
       await mainMessage.edit({ embeds: [embed], components: buttons });
     }
 
     if (tournament.participantListMessageId) {
       const listMessage = await channel.messages.fetch(tournament.participantListMessageId);
-      const participantEmbed = createParticipantListEmbed(tournament);
+      const participantEmbed = await createParticipantListEmbed(tournament);
       await listMessage.edit({ embeds: [participantEmbed] });
     }
   } catch (error) {

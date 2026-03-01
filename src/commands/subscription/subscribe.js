@@ -147,7 +147,7 @@ module.exports = {
 
   async handleSubcommand(interaction, subcommand) {
     if (subcommand === 'status') {
-      const embed = getStatusEmbed(interaction.guildId);
+      const embed = await getStatusEmbed(interaction.guildId);
       return interaction.reply({ embeds: [embed], ephemeral: true });
     }
 
@@ -161,7 +161,7 @@ module.exports = {
 
       const tier = interaction.options.getString('tier');
       const billingCycle = interaction.options.getString('billing');
-      const currentTier = getEffectiveTier(interaction.guildId);
+      const currentTier = await getEffectiveTier(interaction.guildId);
 
       // Check if already at or above this tier
       const tierOrder = ['free', 'premium', 'pro', 'business'];
@@ -218,7 +218,7 @@ module.exports = {
     }
 
     if (subcommand === 'manage') {
-      const sub = getSubscription(interaction.guildId);
+      const sub = await getSubscription(interaction.guildId);
 
       if (!sub?.stripeCustomerId) {
         return interaction.reply({
@@ -260,7 +260,7 @@ module.exports = {
     }
 
     if (subcommand === 'plans') {
-      const currentTier = getEffectiveTier(interaction.guildId);
+      const currentTier = await getEffectiveTier(interaction.guildId);
 
       const embed = new EmbedBuilder()
         .setColor(0x5865F2)
@@ -335,7 +335,7 @@ module.exports = {
 
     if (subcommand === 'api-key') {
       // Check Business tier
-      const tier = getEffectiveTier(interaction.guildId);
+      const tier = await getEffectiveTier(interaction.guildId);
       if (tier !== 'business') {
         return interaction.reply({
           content: '❌ API access requires Business tier. Use `/subscribe upgrade` to upgrade.',
@@ -352,7 +352,7 @@ module.exports = {
       }
 
       const action = interaction.options.getString('action');
-      const sub = getSubscription(interaction.guildId);
+      const sub = await getSubscription(interaction.guildId);
 
       if (action === 'generate') {
         if (sub?.apiKeyHash) {
@@ -365,7 +365,7 @@ module.exports = {
         const apiKey = generateApiKey();
         const keyHash = hashApiKey(apiKey);
 
-        updateSubscription(interaction.guildId, {
+        await updateSubscription(interaction.guildId, {
           apiKey: apiKey, // Store temporarily for display (will be cleared from view after first display)
           apiKeyHash: keyHash,
         });
@@ -418,7 +418,7 @@ module.exports = {
         const apiKey = generateApiKey();
         const keyHash = hashApiKey(apiKey);
 
-        updateSubscription(interaction.guildId, {
+        await updateSubscription(interaction.guildId, {
           apiKey: apiKey,
           apiKeyHash: keyHash,
         });
@@ -444,7 +444,7 @@ module.exports = {
           });
         }
 
-        updateSubscription(interaction.guildId, {
+        await updateSubscription(interaction.guildId, {
           apiKey: null,
           apiKeyHash: null,
         });
@@ -462,7 +462,7 @@ module.exports = {
 
     if (subcommand === 'webhook') {
       // Check Business tier
-      const tier = getEffectiveTier(interaction.guildId);
+      const tier = await getEffectiveTier(interaction.guildId);
       if (tier !== 'business') {
         return interaction.reply({
           content: '❌ Webhooks require Business tier. Use `/subscribe upgrade` to upgrade.',
@@ -479,7 +479,7 @@ module.exports = {
       }
 
       const action = interaction.options.getString('action');
-      const sub = getSubscription(interaction.guildId);
+      const sub = await getSubscription(interaction.guildId);
 
       if (action === 'configure') {
         const url = interaction.options.getString('url');
@@ -511,7 +511,7 @@ module.exports = {
         // Generate webhook secret
         const webhookSecret = generateWebhookSecret();
 
-        updateSubscription(interaction.guildId, {
+        await updateSubscription(interaction.guildId, {
           webhookUrl: url,
           webhookSecret: webhookSecret,
         });
@@ -595,7 +595,7 @@ module.exports = {
           });
         }
 
-        updateSubscription(interaction.guildId, {
+        await updateSubscription(interaction.guildId, {
           webhookUrl: null,
           webhookSecret: null,
         });
@@ -612,7 +612,7 @@ module.exports = {
     // ============================================================================
 
     if (subcommand === 'trial') {
-      const result = startFreeTrial(interaction.guildId, interaction.user.id);
+      const result = await startFreeTrial(interaction.guildId, interaction.user.id);
 
       if (!result.success) {
         return interaction.reply({
@@ -660,7 +660,7 @@ module.exports = {
 
     if (subcommand === 'branding') {
       // Check Business tier
-      const tier = getEffectiveTier(interaction.guildId);
+      const tier = await getEffectiveTier(interaction.guildId);
       if (tier !== 'business') {
         return interaction.reply({
           content: '❌ White-label branding requires Business tier. Use `/subscribe upgrade` to upgrade.',
@@ -680,7 +680,7 @@ module.exports = {
       const value = interaction.options.getString('value');
 
       if (action === 'view') {
-        const branding = getBranding(interaction.guildId);
+        const branding = await getBranding(interaction.guildId);
 
         if (!branding || (!branding.botName && !branding.botAvatar && !branding.accentColor && !branding.footerText)) {
           return interaction.reply({
@@ -726,7 +726,7 @@ module.exports = {
           });
         }
 
-        updateBranding(interaction.guildId, { botName: value });
+        await updateBranding(interaction.guildId, { botName: value });
 
         return interaction.reply({
           content: `✅ Bot name set to **${value}**. This will appear in tournament embeds.`,
@@ -759,7 +759,7 @@ module.exports = {
           });
         }
 
-        updateBranding(interaction.guildId, { botAvatar: value });
+        await updateBranding(interaction.guildId, { botAvatar: value });
 
         const embed = new EmbedBuilder()
           .setColor(0x57F287)
@@ -787,7 +787,7 @@ module.exports = {
           });
         }
 
-        updateBranding(interaction.guildId, { accentColor: hexColor });
+        await updateBranding(interaction.guildId, { accentColor: hexColor });
 
         const embed = new EmbedBuilder()
           .setColor(parseInt(hexColor.replace('#', ''), 16))
@@ -813,7 +813,7 @@ module.exports = {
           });
         }
 
-        updateBranding(interaction.guildId, { footerText: value });
+        await updateBranding(interaction.guildId, { footerText: value });
 
         return interaction.reply({
           content: `✅ Footer text set to: "${value}"`,
@@ -822,7 +822,7 @@ module.exports = {
       }
 
       if (action === 'reset') {
-        clearBranding(interaction.guildId);
+        await clearBranding(interaction.guildId);
 
         return interaction.reply({
           content: '✅ All branding settings have been reset to defaults.',

@@ -76,7 +76,7 @@ module.exports = {
     const focused = interaction.options.getFocused(true);
 
     if (focused.name === 'tournament') {
-      const tournaments = getActiveTournaments(interaction.guildId)
+      const tournaments = (await getActiveTournaments(interaction.guildId))
         .filter(t => t.settings.teamSize > 1);
       const choices = tournaments.map(t => ({
         name: `${t.game.icon} ${t.title}`,
@@ -93,7 +93,7 @@ module.exports = {
 async function handleAdd(interaction) {
   const tournamentId = interaction.options.getString('tournament');
   const newMember = interaction.options.getUser('member');
-  const tournament = getTournament(tournamentId);
+  const tournament = await getTournament(tournamentId);
 
   if (!tournament) {
     return interaction.reply({ content: '❌ Tournament not found.', ephemeral: true });
@@ -125,7 +125,7 @@ async function handleAdd(interaction) {
     displayName: newMember.displayName || newMember.username,
   });
 
-  updateTournament(tournamentId, { teams: tournament.teams });
+  await updateTournament(tournamentId, { teams: tournament.teams });
   await updateTournamentMessages(interaction, tournament);
 
   // DM the new member
@@ -142,7 +142,7 @@ async function handleAdd(interaction) {
 async function handleRemove(interaction) {
   const tournamentId = interaction.options.getString('tournament');
   const memberToRemove = interaction.options.getUser('member');
-  const tournament = getTournament(tournamentId);
+  const tournament = await getTournament(tournamentId);
 
   if (!tournament) {
     return interaction.reply({ content: '❌ Tournament not found.', ephemeral: true });
@@ -167,7 +167,7 @@ async function handleRemove(interaction) {
   }
 
   team.members.splice(memberIndex, 1);
-  updateTournament(tournamentId, { teams: tournament.teams });
+  await updateTournament(tournamentId, { teams: tournament.teams });
   await updateTournamentMessages(interaction, tournament);
 
   // DM the removed member
@@ -184,7 +184,7 @@ async function handleRemove(interaction) {
 async function handleTransfer(interaction) {
   const tournamentId = interaction.options.getString('tournament');
   const newCaptain = interaction.options.getUser('member');
-  const tournament = getTournament(tournamentId);
+  const tournament = await getTournament(tournamentId);
 
   if (!tournament) {
     return interaction.reply({ content: '❌ Tournament not found.', ephemeral: true });
@@ -210,7 +210,7 @@ async function handleTransfer(interaction) {
     displayName: newCaptain.displayName || newCaptain.username,
   };
 
-  updateTournament(tournamentId, { teams: tournament.teams });
+  await updateTournament(tournamentId, { teams: tournament.teams });
   await updateTournamentMessages(interaction, tournament);
 
   // DM the new captain
@@ -230,13 +230,13 @@ async function updateTournamentMessages(interaction, tournament) {
 
     if (tournament.messageId) {
       const mainMessage = await channel.messages.fetch(tournament.messageId);
-      const embed = createTournamentEmbed(tournament);
+      const embed = await createTournamentEmbed(tournament);
       await mainMessage.edit({ embeds: [embed] });
     }
 
     if (tournament.participantListMessageId) {
       const listMessage = await channel.messages.fetch(tournament.participantListMessageId);
-      const participantEmbed = createParticipantListEmbed(tournament);
+      const participantEmbed = await createParticipantListEmbed(tournament);
       await listMessage.edit({ embeds: [participantEmbed] });
     }
   } catch (error) {

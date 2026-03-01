@@ -25,18 +25,27 @@ for (const folder of commandFolders) {
 
 const rest = new REST().setToken(process.env.DISCORD_TOKEN);
 
+const args = process.argv.slice(2);
+const isGuild = args.includes('--guild');
+const guildId = args.find((a, i) => args[i - 1] === '--guild') || '1178369502900142100';
+
 (async () => {
   try {
-    console.log(`Started refreshing ${commands.length} application (/) commands.`);
-
-    // Deploy to specific guild (instant) instead of global (up to 1 hour)
-    const guildId = '1178369502900142100';
-    const data = await rest.put(
-      Routes.applicationGuildCommands(process.env.DISCORD_CLIENT_ID, guildId),
-      { body: commands },
-    );
-
-    console.log(`Successfully reloaded ${data.length} application (/) commands.`);
+    if (isGuild) {
+      console.log(`Deploying ${commands.length} commands to guild ${guildId} (instant)...`);
+      const data = await rest.put(
+        Routes.applicationGuildCommands(process.env.DISCORD_CLIENT_ID, guildId),
+        { body: commands },
+      );
+      console.log(`Successfully reloaded ${data.length} guild commands.`);
+    } else {
+      console.log(`Deploying ${commands.length} commands globally (may take up to 1 hour)...`);
+      const data = await rest.put(
+        Routes.applicationCommands(process.env.DISCORD_CLIENT_ID),
+        { body: commands },
+      );
+      console.log(`Successfully reloaded ${data.length} global commands.`);
+    }
   } catch (error) {
     console.error(error);
   }

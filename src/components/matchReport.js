@@ -30,14 +30,14 @@ module.exports = {
   customId: 'matchWin',
   async execute(interaction, args) {
     const [tournamentId, matchId, winnerSlot] = args;
-    const tournament = getTournament(tournamentId);
+    const tournament = await getTournament(tournamentId);
 
     if (!tournament) {
       return interaction.reply({ content: '❌ Tournament not found.', ephemeral: true });
     }
 
     // Check permissions - admin only
-    if (!canManageTournaments(interaction.member)) {
+    if (!(await canManageTournaments(interaction.member))) {
       return interaction.reply({ content: '❌ Only tournament admins can report match results.', ephemeral: true });
     }
 
@@ -80,7 +80,7 @@ module.exports = {
     try {
       // Advance winner
       service.advanceWinner(bracket, matchId, winner.id);
-      updateTournament(tournamentId, { bracket });
+      await updateTournament(tournamentId, { bracket });
 
       const isSolo = tournament.settings.teamSize === 1;
       const winnerName = isSolo ? winner.username : winner.name;
@@ -113,7 +113,7 @@ module.exports = {
       if (service.isComplete(bracket)) {
         const results = service.getResults(bracket);
         await announceTournamentComplete(interaction, tournament, results);
-        updateTournament(tournamentId, { status: 'completed', standings: results.standings || [] });
+        await updateTournament(tournamentId, { status: 'completed', standings: results.standings || [] });
 
         // Trigger tournament completed webhook
         webhooks.onTournamentCompleted(tournament, results.standings || [results.winner, results.runnerUp, results.thirdPlace].filter(Boolean));
@@ -136,7 +136,7 @@ module.exports = {
         }
       }
 
-      updateTournament(tournamentId, { bracket });
+      await updateTournament(tournamentId, { bracket });
 
     } catch (error) {
       console.error('Error reporting match:', error);
@@ -207,7 +207,7 @@ async function updateTournamentAnnouncement(client, tournament) {
     // Update tournament status for embed
     tournament.status = 'completed';
 
-    const embed = createTournamentEmbed(tournament);
+    const embed = await createTournamentEmbed(tournament);
     const buttons = createTournamentButtons(tournament);
 
     await message.edit({ embeds: [embed], components: buttons });

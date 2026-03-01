@@ -6,14 +6,14 @@ async function updateTournamentMessages(client, tournament) {
 
     if (tournament.messageId) {
       const mainMessage = await channel.messages.fetch(tournament.messageId);
-      const embed = createTournamentEmbed(tournament);
+      const embed = await createTournamentEmbed(tournament);
       const buttons = createTournamentButtons(tournament);
       await mainMessage.edit({ embeds: [embed], components: buttons });
     }
 
     if (tournament.participantListMessageId) {
       const listMessage = await channel.messages.fetch(tournament.participantListMessageId);
-      const participantEmbed = createParticipantListEmbed(tournament);
+      const participantEmbed = await createParticipantListEmbed(tournament);
       await listMessage.edit({ embeds: [participantEmbed] });
     }
   } catch (error) {

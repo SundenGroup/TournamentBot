@@ -144,7 +144,7 @@ module.exports = {
     const sessionId = args[0];
     const subAction = args[1]; // format, teamSize, bestOf, toggleX, editInfo, moreOptions, create
 
-    const session = getSession(sessionId);
+    const session = await getSession(sessionId);
 
     if (!session) {
       return interaction.reply({
@@ -166,13 +166,13 @@ module.exports = {
 
       switch (subAction) {
         case 'format':
-          updateSession(sessionId, { format: value });
+          await updateSession(sessionId, { format: value });
           break;
         case 'teamSize':
-          updateSession(sessionId, { teamSize: parseInt(value, 10) });
+          await updateSession(sessionId, { teamSize: parseInt(value, 10) });
           break;
         case 'bestOf':
-          updateSession(sessionId, { bestOf: parseInt(value, 10) });
+          await updateSession(sessionId, { bestOf: parseInt(value, 10) });
           break;
       }
 
@@ -184,19 +184,19 @@ module.exports = {
     if (interaction.isButton()) {
       switch (subAction) {
         case 'toggleCheckin':
-          updateSession(sessionId, { checkinRequired: !session.data.checkinRequired });
+          await updateSession(sessionId, { checkinRequired: !session.data.checkinRequired });
           return interaction.update(buildSettingsMessage(session));
 
         case 'toggleGameNick':
-          updateSession(sessionId, { requireGameNick: !session.data.requireGameNick });
+          await updateSession(sessionId, { requireGameNick: !session.data.requireGameNick });
           return interaction.update(buildSettingsMessage(session));
 
         case 'toggleCaptain':
-          updateSession(sessionId, { captainMode: !session.data.captainMode });
+          await updateSession(sessionId, { captainMode: !session.data.captainMode });
           return interaction.update(buildSettingsMessage(session));
 
         case 'toggleSeeding':
-          updateSession(sessionId, { seedingEnabled: !session.data.seedingEnabled });
+          await updateSession(sessionId, { seedingEnabled: !session.data.seedingEnabled });
           return interaction.update(buildSettingsMessage(session));
 
         case 'editInfo': {

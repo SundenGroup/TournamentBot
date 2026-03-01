@@ -6,7 +6,7 @@ module.exports = {
   customId: 'teamRegister',
   async execute(interaction, args) {
     const tournamentId = args[0];
-    const tournament = getTournament(tournamentId);
+    const tournament = await getTournament(tournamentId);
 
     if (!tournament) {
       return interaction.reply({ content: '❌ Tournament not found.', ephemeral: true });
@@ -41,7 +41,7 @@ module.exports = {
     // Resolve members
     const members = [];
     const guild = interaction.guild;
-    const captainModeEnabled = tournament.settings.captainMode ?? getServerSettings(tournament.guildId).captainMode ?? false;
+    const captainModeEnabled = tournament.settings.captainMode ?? (await getServerSettings(tournament.guildId)).captainMode ?? false;
 
     for (const input of memberLines) {
       // Remove @ if present
@@ -142,7 +142,7 @@ module.exports = {
       ...members,
     ];
 
-    const result = addTeam(tournamentId, {
+    const result = await addTeam(tournamentId, {
       name: teamName,
       captain: {
         id: interaction.user.id,

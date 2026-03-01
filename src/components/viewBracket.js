@@ -8,7 +8,7 @@ module.exports = {
   customId: 'viewBracket',
   async execute(interaction, args) {
     const tournamentId = args[0];
-    const tournament = getTournament(tournamentId);
+    const tournament = await getTournament(tournamentId);
 
     if (!tournament) {
       return interaction.reply({ content: '❌ Tournament not found.', ephemeral: true });

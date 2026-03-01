@@ -148,7 +148,7 @@ module.exports = {
       const guild = interaction.client.guilds.cache.get(guildId);
       const guildName = guild?.name || 'Unknown Server';
 
-      grantTier(guildId, tier, days, reason, interaction.user.id);
+      await grantTier(guildId, tier, days, reason, interaction.user.id);
 
       const expiresAt = new Date(Date.now() + days * 24 * 60 * 60 * 1000);
       const expiresTimestamp = Math.floor(expiresAt.getTime() / 1000);
@@ -171,7 +171,7 @@ module.exports = {
     if (subcommand === 'revoke') {
       const guildId = interaction.options.getString('guild_id');
 
-      const sub = getSubscription(guildId);
+      const sub = await getSubscription(guildId);
       if (!sub || !sub.manualGrant) {
         return interaction.reply({
           content: `❌ No manual grant found for server \`${guildId}\``,
@@ -180,7 +180,7 @@ module.exports = {
       }
 
       const previousTier = sub.tier;
-      revokeTier(guildId);
+      await revokeTier(guildId);
 
       const guild = interaction.client.guilds.cache.get(guildId);
       const guildName = guild?.name || 'Unknown Server';
@@ -196,12 +196,12 @@ module.exports = {
       const guildId = interaction.options.getString('guild_id');
       const amount = interaction.options.getInteger('amount');
 
-      grantTokens(guildId, amount);
+      await grantTokens(guildId, amount);
 
       const guild = interaction.client.guilds.cache.get(guildId);
       const guildName = guild?.name || 'Unknown Server';
 
-      const sub = getSubscription(guildId);
+      const sub = await getSubscription(guildId);
       const totalTokens = sub?.tokens?.tournament || amount;
 
       return interaction.reply({
@@ -215,12 +215,12 @@ module.exports = {
       const guildId = interaction.options.getString('guild_id');
       const amount = interaction.options.getInteger('amount');
 
-      addParticipantBoost(guildId, amount);
+      await addParticipantBoost(guildId, amount);
 
       const guild = interaction.client.guilds.cache.get(guildId);
       const guildName = guild?.name || 'Unknown Server';
 
-      const sub = getSubscription(guildId);
+      const sub = await getSubscription(guildId);
       const boosts = sub?.tokens?.participantBoosts?.filter(b => !b.used) || [];
 
       return interaction.reply({
@@ -231,7 +231,7 @@ module.exports = {
 
     // Handle list-grants
     if (subcommand === 'list-grants') {
-      const grants = getActiveGrants();
+      const grants = await getActiveGrants();
 
       if (grants.length === 0) {
         return interaction.reply({
@@ -262,8 +262,8 @@ module.exports = {
       const guild = interaction.client.guilds.cache.get(guildId);
       const guildName = guild?.name || 'Unknown Server';
 
-      const sub = getSubscription(guildId);
-      const tier = getEffectiveTier(guildId);
+      const sub = await getSubscription(guildId);
+      const tier = await getEffectiveTier(guildId);
 
       if (!sub) {
         return interaction.reply({

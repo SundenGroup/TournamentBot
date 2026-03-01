@@ -26,16 +26,16 @@ async function createTournamentFromWizard(interaction, session) {
   // === Subscription checks ===
 
   // 1. Check concurrent limit
-  const concurrentCheck = checkConcurrentLimit(guildId);
+  const concurrentCheck = await checkConcurrentLimit(guildId);
   if (!concurrentCheck.allowed) {
     return interaction.update({
-      ...getUpgradeEmbed('concurrent', getEffectiveTier(guildId), concurrentCheck.reason),
+      ...getUpgradeEmbed('concurrent', await getEffectiveTier(guildId), concurrentCheck.reason),
       components: [],
     });
   }
 
   // 2. Check tournament limit (may use token)
-  const limitCheck = checkTournamentLimit(guildId);
+  const limitCheck = await checkTournamentLimit(guildId);
   if (!limitCheck.allowed) {
     return interaction.update({
       ...getTokenPurchaseEmbed(limitCheck),
@@ -45,14 +45,14 @@ async function createTournamentFromWizard(interaction, session) {
 
   // 3. Check participant limit (and try to use a boost if available)
   let boostToUse = null;
-  let participantCheck = checkParticipantLimit(guildId, data.maxParticipants);
+  let participantCheck = await checkParticipantLimit(guildId, data.maxParticipants);
 
   if (!participantCheck.allowed) {
     // Check if we have an available boost that would cover it
-    const tier = getEffectiveTier(guildId);
+    const tier = await getEffectiveTier(guildId);
     const baseMax = TIER_LIMITS[tier].maxParticipants;
     const needed = data.maxParticipants - baseMax;
-    const tokenBalance = getTokenBalance(guildId);
+    const tokenBalance = await getTokenBalance(guildId);
 
     // Find smallest boost that covers the need
     const availableBoosts = tokenBalance.participantBoosts
@@ -62,7 +62,7 @@ async function createTournamentFromWizard(interaction, session) {
     if (availableBoosts.length > 0) {
       // Use the smallest sufficient boost
       boostToUse = availableBoosts[0].amount;
-      participantCheck = checkParticipantLimit(guildId, data.maxParticipants, boostToUse);
+      participantCheck = await checkParticipantLimit(guildId, data.maxParticipants, boostToUse);
       console.log(`[Subscription] Guild ${guildId} auto-applying +${boostToUse} participant boost`);
     }
 
@@ -83,10 +83,10 @@ async function createTournamentFromWizard(interaction, session) {
   if (data.requiredRoles?.length > 0) premiumFeaturesToCheck.push('required_roles');
 
   for (const feature of premiumFeaturesToCheck) {
-    const featureCheck = checkFeature(guildId, feature);
+    const featureCheck = await checkFeature(guildId, feature);
     if (!featureCheck.allowed) {
       return interaction.update({
-        ...getUpgradeEmbed(feature, getEffectiveTier(guildId)),
+        ...getUpgradeEmbed(feature, await getEffectiveTier(guildId)),
         components: [],
       });
     }
@@ -108,7 +108,7 @@ async function createTournamentFromWizard(interaction, session) {
     gameShortName = (data.gameName || data.title).substring(0, 4).toUpperCase();
   }
 
-  const tournament = createTournament({
+  const tournament = await createTournament({
     guildId: session.guildId,
     channelId: targetChannel.id,
     title: data.title,
@@ -134,9 +134,9 @@ async function createTournamentFromWizard(interaction, session) {
     createdBy: session.userId,
   });
 
-  const embed = createTournamentEmbed(tournament);
+  const embed = await createTournamentEmbed(tournament);
   const buttons = createTournamentButtons(tournament);
-  const participantEmbed = createParticipantListEmbed(tournament);
+  const participantEmbed = await createParticipantListEmbed(tournament);
 
   await interaction.update({
     content: `✅ Tournament **${data.title}** created! Announced in ${targetChannel}.`,
@@ -146,7 +146,7 @@ async function createTournamentFromWizard(interaction, session) {
   const mainMessage = await targetChannel.send({ embeds: [embed], components: buttons });
   const listMessage = await targetChannel.send({ embeds: [participantEmbed] });
 
-  updateTournament(tournament.id, {
+  await updateTournament(tournament.id, {
     messageId: mainMessage.id,
     participantListMessageId: listMessage.id,
   });
@@ -154,7 +154,7 @@ async function createTournamentFromWizard(interaction, session) {
   scheduleReminders(tournament, interaction.client);
 
   // Record usage (consumes token and/or boost if needed)
-  const { usedToken, usedBoost } = recordTournamentCreation(guildId, boostToUse);
+  const { usedToken, usedBoost } = await recordTournamentCreation(guildId, boostToUse);
   if (usedToken) {
     console.log(`[Subscription] Guild ${guildId} consumed tournament token`);
   }
@@ -162,7 +162,7 @@ async function createTournamentFromWizard(interaction, session) {
     console.log(`[Subscription] Guild ${guildId} consumed +${usedBoost} participant boost`);
   }
 
-  deleteSession(session.id);
+  await deleteSession(session.id);
 }
 
 module.exports = {

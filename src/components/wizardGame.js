@@ -6,7 +6,7 @@ module.exports = {
   customId: 'wizardGame',
   async execute(interaction, args) {
     const sessionId = args[0];
-    const session = getSession(sessionId);
+    const session = await getSession(sessionId);
 
     if (!session) {
       return interaction.reply({
@@ -54,7 +54,7 @@ module.exports = {
       });
     }
 
-    updateSession(sessionId, { gamePreset: selectedGame });
+    await updateSession(sessionId, { gamePreset: selectedGame });
 
     const preset = GAME_PRESETS[selectedGame];
     const isCustom = selectedGame === 'custom';

@@ -85,14 +85,55 @@ for (const file of eventFiles) {
   console.log(`Loaded event: ${event.name}`);
 }
 
-// Login
-if (!config.discord.token) {
-  console.error('Missing DISCORD_TOKEN in environment variables');
-  process.exit(1);
+// ============================================================================
+// Startup: Connect to database, run migrations, then login
+// ============================================================================
+
+async function start() {
+  // 1. Connect to database and run migrations
+  const db = require('./db');
+  try {
+    // Test connection
+    await db.raw('SELECT 1');
+    console.log('Database connected successfully');
+
+    // Run pending migrations
+    const [batch, migrations] = await db.migrate.latest();
+    if (migrations.length > 0) {
+      console.log(`Ran ${migrations.length} migration(s) (batch ${batch}):`);
+      migrations.forEach(m => console.log(`  - ${path.basename(m)}`));
+    } else {
+      console.log('Database migrations up to date');
+    }
+  } catch (error) {
+    console.error('Database connection/migration failed:', error.message);
+    process.exit(1);
+  }
+
+  // 2. Load data caches from database
+  const { loadTournaments, loadServerSettings } = require('./data/store');
+  try {
+    await loadTournaments();
+    await loadServerSettings();
+  } catch (error) {
+    console.error('Failed to load data from database:', error.message);
+    process.exit(1);
+  }
+
+  // 3. Login to Discord
+  if (!config.discord.token) {
+    console.error('Missing DISCORD_TOKEN in environment variables');
+    process.exit(1);
+  }
+
+  await client.login(config.discord.token);
+
+  // 4. Start API server for Stripe webhooks and Business tier REST API
+  const { startApiServer } = require('./api');
+  startApiServer(process.env.API_PORT || 3000);
 }
 
-client.login(config.discord.token);
-
-// Start API server for Stripe webhooks and Business tier REST API
-const { startApiServer } = require('./api');
-startApiServer(process.env.API_PORT || 3000);
+start().catch(error => {
+  console.error('Startup failed:', error);
+  process.exit(1);
+});

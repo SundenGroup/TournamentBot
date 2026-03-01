@@ -6,7 +6,7 @@ module.exports = {
   customId: 'checkin',
   async execute(interaction, args) {
     const tournamentId = args[0];
-    const tournament = getTournament(tournamentId);
+    const tournament = await getTournament(tournamentId);
 
     if (!tournament) {
       return interaction.reply({ content: '❌ Tournament not found.', ephemeral: true });
@@ -29,7 +29,7 @@ module.exports = {
       }
 
       participant.checkedIn = true;
-      updateTournament(tournamentId, { participants: tournament.participants });
+      await updateTournament(tournamentId, { participants: tournament.participants });
 
       // Trigger webhook
       webhooks.onParticipantCheckedIn(tournament, participant);
@@ -74,7 +74,7 @@ module.exports = {
         webhooks.onParticipantCheckedIn(tournament, playerTeam);
       }
 
-      updateTournament(tournamentId, { teams: tournament.teams });
+      await updateTournament(tournamentId, { teams: tournament.teams });
       await updateTournamentMessages(interaction.client, tournament);
 
       return interaction.reply({

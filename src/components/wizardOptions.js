@@ -131,7 +131,7 @@ module.exports = {
     const sessionId = args[0];
     const subAction = args[1];
 
-    const session = getSession(sessionId);
+    const session = await getSession(sessionId);
 
     if (!session) {
       return interaction.reply({
@@ -153,16 +153,16 @@ module.exports = {
 
       switch (subAction) {
         case 'lobbySize':
-          updateSession(sessionId, { lobbySize: parseInt(value, 10) });
+          await updateSession(sessionId, { lobbySize: parseInt(value, 10) });
           break;
         case 'gamesPerStage':
-          updateSession(sessionId, { gamesPerStage: parseInt(value, 10) });
+          await updateSession(sessionId, { gamesPerStage: parseInt(value, 10) });
           break;
         case 'advancingPerGroup':
-          updateSession(sessionId, { advancingPerGroup: value === 'auto' ? null : parseInt(value, 10) });
+          await updateSession(sessionId, { advancingPerGroup: value === 'auto' ? null : parseInt(value, 10) });
           break;
         case 'checkinWindow':
-          updateSession(sessionId, { checkinWindow: parseInt(value, 10) });
+          await updateSession(sessionId, { checkinWindow: parseInt(value, 10) });
           break;
       }
 
@@ -174,7 +174,7 @@ module.exports = {
     if (interaction.isRoleSelectMenu()) {
       if (subAction === 'requiredRoles') {
         const roleIds = interaction.values; // Array of role IDs
-        updateSession(sessionId, { requiredRoles: roleIds });
+        await updateSession(sessionId, { requiredRoles: roleIds });
         const message = buildOptionsMessage(session);
         return interaction.update(message);
       }

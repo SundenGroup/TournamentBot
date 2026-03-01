@@ -13,14 +13,14 @@ const CACHE_TTL = 60000; // 1 minute
 /**
  * Refresh the API key cache
  */
-function refreshApiKeyCache() {
+async function refreshApiKeyCache() {
   const now = Date.now();
   if (now - lastCacheRefresh < CACHE_TTL) {
     return;
   }
 
   apiKeyCache = new Map();
-  const subscriptions = getAllSubscriptions();
+  const subscriptions = await getAllSubscriptions();
 
   for (const sub of subscriptions) {
     if (sub.apiKey && sub.apiKeyHash) {
@@ -34,8 +34,8 @@ function refreshApiKeyCache() {
 /**
  * Find guild by API key
  */
-function findGuildByApiKey(apiKey) {
-  refreshApiKeyCache();
+async function findGuildByApiKey(apiKey) {
+  await refreshApiKeyCache();
 
   const keyHash = hashApiKey(apiKey);
 
@@ -45,7 +45,7 @@ function findGuildByApiKey(apiKey) {
   }
 
   // Fallback to direct lookup
-  const subscriptions = getAllSubscriptions();
+  const subscriptions = await getAllSubscriptions();
   for (const sub of subscriptions) {
     if (sub.apiKeyHash === keyHash) {
       return sub.guildId;
@@ -59,7 +59,7 @@ function findGuildByApiKey(apiKey) {
  * Authentication middleware
  * Validates API key and attaches guildId to request
  */
-function authenticate(req, res, next) {
+async function authenticate(req, res, next) {
   const authHeader = req.headers.authorization;
 
   if (!authHeader) {
@@ -86,7 +86,7 @@ function authenticate(req, res, next) {
     });
   }
 
-  const guildId = findGuildByApiKey(apiKey);
+  const guildId = await findGuildByApiKey(apiKey);
 
   if (!guildId) {
     return res.status(401).json({

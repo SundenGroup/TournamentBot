@@ -1,13 +1,11 @@
-const { v4: uuidv4 } = require('uuid');
+// Wizard session storage — backed by PostgreSQL
 
-// In-memory wizard session storage
-// Map<sessionId, { id, userId, guildId, data: {...}, createdAt }>
-const sessions = new Map();
+const { v4: uuidv4 } = require('uuid');
+const db = require('../db');
 
 const SESSION_TTL = 30 * 60 * 1000; // 30 minutes
-const CLEANUP_INTERVAL = 5 * 60 * 1000; // 5 minutes
 
-function createSession(userId, guildId) {
+async function createSession(userId, guildId) {
   const id = uuidv4();
   const session = {
     id,
@@ -16,48 +14,71 @@ function createSession(userId, guildId) {
     data: {},
     createdAt: Date.now(),
   };
-  sessions.set(id, session);
+
+  await db('wizard_sessions').insert({
+    id,
+    user_id: userId,
+    guild_id: guildId,
+    data: JSON.stringify({}),
+  });
+
   return session;
 }
 
-function getSession(id) {
-  const session = sessions.get(id);
-  if (!session) return null;
+async function getSession(id) {
+  const row = await db('wizard_sessions').where('id', id).first();
+  if (!row) return null;
+
+  const createdAt = new Date(row.created_at).getTime();
 
   // Check if expired
-  if (Date.now() - session.createdAt > SESSION_TTL) {
-    sessions.delete(id);
+  if (Date.now() - createdAt > SESSION_TTL) {
+    await db('wizard_sessions').where('id', id).del();
     return null;
   }
 
-  return session;
+  return {
+    id: row.id,
+    userId: row.user_id,
+    guildId: row.guild_id,
+    data: row.data || {},
+    createdAt,
+  };
 }
 
-function updateSession(id, dataObj) {
-  const session = sessions.get(id);
+async function updateSession(id, dataObj) {
+  const session = await getSession(id);
   if (!session) return null;
 
-  Object.assign(session.data, dataObj);
+  const merged = { ...session.data, ...dataObj };
+  await db('wizard_sessions')
+    .where('id', id)
+    .update({ data: JSON.stringify(merged) });
+
+  session.data = merged;
   return session;
 }
 
-function deleteSession(id) {
-  return sessions.delete(id);
+async function deleteSession(id) {
+  const deleted = await db('wizard_sessions').where('id', id).del();
+  return deleted > 0;
 }
 
-// Auto-cleanup expired sessions
-setInterval(() => {
-  const now = Date.now();
-  for (const [id, session] of sessions) {
-    if (now - session.createdAt > SESSION_TTL) {
-      sessions.delete(id);
-    }
-  }
-}, CLEANUP_INTERVAL);
+/**
+ * Clean up expired sessions (called by cron)
+ */
+async function cleanupExpiredSessions() {
+  const cutoff = new Date(Date.now() - SESSION_TTL);
+  const deleted = await db('wizard_sessions')
+    .where('created_at', '<', cutoff)
+    .del();
+  return deleted;
+}
 
 module.exports = {
   createSession,
   getSession,
   updateSession,
   deleteSession,
+  cleanupExpiredSessions,
 };

@@ -176,9 +176,9 @@ module.exports = {
         break;
       case 'set-auto-cleanup': {
         // Premium feature gate
-        const autoCleanupCheck = checkFeature(interaction.guildId, 'auto_cleanup');
+        const autoCleanupCheck = await checkFeature(interaction.guildId, 'auto_cleanup');
         if (!autoCleanupCheck.allowed) {
-          return interaction.reply(getUpgradeEmbed('auto_cleanup', getEffectiveTier(interaction.guildId)));
+          return interaction.reply(getUpgradeEmbed('auto_cleanup', await getEffectiveTier(interaction.guildId)));
         }
         await handleSetAutoCleanup(interaction);
         break;
@@ -197,9 +197,9 @@ module.exports = {
         break;
       case 'set-captain-mode': {
         // Premium feature gate
-        const captainModeCheck = checkFeature(interaction.guildId, 'captain_mode');
+        const captainModeCheck = await checkFeature(interaction.guildId, 'captain_mode');
         if (!captainModeCheck.allowed) {
-          return interaction.reply(getUpgradeEmbed('captain_mode', getEffectiveTier(interaction.guildId)));
+          return interaction.reply(getUpgradeEmbed('captain_mode', await getEffectiveTier(interaction.guildId)));
         }
         await handleSetCaptainMode(interaction);
         break;
@@ -218,7 +218,7 @@ module.exports = {
 
       if (subcommand === 'cleanup') {
         // Show tournaments with channels to clean up
-        const tournaments = getTournamentsByGuild(interaction.guildId);
+        const tournaments = await getTournamentsByGuild(interaction.guildId);
         const withChannels = tournaments.filter(t =>
           t.bracket && collectTournamentChannels(t.bracket).length > 0
         );
@@ -232,7 +232,7 @@ module.exports = {
         await interaction.respond(filtered.slice(0, 25));
       } else {
         // Debug subcommands — show active tournaments
-        const tournaments = getActiveTournaments(interaction.guildId);
+        const tournaments = await getActiveTournaments(interaction.guildId);
         const choices = tournaments.map(t => ({
           name: `${t.game.icon} ${t.title}`,
           value: t.id,
@@ -249,7 +249,7 @@ module.exports = {
 // ─── Settings ────────────────────────────────────────────────────────────────
 
 async function handleViewSettings(interaction) {
-  const settings = getServerSettings(interaction.guildId);
+  const settings = await getServerSettings(interaction.guildId);
 
   const embed = new EmbedBuilder()
     .setTitle('⚙️ Server Settings')
@@ -293,7 +293,7 @@ async function handleViewSettings(interaction) {
 async function handleSetAnnouncementChannel(interaction) {
   const channel = interaction.options.getChannel('channel');
 
-  setAnnouncementChannel(interaction.guildId, channel.id, channel.name);
+  await setAnnouncementChannel(interaction.guildId, channel.id, channel.name);
 
   return interaction.reply({
     content: `✅ Tournament announcements will now be posted in ${channel}.`,
@@ -304,7 +304,7 @@ async function handleSetAnnouncementChannel(interaction) {
 async function handleSetMatchCategory(interaction) {
   const category = interaction.options.getChannel('category');
 
-  updateServerSettings(interaction.guildId, {
+  await updateServerSettings(interaction.guildId, {
     matchRoomCategory: category.id,
   });
 
@@ -318,7 +318,7 @@ async function handleCleanup(interaction) {
   const tournamentId = interaction.options.getString('tournament');
   const mode = interaction.options.getString('mode');
 
-  const tournament = getTournament(tournamentId);
+  const tournament = await getTournament(tournamentId);
   if (!tournament) {
     return interaction.reply({ content: '❌ Tournament not found.', ephemeral: true });
   }
@@ -340,7 +340,7 @@ async function handleCleanup(interaction) {
   if (mode === 'delete') {
     clearBracketChannelIds(tournament.bracket);
   }
-  updateTournament(tournamentId, { bracket: tournament.bracket });
+  await updateTournament(tournamentId, { bracket: tournament.bracket });
 
   let reply = `✅ Cleanup complete: ${success}/${channelIds.length} channels ${action}.`;
   if (mode === 'archive') {
@@ -359,10 +359,10 @@ async function handleSetAutoCleanup(interaction) {
     updates.autoCleanupMode = mode;
   }
 
-  updateServerSettings(interaction.guildId, updates);
+  await updateServerSettings(interaction.guildId, updates);
 
   if (enabled) {
-    const settings = getServerSettings(interaction.guildId);
+    const settings = await getServerSettings(interaction.guildId);
     return interaction.reply({
       content: `✅ Auto-cleanup **enabled**. Match rooms will be **${settings.autoCleanupMode === 'delete' ? 'deleted' : 'archived'}** 30 seconds after tournament completion.`,
       ephemeral: true,
@@ -378,11 +378,11 @@ async function handleSetAutoCleanup(interaction) {
 async function handleSetRole(interaction) {
   const action = interaction.options.getString('action');
   const role = interaction.options.getRole('role');
-  const settings = getServerSettings(interaction.guildId);
+  const settings = await getServerSettings(interaction.guildId);
   const adminRoles = settings.tournamentAdminRoles || [];
 
   if (action === 'clear') {
-    updateServerSettings(interaction.guildId, { tournamentAdminRoles: [] });
+    await updateServerSettings(interaction.guildId, { tournamentAdminRoles: [] });
     return interaction.reply({
       content: '✅ Cleared all tournament admin roles.',
       ephemeral: true,
@@ -412,7 +412,7 @@ async function handleSetRole(interaction) {
     }
 
     adminRoles.push(role.id);
-    updateServerSettings(interaction.guildId, { tournamentAdminRoles: adminRoles });
+    await updateServerSettings(interaction.guildId, { tournamentAdminRoles: adminRoles });
     return interaction.reply({
       content: `✅ Added ${role} as a tournament admin role.`,
       ephemeral: true,
@@ -429,7 +429,7 @@ async function handleSetRole(interaction) {
     }
 
     adminRoles.splice(index, 1);
-    updateServerSettings(interaction.guildId, { tournamentAdminRoles: adminRoles });
+    await updateServerSettings(interaction.guildId, { tournamentAdminRoles: adminRoles });
     return interaction.reply({
       content: `✅ Removed ${role} from tournament admin roles.`,
       ephemeral: true,
@@ -440,7 +440,7 @@ async function handleSetRole(interaction) {
 async function handleSetCaptainMode(interaction) {
   const enabled = interaction.options.getBoolean('enabled');
 
-  updateServerSettings(interaction.guildId, { captainMode: enabled });
+  await updateServerSettings(interaction.guildId, { captainMode: enabled });
 
   if (enabled) {
     return interaction.reply({
@@ -486,7 +486,7 @@ const TEAM_NAMES = [
 async function handleAddPlayers(interaction) {
   const tournamentId = interaction.options.getString('tournament');
   const count = interaction.options.getInteger('count');
-  const tournament = getTournament(tournamentId);
+  const tournament = await getTournament(tournamentId);
 
   if (!tournament) {
     return interaction.reply({ content: '❌ Tournament not found.', ephemeral: true });
@@ -528,7 +528,7 @@ async function handleAddPlayers(interaction) {
     added++;
   }
 
-  updateTournament(tournamentId, { participants: tournament.participants });
+  await updateTournament(tournamentId, { participants: tournament.participants });
   await updateTournamentMessages(interaction, tournament);
 
   return interaction.reply({
@@ -540,7 +540,7 @@ async function handleAddPlayers(interaction) {
 async function handleAddTeams(interaction) {
   const tournamentId = interaction.options.getString('tournament');
   const count = interaction.options.getInteger('count');
-  const tournament = getTournament(tournamentId);
+  const tournament = await getTournament(tournamentId);
 
   if (!tournament) {
     return interaction.reply({ content: '❌ Tournament not found.', ephemeral: true });
@@ -594,7 +594,7 @@ async function handleAddTeams(interaction) {
     added++;
   }
 
-  updateTournament(tournamentId, { teams: tournament.teams });
+  await updateTournament(tournamentId, { teams: tournament.teams });
   await updateTournamentMessages(interaction, tournament);
 
   return interaction.reply({
@@ -605,13 +605,13 @@ async function handleAddTeams(interaction) {
 
 async function handleClearParticipants(interaction) {
   const tournamentId = interaction.options.getString('tournament');
-  const tournament = getTournament(tournamentId);
+  const tournament = await getTournament(tournamentId);
 
   if (!tournament) {
     return interaction.reply({ content: '❌ Tournament not found.', ephemeral: true });
   }
 
-  updateTournament(tournamentId, { participants: [], teams: [] });
+  await updateTournament(tournamentId, { participants: [], teams: [] });
   tournament.participants = [];
   tournament.teams = [];
   await updateTournamentMessages(interaction, tournament);
@@ -628,13 +628,13 @@ async function updateTournamentMessages(interaction, tournament) {
 
     if (tournament.messageId) {
       const mainMessage = await channel.messages.fetch(tournament.messageId);
-      const embed = createTournamentEmbed(tournament);
+      const embed = await createTournamentEmbed(tournament);
       await mainMessage.edit({ embeds: [embed] });
     }
 
     if (tournament.participantListMessageId) {
       const listMessage = await channel.messages.fetch(tournament.participantListMessageId);
-      const participantEmbed = createParticipantListEmbed(tournament);
+      const participantEmbed = await createParticipantListEmbed(tournament);
       await listMessage.edit({ embeds: [participantEmbed] });
     }
   } catch (error) {
@@ -668,7 +668,7 @@ const FORMAT_INFO = {
 };
 
 async function handleHelp(interaction) {
-  const tier = getEffectiveTier(interaction.guildId);
+  const tier = await getEffectiveTier(interaction.guildId);
   const tierDisplay = tier === 'free' ? 'Free' : tier.charAt(0).toUpperCase() + tier.slice(1);
 
   const embed = new EmbedBuilder()

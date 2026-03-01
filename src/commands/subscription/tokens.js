@@ -51,7 +51,7 @@ module.exports = {
     const subcommand = interaction.options.getSubcommand();
 
     if (subcommand === 'balance') {
-      const balance = getTokenBalance(interaction.guildId);
+      const balance = await getTokenBalance(interaction.guildId);
 
       const embed = new EmbedBuilder()
         .setTitle('🎟️ Token Balance')

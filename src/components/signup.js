@@ -6,7 +6,7 @@ module.exports = {
   customId: 'signup',
   async execute(interaction, args) {
     const tournamentId = args[0];
-    const tournament = getTournament(tournamentId);
+    const tournament = await getTournament(tournamentId);
 
     if (!tournament) {
       return interaction.reply({ content: '❌ Tournament not found.', ephemeral: true });
@@ -50,7 +50,7 @@ module.exports = {
         await interaction.showModal(modal);
       } else {
         // Direct signup for solo tournaments without game nick requirement
-        const result = addParticipant(tournamentId, {
+        const result = await addParticipant(tournamentId, {
           id: interaction.user.id,
           username: interaction.user.username,
           displayName: interaction.user.displayName,

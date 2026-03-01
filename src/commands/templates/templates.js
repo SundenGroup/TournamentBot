@@ -73,21 +73,21 @@ module.exports = {
 
   async execute(interaction) {
     // Pro feature gate
-    const featureCheck = checkFeature(interaction.guildId, 'tournament_templates');
+    const featureCheck = await checkFeature(interaction.guildId, 'tournament_templates');
     if (!featureCheck.allowed) {
-      return interaction.reply(getUpgradeEmbed('tournament_templates', getEffectiveTier(interaction.guildId)));
+      return interaction.reply(getUpgradeEmbed('tournament_templates', await getEffectiveTier(interaction.guildId)));
     }
 
     const subcommand = interaction.options.getSubcommand();
 
     if (subcommand === 'list') {
-      const embed = getTemplateListEmbed(interaction.guildId);
+      const embed = await getTemplateListEmbed(interaction.guildId);
       return interaction.reply({ embeds: [embed], ephemeral: true });
     }
 
     if (subcommand === 'view') {
       const name = interaction.options.getString('name');
-      const template = getTemplateByName(interaction.guildId, name);
+      const template = await getTemplateByName(interaction.guildId, name);
 
       if (!template) {
         return interaction.reply({
@@ -105,7 +105,7 @@ module.exports = {
       const name = interaction.options.getString('name');
       const description = interaction.options.getString('description');
 
-      const tournament = getTournament(tournamentId);
+      const tournament = await getTournament(tournamentId);
       if (!tournament) {
         return interaction.reply({
           content: '❌ Tournament not found.',
@@ -113,7 +113,7 @@ module.exports = {
         });
       }
 
-      const result = createTemplateFromTournament(
+      const result = await createTemplateFromTournament(
         interaction.guildId,
         tournament,
         name,
@@ -144,7 +144,7 @@ module.exports = {
 
     if (subcommand === 'delete') {
       const name = interaction.options.getString('name');
-      const template = getTemplateByName(interaction.guildId, name);
+      const template = await getTemplateByName(interaction.guildId, name);
 
       if (!template) {
         return interaction.reply({
@@ -153,7 +153,7 @@ module.exports = {
         });
       }
 
-      deleteTemplate(interaction.guildId, template.id);
+      await deleteTemplate(interaction.guildId, template.id);
 
       return interaction.reply({
         content: `✅ Template **${name}** has been deleted.`,
@@ -168,7 +168,7 @@ module.exports = {
 
     if (focused.name === 'name') {
       // Autocomplete template names
-      const templates = getTemplates(interaction.guildId);
+      const templates = await getTemplates(interaction.guildId);
       const filtered = templates
         .filter(t => t.name.toLowerCase().includes(focused.value.toLowerCase()))
         .slice(0, 25)
@@ -182,7 +182,7 @@ module.exports = {
 
     if (focused.name === 'tournament') {
       // Autocomplete tournament names
-      const tournaments = getTournamentsByGuild(interaction.guildId);
+      const tournaments = await getTournamentsByGuild(interaction.guildId);
       const filtered = tournaments
         .filter(t => t.title.toLowerCase().includes(focused.value.toLowerCase()))
         .slice(0, 25)

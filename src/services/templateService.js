@@ -17,9 +17,9 @@ const { GAME_PRESETS } = require('../config/gamePresets');
 /**
  * Create a template from a tournament
  */
-function createTemplateFromTournament(guildId, tournament, name, description, createdBy) {
+async function createTemplateFromTournament(guildId, tournament, name, description, createdBy) {
   // Check template limit
-  if (getTemplateCount(guildId) >= MAX_TEMPLATES_PER_GUILD) {
+  if (await getTemplateCount(guildId) >= MAX_TEMPLATES_PER_GUILD) {
     return {
       success: false,
       error: `You've reached the maximum of ${MAX_TEMPLATES_PER_GUILD} templates. Delete some to create new ones.`,
@@ -27,14 +27,14 @@ function createTemplateFromTournament(guildId, tournament, name, description, cr
   }
 
   // Check for duplicate name
-  if (getTemplateByName(guildId, name)) {
+  if (await getTemplateByName(guildId, name)) {
     return {
       success: false,
       error: `A template named "${name}" already exists. Choose a different name.`,
     };
   }
 
-  const template = saveTemplate(guildId, {
+  const template = await saveTemplate(guildId, {
     name,
     description,
     gamePreset: tournament.gamePreset,
@@ -62,9 +62,9 @@ function createTemplateFromTournament(guildId, tournament, name, description, cr
 /**
  * Create a template from wizard session data
  */
-function createTemplateFromWizard(guildId, data, name, description, createdBy) {
+async function createTemplateFromWizard(guildId, data, name, description, createdBy) {
   // Check template limit
-  if (getTemplateCount(guildId) >= MAX_TEMPLATES_PER_GUILD) {
+  if (await getTemplateCount(guildId) >= MAX_TEMPLATES_PER_GUILD) {
     return {
       success: false,
       error: `You've reached the maximum of ${MAX_TEMPLATES_PER_GUILD} templates. Delete some to create new ones.`,
@@ -72,7 +72,7 @@ function createTemplateFromWizard(guildId, data, name, description, createdBy) {
   }
 
   // Check for duplicate name
-  if (getTemplateByName(guildId, name)) {
+  if (await getTemplateByName(guildId, name)) {
     return {
       success: false,
       error: `A template named "${name}" already exists. Choose a different name.`,
@@ -81,7 +81,7 @@ function createTemplateFromWizard(guildId, data, name, description, createdBy) {
 
   const preset = GAME_PRESETS[data.gamePreset];
 
-  const template = saveTemplate(guildId, {
+  const template = await saveTemplate(guildId, {
     name,
     description,
     gamePreset: data.gamePreset,
@@ -132,8 +132,8 @@ function applyTemplateToSession(template) {
 /**
  * Get template list embed
  */
-function getTemplateListEmbed(guildId) {
-  const templateList = getTemplates(guildId);
+async function getTemplateListEmbed(guildId) {
+  const templateList = await getTemplates(guildId);
 
   const embed = new EmbedBuilder()
     .setColor(0x5865F2)

@@ -5,13 +5,13 @@ function isAdmin(member) {
   return member.permissions.has(PermissionFlagsBits.Administrator);
 }
 
-function canManageTournaments(member) {
+async function canManageTournaments(member) {
   if (member.permissions.has(PermissionFlagsBits.ManageGuild) ||
       member.permissions.has(PermissionFlagsBits.Administrator)) {
     return true;
   }
 
-  const adminRoles = getTournamentAdminRoles(member.guild.id);
+  const adminRoles = await getTournamentAdminRoles(member.guild.id);
   return adminRoles.some(roleId => member.roles.cache.has(roleId));
 }
 
@@ -19,8 +19,8 @@ function isTournamentCreator(member, tournament) {
   return tournament.createdBy === member.id;
 }
 
-function canEditTournament(member, tournament) {
-  return canManageTournaments(member) || isTournamentCreator(member, tournament);
+async function canEditTournament(member, tournament) {
+  return await canManageTournaments(member) || isTournamentCreator(member, tournament);
 }
 
 module.exports = {

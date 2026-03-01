@@ -27,7 +27,7 @@ let isProcessing = false;
  */
 async function sendWebhook(guildId, event, data) {
   // Check if guild has webhooks configured and is Business tier
-  const sub = getSubscription(guildId);
+  const sub = await getSubscription(guildId);
   if (!sub?.webhookUrl || !sub?.webhookSecret) {
     return { sent: false, reason: 'Webhook not configured' };
   }
@@ -127,7 +127,7 @@ function retryIfNeeded(item) {
  * Test webhook configuration
  */
 async function testWebhook(guildId) {
-  const sub = getSubscription(guildId);
+  const sub = await getSubscription(guildId);
   if (!sub?.webhookUrl || !sub?.webhookSecret) {
     return { success: false, error: 'Webhook not configured' };
   }
