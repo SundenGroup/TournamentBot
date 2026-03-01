@@ -25,9 +25,9 @@ module.exports = {
             .setDescription('Token pack to purchase')
             .setRequired(true)
             .addChoices(
-              { name: '10 Tokens — $9.99 ($1.00 each)', value: 'tokens_10' },
-              { name: '30 Tokens — $24.99 ($0.83 each)', value: 'tokens_30' },
-              { name: '100 Tokens — $69.99 ($0.70 each)', value: 'tokens_100' }
+              { name: '30 Tokens', value: 'tokens_30' },
+              { name: '50 Tokens', value: 'tokens_50' },
+              { name: '100 Tokens', value: 'tokens_100' }
             )
         )
     )
@@ -41,9 +41,8 @@ module.exports = {
             .setDescription('Boost size')
             .setRequired(true)
             .addChoices(
-              { name: '+64 Participants — $4.99', value: 'boost_64' },
-              { name: '+128 Participants — $9.99', value: 'boost_128' },
-              { name: '+256 Participants — $19.99', value: 'boost_256' }
+              { name: '+128 Participants', value: 'boost_128' },
+              { name: '+256 Participants', value: 'boost_256' }
             )
         )
     ),
@@ -101,9 +100,9 @@ module.exports = {
       const pack = interaction.options.getString('pack');
 
       const packDetails = {
-        tokens_10: { amount: 10, price: '$9.99', perToken: '$1.00' },
-        tokens_30: { amount: 30, price: '$24.99', perToken: '$0.83' },
-        tokens_100: { amount: 100, price: '$69.99', perToken: '$0.70' },
+        tokens_30: { amount: 30 },
+        tokens_50: { amount: 50 },
+        tokens_100: { amount: 100 },
       };
 
       const details = packDetails[pack];
@@ -121,8 +120,6 @@ module.exports = {
           .setTitle('🛒 Complete Your Purchase')
           .setDescription(`You're purchasing **${details.amount} Tournament Tokens**.`)
           .addFields(
-            { name: 'Price', value: details.price, inline: true },
-            { name: 'Per Token', value: details.perToken, inline: true },
             { name: 'Expires', value: '12 months after purchase', inline: true }
           )
           .setFooter({ text: 'Tokens are used automatically when you exceed your monthly limit.' });
@@ -155,9 +152,8 @@ module.exports = {
       const size = interaction.options.getString('size');
 
       const boostDetails = {
-        boost_64: { amount: 64, price: '$4.99' },
-        boost_128: { amount: 128, price: '$9.99' },
-        boost_256: { amount: 256, price: '$19.99' },
+        boost_128: { amount: 128 },
+        boost_256: { amount: 256 },
       };
 
       const details = boostDetails[size];
@@ -175,7 +171,6 @@ module.exports = {
           .setTitle('🛒 Complete Your Purchase')
           .setDescription(`You're purchasing a **+${details.amount} Participant Boost**.`)
           .addFields(
-            { name: 'Price', value: details.price, inline: true },
             { name: 'Effect', value: `Adds ${details.amount} to max participants for one tournament`, inline: true }
           )
           .setFooter({ text: 'Boosts never expire and are applied at tournament creation.' });

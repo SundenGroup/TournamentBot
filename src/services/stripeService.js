@@ -30,25 +30,23 @@ const SUBSCRIPTION_PRICES = {
 };
 
 const TOKEN_PRICES = {
-  tokens_10: process.env.STRIPE_TOKENS_10_PRICE_ID,
   tokens_30: process.env.STRIPE_TOKENS_30_PRICE_ID,
+  tokens_50: process.env.STRIPE_TOKENS_50_PRICE_ID,
   tokens_100: process.env.STRIPE_TOKENS_100_PRICE_ID,
 };
 
 const BOOST_PRICES = {
-  boost_64: process.env.STRIPE_BOOST_64_PRICE_ID,
   boost_128: process.env.STRIPE_BOOST_128_PRICE_ID,
   boost_256: process.env.STRIPE_BOOST_256_PRICE_ID,
 };
 
 const TOKEN_AMOUNTS = {
-  tokens_10: 10,
   tokens_30: 30,
+  tokens_50: 50,
   tokens_100: 100,
 };
 
 const BOOST_AMOUNTS = {
-  boost_64: 64,
   boost_128: 128,
   boost_256: 256,
 };
