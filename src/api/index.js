@@ -1,6 +1,7 @@
 // Express API server for webhooks and REST API
 // Runs alongside the Discord bot
 
+const path = require('path');
 const express = require('express');
 const { handleWebhook, constructWebhookEvent, isStripeConfigured } = require('../services/stripeService');
 const { authenticate } = require('./middleware/auth');
@@ -90,6 +91,13 @@ app.get('/v1', (req, res) => {
 });
 
 // ============================================================================
+// Static Files & Admin Manual
+// ============================================================================
+
+app.get('/admin-manual', (req, res) => res.redirect('/admin-manual.html'));
+app.use(express.static(path.join(__dirname, '../../public')));
+
+// ============================================================================
 // 404 Handler
 // ============================================================================
 
@@ -124,6 +132,7 @@ function startApiServer(port = 3000) {
     console.log(`  - Stripe webhooks: POST /webhooks/stripe`);
     console.log(`  - REST API: /v1/tournaments/*`);
     console.log(`  - Health check: GET /health`);
+    console.log(`  - Admin manual: GET /admin-manual`);
   });
 
   return app;

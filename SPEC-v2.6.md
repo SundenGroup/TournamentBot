@@ -1,8 +1,8 @@
 # Discord Tournament Bot — Technical Specification
 
-> **Version:** 2.6
-> **Last Updated:** February 2026
-> **Tech Stack:** Node.js + discord.js v14+
+> **Version:** 2.6.1
+> **Last Updated:** March 2026
+> **Tech Stack:** Node.js + discord.js v14+ + PostgreSQL + Knex.js
 
 ---
 
@@ -112,11 +112,11 @@ Tokens provide flexibility to exceed monthly limits without upgrading tiers. Ins
 
 Purchase additional tournament capacity that adds to your monthly limit.
 
-| Pack | Price | Tokens | Cost per Token |
-|------|-------|--------|----------------|
-| Starter | $9.99 | 10 | $1.00 |
-| Standard | $24.99 | 30 | $0.83 |
-| Bulk | $69.99 | 100 | $0.70 |
+| Pack | Tokens |
+|------|--------|
+| Starter | 30 |
+| Standard | 50 |
+| Bulk | 100 |
 
 **Rules:**
 - 1 token = 1 tournament (any size within your tier's participant limit)
@@ -129,11 +129,10 @@ Purchase additional tournament capacity that adds to your monthly limit.
 
 One-time purchases to increase the participant cap for a single tournament.
 
-| Boost | Price | Effect |
-|-------|-------|--------|
-| +64 participants | $4.99 | Adds 64 to max for one tournament |
-| +128 participants | $9.99 | Adds 128 to max for one tournament |
-| +256 participants | $19.99 | Adds 256 to max for one tournament |
+| Boost | Effect |
+|-------|--------|
+| +128 participants | Adds 128 to max for one tournament |
+| +256 participants | Adds 256 to max for one tournament |
 
 **Rules:**
 - Applied at tournament creation time
@@ -146,9 +145,9 @@ One-time purchases to increase the participant cap for a single tournament.
 
 | Scenario | Solution |
 |----------|----------|
-| Premium user running 18 tournaments in a busy month | Buy 10-token pack, use 3 tokens for overflow |
-| Free user wants to run a 100-person tournament | Buy +64 participant boost ($4.99) |
-| Pro user hosting a 400-person championship | Buy +256 boost ($19.99), runs 400-person event |
+| Premium user running 18 tournaments in a busy month | Buy 30-token starter pack, use 3 tokens for overflow |
+| Free user wants to run a 150-person tournament | Buy +128 participant boost |
+| Pro user hosting a 400-person championship | Buy +256 boost, runs 400-person event |
 | Esports org with seasonal spikes | Buy 100-token bulk pack, use throughout the year |
 
 ---
@@ -159,7 +158,8 @@ One-time purchases to increase the participant cap for a single tournament.
 
 ```javascript
 // src/data/subscriptions.js
-const subscriptions = new Map(); // guildId → subscription
+// Backed by PostgreSQL (table: subscriptions)
+// All functions are async, returning Promises
 
 const subscription = {
   guildId: '123456789',
@@ -539,12 +539,11 @@ Create these products in Stripe Dashboard:
 - `prod_business_annual` — Business Annual ($899)
 
 **One-time Purchases:**
-- `prod_tokens_10` — 10 Tournament Tokens ($9.99)
-- `prod_tokens_30` — 30 Tournament Tokens ($24.99)
-- `prod_tokens_100` — 100 Tournament Tokens ($69.99)
-- `prod_boost_64` — +64 Participant Boost ($4.99)
-- `prod_boost_128` — +128 Participant Boost ($9.99)
-- `prod_boost_256` — +256 Participant Boost ($19.99)
+- `prod_tokens_30` — 30 Tournament Tokens
+- `prod_tokens_50` — 50 Tournament Tokens
+- `prod_tokens_100` — 100 Tournament Tokens
+- `prod_boost_128` — +128 Participant Boost
+- `prod_boost_256` — +256 Participant Boost
 
 ### Token Purchase Command
 
@@ -563,9 +562,9 @@ module.exports = {
             .setDescription('Token pack to purchase')
             .setRequired(true)
             .addChoices(
-              { name: '10 Tokens — $9.99 ($1.00 each)', value: 'tokens_10' },
-              { name: '30 Tokens — $24.99 ($0.83 each)', value: 'tokens_30' },
-              { name: '100 Tokens — $69.99 ($0.70 each)', value: 'tokens_100' }
+              { name: '30 Tokens', value: 'tokens_30' },
+              { name: '50 Tokens', value: 'tokens_50' },
+              { name: '100 Tokens', value: 'tokens_100' }
             )))
     .addSubcommand(sub =>
       sub.setName('buy-boost')
@@ -575,9 +574,8 @@ module.exports = {
             .setDescription('Boost size')
             .setRequired(true)
             .addChoices(
-              { name: '+64 Participants — $4.99', value: 'boost_64' },
-              { name: '+128 Participants — $9.99', value: 'boost_128' },
-              { name: '+256 Participants — $19.99', value: 'boost_256' }
+              { name: '+128 Participants', value: 'boost_128' },
+              { name: '+256 Participants', value: 'boost_256' }
             )))
     .addSubcommand(sub =>
       sub.setName('balance')
@@ -780,14 +778,19 @@ function startFreeTrial(guildId, grantedBy) {
 
 ## Token Cleanup
 
-Expired tokens are cleaned up on bot startup:
+Expired tokens and monthly usage are cleaned up via an hourly cron job (via `node-cron`):
 
 ```javascript
 // In src/events/ready.js
-const expiredTokensCleaned = cleanupExpiredTokens();
-if (expiredTokensCleaned > 0) {
-  console.log(`Cleaned up expired tokens for ${expiredTokensCleaned} subscription(s)`);
-}
+cron.schedule('0 * * * *', async () => {
+  // 1. Clean up expired tokens
+  const cleaned = await cleanupExpiredTokens();
+  // 2. Reset monthly usage for subscriptions past their reset date
+  const subsToReset = await getSubscriptionsNeedingReset();
+  for (const sub of subsToReset) {
+    await resetMonthlyUsage(sub.guildId);
+  }
+});
 ```
 
 ---
@@ -927,7 +930,7 @@ function getUpgradeEmbed(feature, currentTier, customReason = null) {
       new ButtonBuilder()
         .setLabel('View Plans')
         .setStyle(ButtonStyle.Link)
-        .setURL('https://yourdomain.com/pricing'),
+        .setURL('https://tournaments.clutch.game/pricing'),
       new ButtonBuilder()
         .setCustomId('dismiss_upgrade')
         .setLabel('Maybe Later')
@@ -963,7 +966,7 @@ function getTokenPurchaseEmbed(limitCheck) {
       new ButtonBuilder()
         .setLabel('View Plans')
         .setStyle(ButtonStyle.Link)
-        .setURL('https://yourdomain.com/pricing')
+        .setURL('https://tournaments.clutch.game/pricing')
     );
   
   return { embeds: [embed], components: [row] };
@@ -987,7 +990,7 @@ function getBoostPurchaseEmbed(participantCheck) {
       new ButtonBuilder()
         .setLabel('View Plans')
         .setStyle(ButtonStyle.Link)
-        .setURL('https://yourdomain.com/pricing')
+        .setURL('https://tournaments.clutch.game/pricing')
     );
   
   return { embeds: [embed], components: [row] };
@@ -1159,7 +1162,7 @@ API keys are generated when a server upgrades to Business and can be regenerated
 
 ### Endpoints
 
-Base URL: `https://api.yourdomain.com/v1`
+Base URL: `https://tournaments.clutch.game/v1`
 
 #### GET /tournaments/:id
 
@@ -1288,54 +1291,16 @@ X-Webhook-Signature: sha256=xxxx
 
 ---
 
-## Implementation Phases
+## Implementation Status
 
-### Phase 1: Subscription Infrastructure (No Stripe)
+All phases are **complete** and deployed to production.
 
-Build the subscription system with manual grants only:
-
-1. Create `src/data/subscriptions.js` — subscription store with token support
-2. Create `src/services/subscriptionService.js` — tier checks, limits, tokens, grants
-3. Add `/owner grant`, `/owner revoke`, `/owner grant-tokens`, `/owner list-grants` commands
-4. Add `/subscribe status` command
-5. Add `/tokens balance` command
-6. Integrate feature gates into tournament creation
-7. Integrate feature gates into admin commands
-8. Add upgrade embeds with "View Plans" button
-
-**Deliverable:** Fully functional tier system, testable via manual grants.
-
-### Phase 2: Stripe Integration
-
-1. Create `src/services/stripeService.js`
-2. Create `src/api/webhooks/stripe.js`
-3. Add `/subscribe upgrade` command
-4. Add `/subscribe manage` command
-5. Add `/tokens buy-tournaments` and `/tokens buy-boost` commands
-6. Set up Express server for Stripe webhooks
-7. Test full purchase flow for subscriptions and tokens
-
-**Deliverable:** Users can purchase subscriptions and tokens via Stripe.
-
-### Phase 3: Pro Features
-
-1. Create tournament templates system
-2. Create analytics dashboard/commands
-3. Add `/templates save`, `/templates list`, `/templates use` commands
-4. Add `/analytics` command
-
-**Deliverable:** Pro tier fully functional.
-
-### Phase 4: Business Features (API & Webhooks)
-
-1. Create `src/api/v1/` directory with REST endpoints
-2. Add API key generation and authentication middleware
-3. Create webhook delivery service
-4. Add `/subscribe api-key` and `/subscribe webhook` commands
-5. Document API for users
-6. Add white-label branding configuration
-
-**Deliverable:** Business tier fully functional with API access.
+- **Phase 1** (Subscription Infrastructure): Tier system, manual grants, feature gates
+- **Phase 2** (Stripe Integration): Checkout, webhooks, subscription management
+- **Phase 3** (Pro Features): Tournament templates
+- **Phase 4** (Business Features): REST API, webhook delivery, white-label branding
+- **Phase 5** (Database Migration): PostgreSQL via Knex.js, replacing in-memory Maps
+- **Phase 6** (Production Hardening): HTTPS, backups, log rotation, PM2, CI/CD
 
 ---
 
@@ -1349,9 +1314,11 @@ DISCORD_CLIENT_ID=xxx
 # Bot Owner
 BOT_OWNER_ID=your_discord_user_id
 
+# Config
+NODE_ENV=production
+
 # Stripe
 STRIPE_SECRET_KEY=sk_live_xxx
-STRIPE_PUBLISHABLE_KEY=pk_live_xxx
 STRIPE_WEBHOOK_SECRET=whsec_xxx
 
 # Subscription Price IDs
@@ -1363,89 +1330,173 @@ STRIPE_BUSINESS_MONTHLY_PRICE_ID=price_xxx
 STRIPE_BUSINESS_ANNUAL_PRICE_ID=price_xxx
 
 # Token/Boost Price IDs
-STRIPE_TOKENS_10_PRICE_ID=price_xxx
 STRIPE_TOKENS_30_PRICE_ID=price_xxx
+STRIPE_TOKENS_50_PRICE_ID=price_xxx
 STRIPE_TOKENS_100_PRICE_ID=price_xxx
-STRIPE_BOOST_64_PRICE_ID=price_xxx
 STRIPE_BOOST_128_PRICE_ID=price_xxx
 STRIPE_BOOST_256_PRICE_ID=price_xxx
 
-# API (Phase 4)
-API_BASE_URL=https://api.yourdomain.com
-API_PORT=3000
+# Stripe Redirect URLs
+STRIPE_SUCCESS_URL=https://discord.com/channels/@me
+STRIPE_CANCEL_URL=https://discord.com/channels/@me
+STRIPE_RETURN_URL=https://discord.com/channels/@me
 
-# Database (future)
-DATABASE_URL=xxx
+# API Server
+API_PORT=3000
+API_BASE_URL=https://tournaments.clutch.game
+
+# Database (PostgreSQL)
+DATABASE_URL=postgresql://tournament_bot:xxx@127.0.0.1:5432/tournament_bot
 ```
 
 ---
 
-## Updated File Structure
+## File Structure
 
 ```
-src/
-├── api/                              # Business tier API
-│   ├── v1/
-│   │   ├── tournaments.js
-│   │   ├── matches.js
-│   │   └── standings.js
-│   ├── webhooks/
-│   │   └── stripe.js
-│   ├── middleware/
-│   │   ├── auth.js
-│   │   └── rateLimit.js
-│   └── index.js
+tournament-bot/
+├── knexfile.js                        # Knex database configuration
+├── migrations/                        # PostgreSQL migrations (run on startup)
+│   ├── 20260301000001_create_server_settings.js
+│   ├── 20260301000002_create_subscriptions.js
+│   ├── 20260301000003_create_tournaments.js
+│   ├── 20260301000004_create_templates.js
+│   ├── 20260301000005_create_server_presets.js
+│   └── 20260301000006_create_wizard_sessions.js
 │
-├── commands/
-│   ├── admin/
-│   │   └── settings.js               # +feature gate checks, admin help
-│   ├── general/
-│   │   └── help.js                   # Player-facing help
-│   ├── owner/
-│   │   └── grant.js                  # grant, revoke, grant-tokens, list-grants
-│   ├── subscription/
-│   │   ├── subscribe.js              # status, upgrade, manage, trial, api-key, webhook, branding
-│   │   └── tokens.js                 # buy-tournaments, buy-boost, balance
-│   ├── analytics/                    # Pro feature
-│   │   └── analytics.js              # overview, tournament, leaderboard
-│   ├── templates/                    # Pro feature
-│   │   └── templates.js              # save, list, view, delete
-│   ├── match/
-│   │   └── match.js
-│   └── tournament/
-│       └── create.js                 # +feature gate checks, +auto-boost
-│
-├── components/
-│   ├── wizardCreate.js               # +feature gate checks, +token consumption
-│   ├── simpleCreateModal.js          # +feature gate checks
-│   ├── boostSelect.js                # NEW — boost selection in wizard
-│   └── ...
-│
-├── data/
-│   ├── subscriptions.js              # Subscription + token store
-│   ├── templates.js                  # NEW — Pro tournament templates
-│   ├── serverSettings.js
-│   ├── tournaments.js
-│   └── wizardSessions.js
-│
-├── services/
-│   ├── subscriptionService.js        # Tier checks, tokens, grants, limits
-│   ├── stripeService.js              # Stripe integration
-│   ├── webhookService.js             # Business webhook delivery
-│   ├── templateService.js            # NEW — Pro template management
-│   ├── analyticsService.js           # NEW — Pro analytics
-│   ├── channelService.js
-│   ├── reminderService.js
-│   └── tournamentService.js
-│
-├── utils/
-│   ├── apiKeyGenerator.js
-│   └── ...
-│
-└── events/
-    ├── interactionCreate.js
-    └── ready.js                      # +subscription/token expiry checks
+├── src/
+│   ├── db.js                          # Knex singleton instance
+│   ├── index.js                       # Entry point (DB connect → migrations → Discord login)
+│   ├── config.js                      # Environment config
+│   ├── deploy-commands.js             # Slash command registration (global + guild)
+│   │
+│   ├── api/                           # Express server (port 3000)
+│   │   ├── index.js                   # Routes: /webhooks/stripe, /v1/*, /health
+│   │   ├── v1/
+│   │   │   └── tournaments.js         # Business tier REST API
+│   │   └── middleware/
+│   │       ├── auth.js                # API key authentication
+│   │       └── rateLimit.js           # Rate limiting
+│   │
+│   ├── commands/
+│   │   ├── admin/
+│   │   │   └── settings.js            # Server config, feature gates
+│   │   ├── general/
+│   │   │   └── help.js                # Player-facing help
+│   │   ├── owner/
+│   │   │   └── grant.js               # grant, revoke, grant-tokens, grant-boost, list-grants, status
+│   │   ├── subscription/
+│   │   │   ├── subscribe.js           # status, upgrade, manage, trial, api-key, webhook, branding
+│   │   │   └── tokens.js              # buy-tournaments, buy-boost, balance
+│   │   ├── templates/
+│   │   │   └── templates.js           # save, list, view, delete (Pro)
+│   │   ├── team/
+│   │   │   └── manage.js              # add, remove, transfer
+│   │   └── tournament/
+│   │       └── create.js              # create, list, info, cancel, start, report, bracket, seed
+│   │
+│   ├── components/
+│   │   ├── checkin.js                 # Check-in button handler
+│   │   ├── gameSelect.js              # Game selection menu
+│   │   ├── matchReport.js             # Match result buttons
+│   │   ├── signup.js                  # Team registration
+│   │   ├── simpleCreateModal.js       # Quick create modal
+│   │   ├── soloSignup.js              # Solo player signup
+│   │   ├── startTournament.js         # Start tournament button
+│   │   ├── teamRegister.js            # Team registration modal
+│   │   ├── viewBracket.js             # View bracket button
+│   │   ├── viewResults.js             # View results button
+│   │   ├── withdraw.js                # Withdraw button
+│   │   ├── wizardBasic.js             # Wizard step: basic info
+│   │   ├── wizardCreate.js            # Wizard step: create tournament
+│   │   ├── wizardGame.js              # Wizard step: game selection
+│   │   ├── wizardOptions.js           # Wizard step: options
+│   │   └── wizardSettings.js          # Wizard step: settings
+│   │
+│   ├── data/                          # Data layer (all async, backed by PostgreSQL)
+│   │   ├── store.js                   # Tournament + settings memory cache, DB loaders
+│   │   ├── serverSettings.js          # Per-guild settings (table: server_settings)
+│   │   ├── subscriptions.js           # Subscriptions, tokens, branding (table: subscriptions)
+│   │   ├── templates.js               # Tournament templates (table: templates)
+│   │   ├── serverPresets.js           # Custom game presets (table: server_presets)
+│   │   └── wizardSessions.js          # Temporary wizard state (table: wizard_sessions)
+│   │
+│   ├── services/
+│   │   ├── subscriptionService.js     # Tier checks, tokens, grants, limits
+│   │   ├── stripeService.js           # Stripe checkout + webhook handling
+│   │   ├── webhookService.js          # Business tier webhook delivery
+│   │   ├── templateService.js         # Pro template management
+│   │   ├── tournamentService.js       # Tournament CRUD + participant management
+│   │   ├── channelService.js          # Match room creation
+│   │   ├── reminderService.js         # Scheduled reminders + check-in
+│   │   ├── announcementService.js     # Announcement channel management
+│   │   └── gamePresetService.js       # Built-in + custom game presets
+│   │
+│   ├── utils/
+│   │   ├── embedBuilder.js            # Tournament embeds with branding support
+│   │   ├── tournamentUpdater.js       # Update tournament messages
+│   │   └── permissions.js             # Admin role checks
+│   │
+│   └── events/
+│       ├── interactionCreate.js       # Command/component router
+│       ├── clientReady.js             # Ready event + reminder rescheduling
+│       └── ready.js                   # Hourly cron: token cleanup, monthly reset
 ```
+
+---
+
+## Database
+
+All data is persisted in **PostgreSQL 16** via **Knex.js** query builder. Migrations run automatically on startup via `db.migrate.latest()`.
+
+### Tables
+
+| Table | Primary Key | Description |
+|-------|------------|-------------|
+| `server_settings` | `guild_id` | Per-guild config (announcement channel, defaults, admin roles) |
+| `subscriptions` | `guild_id` | Billing, tokens (JSONB), usage (JSONB), branding (JSONB) |
+| `tournaments` | `id` (UUID) | Tournament data with JSONB for participants, teams, bracket, settings |
+| `templates` | `id` (UUID) | Saved tournament configurations (Pro feature) |
+| `server_presets` | `id` (auto) | Custom game presets per guild |
+| `wizard_sessions` | `id` (UUID) | Temporary wizard state (30-min TTL, cleaned by cron) |
+
+### Data Layer
+
+All data layer functions in `src/data/` are **async** and return Promises. The `tournaments` and `server_settings` Maps in `src/data/store.js` serve as in-memory caches that are loaded from the database on startup and kept in sync by the service layer.
+
+---
+
+## Infrastructure
+
+### Hosting
+
+- **DigitalOcean Droplet**: 2GB RAM / 1 vCPU / 70GB disk / Ubuntu 24.04 (FRA1)
+- **Domain**: `tournaments.clutch.game` (A record → droplet IP)
+- **Nginx**: Reverse proxy on ports 80/443 → localhost:3000
+- **SSL**: Let's Encrypt via Certbot (auto-renewing)
+- **Process Manager**: PM2 with auto-restart on reboot
+- **Log Rotation**: pm2-logrotate (10MB max, 7 rotations, compressed)
+
+### CI/CD
+
+Push to `main` on GitHub triggers auto-deploy via GitHub Actions (`appleboy/ssh-action`):
+1. SSH into droplet
+2. `git pull origin main`
+3. `npm install --production`
+4. `pm2 restart tournament-bot`
+
+Migrations run automatically on bot startup.
+
+### Backups
+
+- **Database**: Daily `pg_dump` at 3 AM UTC to `/root/backups/`
+- **Retention**: 14 days, gzip compressed
+- **Schedule**: Cron job on the droplet
+
+### Stripe Webhook
+
+- **Endpoint**: `https://tournaments.clutch.game/webhooks/stripe`
+- **Events**: `checkout.session.completed`, `customer.subscription.updated`, `customer.subscription.deleted`, `invoice.payment_succeeded`, `invoice.payment_failed`
 
 ---
 

@@ -1,0 +1,1107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tournament Bot — Admin Manual</title>
+  <style>
+    /* ====================================================================
+       Reset & Base
+       ==================================================================== */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg-primary: #0f1117;
+      --bg-secondary: #161922;
+      --bg-card: #1c1f2e;
+      --bg-code: #12141d;
+      --border: #2a2d3e;
+      --border-accent: #3d4160;
+      --text-primary: #e4e6f0;
+      --text-secondary: #9499b3;
+      --text-muted: #6b7094;
+      --accent: #5865f2;
+      --accent-hover: #4752c4;
+      --accent-glow: rgba(88, 101, 242, 0.15);
+      --green: #2ecc71;
+      --green-dim: rgba(46, 204, 113, 0.12);
+      --yellow: #f1c40f;
+      --yellow-dim: rgba(241, 196, 15, 0.12);
+      --red: #e74c3c;
+      --orange: #e67e22;
+      --purple: #9b59b6;
+      --sidebar-width: 280px;
+      --header-height: 64px;
+      --radius: 8px;
+      --radius-lg: 12px;
+    }
+
+    html { scroll-behavior: smooth; scroll-padding-top: calc(var(--header-height) + 24px); }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      line-height: 1.7;
+      font-size: 15px;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* ====================================================================
+       Header
+       ==================================================================== */
+    .header {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: var(--header-height);
+      background: rgba(15, 17, 23, 0.85);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border-bottom: 1px solid var(--border);
+      z-index: 100;
+      display: flex;
+      align-items: center;
+      padding: 0 24px;
+    }
+
+    .header-inner {
+      display: flex;
+      align-items: center;
+      width: 100%;
+      max-width: 1400px;
+      margin: 0 auto;
+      gap: 16px;
+    }
+
+    .header-logo {
+      font-size: 20px;
+      font-weight: 700;
+      color: var(--text-primary);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      text-decoration: none;
+    }
+
+    .header-logo span { color: var(--accent); }
+
+    .header-badge {
+      background: var(--accent);
+      color: #fff;
+      font-size: 11px;
+      font-weight: 600;
+      padding: 2px 8px;
+      border-radius: 4px;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+    }
+
+    .menu-toggle {
+      display: none;
+      background: none;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text-primary);
+      padding: 6px 10px;
+      cursor: pointer;
+      font-size: 18px;
+      margin-left: auto;
+    }
+
+    /* ====================================================================
+       Layout
+       ==================================================================== */
+    .layout {
+      display: flex;
+      margin-top: var(--header-height);
+      min-height: calc(100vh - var(--header-height));
+    }
+
+    /* ====================================================================
+       Sidebar
+       ==================================================================== */
+    .sidebar {
+      position: fixed;
+      top: var(--header-height);
+      left: 0;
+      width: var(--sidebar-width);
+      height: calc(100vh - var(--header-height));
+      background: var(--bg-secondary);
+      border-right: 1px solid var(--border);
+      overflow-y: auto;
+      padding: 20px 0;
+      z-index: 50;
+    }
+
+    .sidebar::-webkit-scrollbar { width: 4px; }
+    .sidebar::-webkit-scrollbar-track { background: transparent; }
+    .sidebar::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+
+    .sidebar-section {
+      padding: 0 16px;
+      margin-bottom: 8px;
+    }
+
+    .sidebar-section-title {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--text-muted);
+      padding: 8px 12px;
+    }
+
+    .sidebar a {
+      display: block;
+      padding: 7px 12px;
+      color: var(--text-secondary);
+      text-decoration: none;
+      font-size: 14px;
+      border-radius: 6px;
+      transition: all 0.15s;
+    }
+
+    .sidebar a:hover {
+      color: var(--text-primary);
+      background: rgba(88, 101, 242, 0.08);
+    }
+
+    .sidebar a.active {
+      color: var(--accent);
+      background: var(--accent-glow);
+    }
+
+    /* ====================================================================
+       Main content
+       ==================================================================== */
+    .main {
+      margin-left: var(--sidebar-width);
+      flex: 1;
+      padding: 40px 48px 80px;
+      max-width: 900px;
+    }
+
+    /* ====================================================================
+       Typography
+       ==================================================================== */
+    h1 {
+      font-size: 32px;
+      font-weight: 800;
+      margin-bottom: 8px;
+      color: #fff;
+      letter-spacing: -0.5px;
+    }
+
+    .subtitle {
+      font-size: 16px;
+      color: var(--text-secondary);
+      margin-bottom: 40px;
+    }
+
+    h2 {
+      font-size: 22px;
+      font-weight: 700;
+      margin-top: 56px;
+      margin-bottom: 20px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid var(--border);
+      color: #fff;
+    }
+
+    h3 {
+      font-size: 17px;
+      font-weight: 600;
+      margin-top: 32px;
+      margin-bottom: 12px;
+      color: var(--text-primary);
+    }
+
+    p { margin-bottom: 14px; }
+    p + p { margin-top: 0; }
+
+    strong { color: #fff; font-weight: 600; }
+
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+
+    /* ====================================================================
+       Code
+       ==================================================================== */
+    code {
+      font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', Consolas, monospace;
+      font-size: 13px;
+      background: var(--bg-code);
+      border: 1px solid var(--border);
+      padding: 2px 7px;
+      border-radius: 4px;
+      color: #d4d8f0;
+    }
+
+    pre {
+      background: var(--bg-code);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px 20px;
+      margin: 16px 0;
+      overflow-x: auto;
+      line-height: 1.6;
+    }
+
+    pre code {
+      background: none;
+      border: none;
+      padding: 0;
+      font-size: 13.5px;
+      color: #c8ccde;
+    }
+
+    .cmd {
+      color: var(--accent);
+      font-weight: 500;
+    }
+
+    .param {
+      color: var(--green);
+    }
+
+    .value {
+      color: var(--yellow);
+    }
+
+    /* ====================================================================
+       Cards
+       ==================================================================== */
+    .card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 24px;
+      margin: 20px 0;
+    }
+
+    .card-title {
+      font-size: 15px;
+      font-weight: 600;
+      color: #fff;
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .tip {
+      border-left: 3px solid var(--accent);
+      background: var(--accent-glow);
+    }
+
+    .tip .card-title::before {
+      content: '💡';
+    }
+
+    .warning {
+      border-left: 3px solid var(--orange);
+      background: rgba(230, 126, 34, 0.08);
+    }
+
+    .warning .card-title::before {
+      content: '⚠️';
+    }
+
+    .success {
+      border-left: 3px solid var(--green);
+      background: var(--green-dim);
+    }
+
+    .success .card-title::before {
+      content: '✅';
+    }
+
+    /* ====================================================================
+       Tables
+       ==================================================================== */
+    .table-wrap {
+      overflow-x: auto;
+      margin: 16px 0;
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 14px;
+    }
+
+    thead th {
+      background: var(--bg-code);
+      text-align: left;
+      padding: 10px 16px;
+      font-weight: 600;
+      color: var(--text-secondary);
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    tbody td {
+      padding: 10px 16px;
+      border-bottom: 1px solid var(--border);
+      vertical-align: top;
+    }
+
+    tbody tr:last-child td {
+      border-bottom: none;
+    }
+
+    tbody tr:hover {
+      background: rgba(88, 101, 242, 0.04);
+    }
+
+    /* ====================================================================
+       Tags / Badges
+       ==================================================================== */
+    .tag {
+      display: inline-block;
+      font-size: 11px;
+      font-weight: 600;
+      padding: 2px 8px;
+      border-radius: 4px;
+      letter-spacing: 0.3px;
+    }
+
+    .tag-free { background: rgba(149, 165, 166, 0.15); color: #95a5a6; }
+    .tag-premium { background: rgba(88, 101, 242, 0.15); color: #7c8af2; }
+    .tag-pro { background: rgba(155, 89, 182, 0.15); color: #b07cd8; }
+    .tag-business { background: rgba(241, 196, 15, 0.15); color: #f1c40f; }
+
+    /* ====================================================================
+       Steps
+       ==================================================================== */
+    .steps {
+      counter-reset: step;
+      list-style: none;
+      padding: 0;
+      margin: 16px 0;
+    }
+
+    .steps li {
+      counter-increment: step;
+      padding: 12px 0 12px 48px;
+      position: relative;
+      border-left: 2px solid var(--border);
+      margin-left: 16px;
+    }
+
+    .steps li:last-child {
+      border-left-color: transparent;
+    }
+
+    .steps li::before {
+      content: counter(step);
+      position: absolute;
+      left: -14px;
+      top: 10px;
+      width: 26px;
+      height: 26px;
+      background: var(--accent);
+      color: #fff;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    /* ====================================================================
+       Lifecycle flow
+       ==================================================================== */
+    .flow {
+      display: flex;
+      gap: 0;
+      margin: 24px 0;
+      overflow-x: auto;
+      padding-bottom: 8px;
+    }
+
+    .flow-step {
+      flex: 1;
+      min-width: 120px;
+      text-align: center;
+      position: relative;
+      padding: 0 8px;
+    }
+
+    .flow-step::after {
+      content: '→';
+      position: absolute;
+      right: -6px;
+      top: 16px;
+      color: var(--text-muted);
+      font-size: 18px;
+    }
+
+    .flow-step:last-child::after { display: none; }
+
+    .flow-icon {
+      width: 48px;
+      height: 48px;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 8px;
+      font-size: 22px;
+    }
+
+    .flow-icon.reg { background: var(--accent-glow); }
+    .flow-icon.check { background: var(--yellow-dim); }
+    .flow-icon.active { background: var(--green-dim); }
+    .flow-icon.done { background: rgba(155, 89, 182, 0.12); }
+
+    .flow-label {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-secondary);
+    }
+
+    /* ====================================================================
+       Responsive
+       ==================================================================== */
+    @media (max-width: 900px) {
+      .sidebar {
+        transform: translateX(-100%);
+        transition: transform 0.25s ease;
+      }
+      .sidebar.open {
+        transform: translateX(0);
+        box-shadow: 4px 0 24px rgba(0,0,0,0.5);
+      }
+      .main {
+        margin-left: 0;
+        padding: 32px 20px 80px;
+      }
+      .menu-toggle { display: block; }
+    }
+
+    @media (max-width: 600px) {
+      h1 { font-size: 24px; }
+      h2 { font-size: 19px; }
+      .flow { flex-wrap: wrap; gap: 8px; }
+      .flow-step::after { display: none; }
+      .flow-step { min-width: 80px; }
+    }
+
+    /* ====================================================================
+       Section targets (for sidebar highlighting)
+       ==================================================================== */
+    section[id] { scroll-margin-top: calc(var(--header-height) + 24px); }
+  </style>
+</head>
+<body>
+
+<!-- ======================================================================
+     Header
+     ====================================================================== -->
+<header class="header">
+  <div class="header-inner">
+    <a href="#" class="header-logo">
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+      Tournament <span>Bot</span>
+    </a>
+    <span class="header-badge">Admin Manual</span>
+    <button class="menu-toggle" onclick="document.querySelector('.sidebar').classList.toggle('open')" aria-label="Toggle menu">&#9776;</button>
+  </div>
+</header>
+
+<!-- ======================================================================
+     Sidebar
+     ====================================================================== -->
+<nav class="sidebar" id="sidebar">
+  <div class="sidebar-section">
+    <div class="sidebar-section-title">Getting Started</div>
+    <a href="#setup">Initial Setup</a>
+    <a href="#creating">Creating a Tournament</a>
+    <a href="#lifecycle">Tournament Lifecycle</a>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-section-title">Running Tournaments</div>
+    <a href="#reporting">Reporting Results</a>
+    <a href="#teams">Team Tournaments</a>
+    <a href="#battle-royale">Battle Royale</a>
+    <a href="#seeding">Seeding</a>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-section-title">Server Config</div>
+    <a href="#settings">Server Settings</a>
+    <a href="#debug">Debug &amp; Testing</a>
+    <a href="#templates">Templates</a>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-section-title">Billing</div>
+    <a href="#tokens">Tokens &amp; Boosts</a>
+    <a href="#subscription">Subscription</a>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-section-title">Reference</div>
+    <a href="#commands">Command Reference</a>
+    <a href="#games">Supported Games</a>
+    <a href="#tiers">Tier Comparison</a>
+  </div>
+</nav>
+
+<!-- ======================================================================
+     Main content
+     ====================================================================== -->
+<div class="layout">
+<main class="main">
+
+  <h1>Admin Manual</h1>
+  <p class="subtitle">Everything you need to run tournaments for your community.</p>
+
+  <!-- ================================================================
+       1. Initial Setup
+       ================================================================ -->
+  <section id="setup">
+    <h2>1. Initial Setup</h2>
+    <p>Once the bot is added to your server, configure a few things before your first tournament.</p>
+
+    <h3>Set an announcement channel</h3>
+    <pre><code><span class="cmd">/admin set-announcement-channel</span> <span class="param">channel:</span><span class="value">#tournaments</span></code></pre>
+    <p>This is where the bot posts tournament embeds (the signup message with buttons). If you skip this, the bot auto-creates a <code>#tournament-announcements</code> channel.</p>
+
+    <h3>Set a match room category</h3>
+    <pre><code><span class="cmd">/admin set-match-category</span> <span class="param">category:</span><span class="value">Tournament Matches</span></code></pre>
+    <p>When a tournament starts, the bot creates text channels for each match under this category. If you skip this, it creates one automatically.</p>
+
+    <h3>Add tournament admin roles</h3>
+    <pre><code><span class="cmd">/admin set-role</span> <span class="param">action:</span><span class="value">Add role</span> <span class="param">role:</span><span class="value">@Tournament Manager</span></code></pre>
+    <p>By default, only users with <strong>Administrator</strong> or <strong>Manage Server</strong> permission can create and manage tournaments. Add a role here to let community managers run tournaments without those permissions. Up to 3 roles.</p>
+
+    <h3>Verify your settings</h3>
+    <pre><code><span class="cmd">/admin settings</span></code></pre>
+    <p>Shows your current configuration at a glance.</p>
+  </section>
+
+  <!-- ================================================================
+       2. Creating a Tournament
+       ================================================================ -->
+  <section id="creating">
+    <h2>2. Creating a Tournament</h2>
+    <p>There are two creation modes: <strong>Simple</strong> and <strong>Advanced</strong>.</p>
+
+    <h3>Simple Mode</h3>
+    <pre><code><span class="cmd">/tournament create</span></code></pre>
+    <ol class="steps">
+      <li>A dropdown appears with popular games (CS2, League of Legends, Fortnite, etc.). Pick one, or choose <strong>"Other Game"</strong> for anything custom.</li>
+      <li>A form pops up asking for <strong>Tournament Title</strong>, <strong>Date &amp; Time</strong> (natural language works: <code>March 10 8pm EST</code>, <code>tomorrow 7pm UTC</code>), and <strong>Max Players/Teams</strong> (2–128).</li>
+      <li>Hit submit and the tournament is live with a signup embed in your announcement channel.</li>
+    </ol>
+    <p>Simple mode uses the game's default settings (format, team size, best-of-1, no check-in).</p>
+
+    <h3>Advanced Mode</h3>
+    <pre><code><span class="cmd">/tournament create-advanced</span></code></pre>
+    <p>Same game picker, but after the basic info form you get a <strong>settings screen</strong> with dropdowns and toggles:</p>
+
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Setting</th><th>Options</th></tr></thead>
+        <tbody>
+          <tr><td><strong>Format</strong></td><td>Single Elimination, Double Elimination, Swiss, Round Robin, Battle Royale</td></tr>
+          <tr><td><strong>Team Size</strong></td><td>Solo, 2v2, 3v3, up to 10v10 (varies by game)</td></tr>
+          <tr><td><strong>Best Of</strong></td><td>Bo1, Bo3, Bo5, Bo7</td></tr>
+          <tr><td><strong>Check-in</strong></td><td>On / Off <span class="tag tag-premium">Premium</span></td></tr>
+          <tr><td><strong>Game Nickname</strong></td><td>Require in-game name on signup</td></tr>
+          <tr><td><strong>Captain Mode</strong></td><td>On / Off <span class="tag tag-premium">Premium</span></td></tr>
+          <tr><td><strong>Seeding</strong></td><td>On / Off <span class="tag tag-premium">Premium</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <p>Click <strong>More Options</strong> for check-in window (5–120 min), required roles, and Battle Royale lobby settings.</p>
+  </section>
+
+  <!-- ================================================================
+       3. Tournament Lifecycle
+       ================================================================ -->
+  <section id="lifecycle">
+    <h2>3. Tournament Lifecycle</h2>
+
+    <div class="flow">
+      <div class="flow-step">
+        <div class="flow-icon reg">📝</div>
+        <div class="flow-label">Registration</div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-icon check">✋</div>
+        <div class="flow-label">Check-in</div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-icon active">⚔️</div>
+        <div class="flow-label">Active</div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-icon done">🏆</div>
+        <div class="flow-label">Completed</div>
+      </div>
+    </div>
+
+    <h3>Registration</h3>
+    <p>The bot posts a signup embed with <strong>Sign Up</strong> (or <strong>Register Team</strong>) and <strong>Withdraw</strong> buttons. Players click to join. The participant count updates in real-time. DM reminders are sent 24 hours and 1 hour before start.</p>
+
+    <h3>Check-in (if enabled)</h3>
+    <p>Check-in opens automatically before start time (based on your configured check-in window). The signup button is replaced with a <strong>Check In</strong> button. Players who don't check in are removed when the tournament starts.</p>
+
+    <h3>Starting</h3>
+    <p>When the scheduled time arrives, the bot posts a message saying the tournament is ready. Start it with:</p>
+    <pre><code><span class="cmd">/tournament start</span> <span class="param">tournament:</span><span class="value">Friday Night Fights</span></code></pre>
+    <p>Or click the <strong>Start Tournament</strong> button that appears in the channel.</p>
+
+    <div class="card tip">
+      <div class="card-title">Why manual start?</div>
+      <p>This gives you time to handle late check-ins, adjust seeding, or wait a few extra minutes if needed.</p>
+    </div>
+
+    <h3>Active</h3>
+    <p>Matches are played. Results are reported via buttons in match rooms or slash commands. The bracket advances automatically and new match room channels are created for each round.</p>
+
+    <h3>Completed</h3>
+    <p>After the final match, the bot announces results with a podium (champion, runner-up, 3rd place). If auto-cleanup is enabled, match rooms are cleaned up after 30 seconds.</p>
+
+    <h3>Cancelling</h3>
+    <pre><code><span class="cmd">/tournament cancel</span> <span class="param">tournament:</span><span class="value">Friday Night Fights</span></code></pre>
+    <p>Cancels immediately. Scheduled reminders are also cancelled.</p>
+  </section>
+
+  <!-- ================================================================
+       4. Reporting Results
+       ================================================================ -->
+  <section id="reporting">
+    <h2>4. Reporting Results</h2>
+
+    <h3>From match room channels</h3>
+    <p>When a tournament starts, each match gets its own text channel (e.g. <code>#match-1-player-a-vs-player-b</code>). Inside, there are <strong>Player A Wins</strong> and <strong>Player B Wins</strong> buttons. Any admin can click to report the result. The bracket advances automatically.</p>
+
+    <h3>From slash commands</h3>
+    <pre><code><span class="cmd">/tournament report</span> <span class="param">tournament:</span><span class="value">Friday Night Fights</span> <span class="param">match_number:</span><span class="value">1</span> <span class="param">winner:</span><span class="value">PlayerA</span> <span class="param">score:</span><span class="value">2-1</span></code></pre>
+    <p>The <code>score</code> parameter is optional but useful for record-keeping. The <code>winner</code> field autocompletes with participants in that match.</p>
+
+    <h3>Viewing the bracket</h3>
+    <pre><code><span class="cmd">/tournament bracket</span> <span class="param">tournament:</span><span class="value">Friday Night Fights</span></code></pre>
+    <p>Or click the <strong>View Bracket</strong> button on the tournament embed.</p>
+  </section>
+
+  <!-- ================================================================
+       5. Team Tournaments
+       ================================================================ -->
+  <section id="teams">
+    <h2>5. Team Tournaments</h2>
+    <p>When you create a tournament with a team size of 2 or more, the signup flow changes:</p>
+    <ol class="steps">
+      <li>Players click <strong>Register Team</strong> on the tournament embed.</li>
+      <li>A form asks for <strong>Team Name</strong> and <strong>Team Members</strong> (one username per line, count must match team size minus the captain).</li>
+      <li>The person who registers becomes the <strong>team captain</strong>.</li>
+    </ol>
+
+    <h3>Captain commands</h3>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Command</th><th>Description</th></tr></thead>
+        <tbody>
+          <tr><td><code>/team add</code></td><td>Add a member to the team</td></tr>
+          <tr><td><code>/team remove</code></td><td>Remove a member (can't remove yourself)</td></tr>
+          <tr><td><code>/team transfer</code></td><td>Hand off captain role to a teammate</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p>All team commands only work during the <strong>registration</strong> phase.</p>
+
+    <h3>Captain Mode <span class="tag tag-premium">Premium</span></h3>
+    <p>Normally, all team members must be in the server at signup. With Captain Mode enabled, the captain just types names — members don't need to be in the server yet. They're resolved when the tournament starts. Great for cross-server communities.</p>
+  </section>
+
+  <!-- ================================================================
+       6. Battle Royale
+       ================================================================ -->
+  <section id="battle-royale">
+    <h2>6. Battle Royale Tournaments</h2>
+    <p>Battle Royale format works differently from bracket-based formats.</p>
+
+    <h3>Structure</h3>
+    <p><strong>Group Stage:</strong> Participants are split into lobbies (configurable size: 10–100). Each group plays multiple games.<br>
+    <strong>Finals:</strong> Top teams from each group advance to a Grand Finals lobby.</p>
+
+    <h3>Reporting BR results</h3>
+    <pre><code><span class="cmd">/tournament br-report</span> <span class="param">tournament:</span><span class="value">PUBG Weekly</span> <span class="param">group:</span><span class="value">A</span> <span class="param">game_number:</span><span class="value">1</span>
+  <span class="param">placements:</span><span class="value">5,12,3,8,1,15,7,20,10,2</span></code></pre>
+    <p>The <code>placements</code> field is a comma-separated list of lobby numbers in finish order (1st place first). Teams not listed are auto-filled to last place.</p>
+    <p>The bot tracks points across games. When all group stage games are reported, it automatically creates the finals lobby.</p>
+
+    <h3>BR-specific settings (Advanced Mode)</h3>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Setting</th><th>Options</th></tr></thead>
+        <tbody>
+          <tr><td><strong>Lobby Size</strong></td><td>10, 20, 30, 50, 100</td></tr>
+          <tr><td><strong>Games per Stage</strong></td><td>1 – 10</td></tr>
+          <tr><td><strong>Advancing per Group</strong></td><td>Auto, 2, 4, 6, 8</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ================================================================
+       7. Seeding
+       ================================================================ -->
+  <section id="seeding">
+    <h2>7. Seeding <span class="tag tag-premium">Premium</span></h2>
+    <p>Seeding must be enabled when creating the tournament (toggle it on in Advanced Mode).</p>
+
+    <pre><code><span class="cmd">/tournament seed set</span> <span class="param">tournament:</span><span class="value">Friday Night Fights</span> <span class="param">participant:</span><span class="value">PlayerA</span> <span class="param">seed:</span><span class="value">1</span></code></pre>
+
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Command</th><th>Description</th></tr></thead>
+        <tbody>
+          <tr><td><code>/tournament seed set</code></td><td>Set a specific seed for a participant</td></tr>
+          <tr><td><code>/tournament seed list</code></td><td>View current seeding</td></tr>
+          <tr><td><code>/tournament seed randomize</code></td><td>Randomly assign seeds to all unseeded participants</td></tr>
+          <tr><td><code>/tournament seed clear</code></td><td>Clear all seeds</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p>Seeding affects bracket placement — seed 1 plays the lowest seed in round 1, and so on.</p>
+  </section>
+
+  <!-- ================================================================
+       8. Server Settings
+       ================================================================ -->
+  <section id="settings">
+    <h2>8. Server Settings</h2>
+
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Command</th><th>Description</th><th>Tier</th></tr></thead>
+        <tbody>
+          <tr><td><code>/admin settings</code></td><td>View all current settings</td><td><span class="tag tag-free">Free</span></td></tr>
+          <tr><td><code>/admin set-announcement-channel</code></td><td>Set where tournament embeds post</td><td><span class="tag tag-free">Free</span></td></tr>
+          <tr><td><code>/admin set-match-category</code></td><td>Set where match rooms are created</td><td><span class="tag tag-free">Free</span></td></tr>
+          <tr><td><code>/admin set-role</code></td><td>Add/remove tournament admin roles (up to 3)</td><td><span class="tag tag-free">Free</span></td></tr>
+          <tr><td><code>/admin set-auto-cleanup</code></td><td>Auto-delete/archive match rooms after tournaments</td><td><span class="tag tag-premium">Premium</span></td></tr>
+          <tr><td><code>/admin set-captain-mode</code></td><td>Enable captain mode server-wide</td><td><span class="tag tag-premium">Premium</span></td></tr>
+          <tr><td><code>/admin cleanup</code></td><td>Manually clean up match rooms</td><td><span class="tag tag-free">Free</span></td></tr>
+          <tr><td><code>/admin help</code></td><td>Full command reference</td><td><span class="tag tag-free">Free</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ================================================================
+       9. Debug & Testing
+       ================================================================ -->
+  <section id="debug">
+    <h2>9. Debug &amp; Testing Tools</h2>
+    <p>These add fake participants so you can test the full tournament flow without needing real players.</p>
+
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Command</th><th>Description</th></tr></thead>
+        <tbody>
+          <tr><td><code>/admin add-players</code></td><td>Add fake players to a solo tournament (1–64)</td></tr>
+          <tr><td><code>/admin add-teams</code></td><td>Add fake teams to a team tournament (1–32)</td></tr>
+          <tr><td><code>/admin clear-participants</code></td><td>Remove all participants (real and fake)</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="card success">
+      <div class="card-title">Recommended testing flow</div>
+      <ol class="steps">
+        <li><code>/tournament create-advanced</code> — Create a test tournament (set the time to a few minutes from now)</li>
+        <li><code>/admin add-players count:8</code> — Add fake players</li>
+        <li><code>/tournament start</code> — Start immediately (no need to wait)</li>
+        <li>Report results by clicking the winner buttons in match room channels</li>
+        <li>Watch the bracket advance and the tournament complete</li>
+        <li><code>/admin cleanup</code> — Clean up match rooms when done</li>
+      </ol>
+    </div>
+  </section>
+
+  <!-- ================================================================
+       10. Templates
+       ================================================================ -->
+  <section id="templates">
+    <h2>10. Templates <span class="tag tag-pro">Pro</span></h2>
+    <p>Save tournament configurations for reuse. Handy for weekly recurring events.</p>
+
+    <h3>Save from an existing tournament</h3>
+    <pre><code><span class="cmd">/templates save</span> <span class="param">tournament:</span><span class="value">Friday Night Fights</span> <span class="param">name:</span><span class="value">FNF Standard</span> <span class="param">description:</span><span class="value">Our weekly 1v1 bracket</span></code></pre>
+    <p>Captures all settings: game, format, team size, best-of, check-in, max participants, and more.</p>
+
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Command</th><th>Description</th></tr></thead>
+        <tbody>
+          <tr><td><code>/templates list</code></td><td>List all saved templates</td></tr>
+          <tr><td><code>/templates view</code></td><td>View full template details</td></tr>
+          <tr><td><code>/templates save</code></td><td>Save a tournament as a template</td></tr>
+          <tr><td><code>/templates delete</code></td><td>Delete a template</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p>Up to <strong>25 templates</strong> per server.</p>
+  </section>
+
+  <!-- ================================================================
+       11. Tokens & Boosts
+       ================================================================ -->
+  <section id="tokens">
+    <h2>11. Tokens &amp; Boosts</h2>
+
+    <h3>Tournament Tokens</h3>
+    <p>Every tier has a monthly tournament limit. If you need more, buy token packs. Tokens are consumed automatically when you exceed your monthly limit. They expire 12 months after purchase.</p>
+
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Pack</th><th>Tokens</th></tr></thead>
+        <tbody>
+          <tr><td>Small</td><td>30</td></tr>
+          <tr><td>Medium</td><td>50</td></tr>
+          <tr><td>Large</td><td>100</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <pre><code><span class="cmd">/tokens buy-tournaments</span> <span class="param">pack:</span><span class="value">30 Tokens</span></code></pre>
+
+    <h3>Participant Boosts</h3>
+    <p>Each tier has a max participant cap. Boosts raise the cap for a single tournament. They never expire and are consumed automatically at tournament creation. Maximum is 512 participants regardless of boosts.</p>
+
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Boost</th><th>Extra Capacity</th></tr></thead>
+        <tbody>
+          <tr><td>Standard</td><td>+128 participants</td></tr>
+          <tr><td>Large</td><td>+256 participants</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <pre><code><span class="cmd">/tokens buy-boost</span> <span class="param">size:</span><span class="value">+128 Participants</span></code></pre>
+
+    <h3>Check your balance</h3>
+    <pre><code><span class="cmd">/tokens balance</span></code></pre>
+  </section>
+
+  <!-- ================================================================
+       12. Subscription Management
+       ================================================================ -->
+  <section id="subscription">
+    <h2>12. Subscription Management</h2>
+
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Command</th><th>Description</th></tr></thead>
+        <tbody>
+          <tr><td><code>/subscribe status</code></td><td>View tier, usage, billing info</td></tr>
+          <tr><td><code>/subscribe plans</code></td><td>Compare all tiers side-by-side</td></tr>
+          <tr><td><code>/subscribe upgrade</code></td><td>Purchase a subscription (opens Stripe)</td></tr>
+          <tr><td><code>/subscribe manage</code></td><td>Update payment or cancel (Stripe portal)</td></tr>
+          <tr><td><code>/subscribe trial</code></td><td>Start a free 7-day Premium trial</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ================================================================
+       13. Command Reference
+       ================================================================ -->
+  <section id="commands">
+    <h2>13. Command Reference</h2>
+
+    <h3>Tournament Management</h3>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Command</th><th>Description</th></tr></thead>
+        <tbody>
+          <tr><td><code>/tournament create</code></td><td>Create a tournament (simple mode)</td></tr>
+          <tr><td><code>/tournament create-advanced</code></td><td>Create with full settings control</td></tr>
+          <tr><td><code>/tournament list</code></td><td>List all tournaments in the server</td></tr>
+          <tr><td><code>/tournament info</code></td><td>View a tournament's details</td></tr>
+          <tr><td><code>/tournament start</code></td><td>Start a tournament (generates bracket)</td></tr>
+          <tr><td><code>/tournament cancel</code></td><td>Cancel a tournament</td></tr>
+          <tr><td><code>/tournament report</code></td><td>Report a match result</td></tr>
+          <tr><td><code>/tournament br-report</code></td><td>Report Battle Royale game results</td></tr>
+          <tr><td><code>/tournament bracket</code></td><td>View bracket / standings</td></tr>
+          <tr><td><code>/tournament seed set</code></td><td>Set a participant's seed <span class="tag tag-premium">Premium</span></td></tr>
+          <tr><td><code>/tournament seed list</code></td><td>View current seeding <span class="tag tag-premium">Premium</span></td></tr>
+          <tr><td><code>/tournament seed randomize</code></td><td>Randomize seeds <span class="tag tag-premium">Premium</span></td></tr>
+          <tr><td><code>/tournament seed clear</code></td><td>Clear all seeds <span class="tag tag-premium">Premium</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>Server Settings</h3>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Command</th><th>Description</th></tr></thead>
+        <tbody>
+          <tr><td><code>/admin settings</code></td><td>View current settings</td></tr>
+          <tr><td><code>/admin set-announcement-channel</code></td><td>Set announcement channel</td></tr>
+          <tr><td><code>/admin set-match-category</code></td><td>Set match room category</td></tr>
+          <tr><td><code>/admin set-role</code></td><td>Manage tournament admin roles</td></tr>
+          <tr><td><code>/admin set-auto-cleanup</code></td><td>Toggle auto-cleanup <span class="tag tag-premium">Premium</span></td></tr>
+          <tr><td><code>/admin set-captain-mode</code></td><td>Toggle captain mode <span class="tag tag-premium">Premium</span></td></tr>
+          <tr><td><code>/admin cleanup</code></td><td>Clean up match rooms</td></tr>
+          <tr><td><code>/admin help</code></td><td>Full command reference</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>Debug Tools</h3>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Command</th><th>Description</th></tr></thead>
+        <tbody>
+          <tr><td><code>/admin add-players</code></td><td>Add fake players for testing</td></tr>
+          <tr><td><code>/admin add-teams</code></td><td>Add fake teams for testing</td></tr>
+          <tr><td><code>/admin clear-participants</code></td><td>Remove all participants</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>Player Commands</h3>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Command</th><th>Description</th></tr></thead>
+        <tbody>
+          <tr><td><code>/match list</code></td><td>View active matches</td></tr>
+          <tr><td><code>/match bracket</code></td><td>View bracket / standings</td></tr>
+          <tr><td><code>/match games</code></td><td>View BR games</td></tr>
+          <tr><td><code>/team add</code></td><td>Add a team member (captain)</td></tr>
+          <tr><td><code>/team remove</code></td><td>Remove a team member (captain)</td></tr>
+          <tr><td><code>/team transfer</code></td><td>Transfer captain role (captain)</td></tr>
+          <tr><td><code>/help</code></td><td>Player help guide</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>Subscription &amp; Tokens</h3>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Command</th><th>Description</th></tr></thead>
+        <tbody>
+          <tr><td><code>/subscribe status</code></td><td>View subscription status</td></tr>
+          <tr><td><code>/subscribe plans</code></td><td>Compare plans</td></tr>
+          <tr><td><code>/subscribe upgrade</code></td><td>Upgrade tier</td></tr>
+          <tr><td><code>/subscribe manage</code></td><td>Manage billing</td></tr>
+          <tr><td><code>/subscribe trial</code></td><td>Start free trial</td></tr>
+          <tr><td><code>/tokens balance</code></td><td>View token/boost balance</td></tr>
+          <tr><td><code>/tokens buy-tournaments</code></td><td>Buy tournament tokens</td></tr>
+          <tr><td><code>/tokens buy-boost</code></td><td>Buy participant boosts</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>Templates <span class="tag tag-pro">Pro</span></h3>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Command</th><th>Description</th></tr></thead>
+        <tbody>
+          <tr><td><code>/templates list</code></td><td>List saved templates</td></tr>
+          <tr><td><code>/templates view</code></td><td>View template details</td></tr>
+          <tr><td><code>/templates save</code></td><td>Save a tournament as a template</td></tr>
+          <tr><td><code>/templates delete</code></td><td>Delete a template</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ================================================================
+       Supported Games
+       ================================================================ -->
+  <section id="games">
+    <h2>Supported Games</h2>
+    <p>The bot includes presets with optimized defaults for 21+ games:</p>
+    <p>
+      <strong>Featured:</strong> CS2, League of Legends, PUBG, Rocket League, Fortnite, Street Fighter 6, GeoGuessr
+    </p>
+    <p>
+      <strong>All games:</strong> VALORANT, Dota 2, Marvel Rivals, GOALS, 2XKO, PUBG Mobile, Overwatch, Call of Duty, Mobile Legends, EA Sports FC, StarCraft, Rainbow Six Siege, Tekken 8, Apex Legends, Deadlock
+    </p>
+    <p>Choose <strong>Custom</strong> to run a tournament for any game not on the list.</p>
+  </section>
+
+  <!-- ================================================================
+       Tier Comparison
+       ================================================================ -->
+  <section id="tiers">
+    <h2>Tier Comparison</h2>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th></th>
+            <th><span class="tag tag-free">Free</span></th>
+            <th><span class="tag tag-premium">Premium</span></th>
+            <th><span class="tag tag-pro">Pro</span></th>
+            <th><span class="tag tag-business">Business</span></th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td><strong>Tournaments / month</strong></td><td>3</td><td>15</td><td>50</td><td>200</td></tr>
+          <tr><td><strong>Max participants</strong></td><td>50</td><td>128</td><td>256</td><td>512</td></tr>
+          <tr><td><strong>Concurrent</strong></td><td>1</td><td>3</td><td>10</td><td>Unlimited</td></tr>
+          <tr><td><strong>Check-in</strong></td><td>—</td><td>Yes</td><td>Yes</td><td>Yes</td></tr>
+          <tr><td><strong>Seeding</strong></td><td>—</td><td>Yes</td><td>Yes</td><td>Yes</td></tr>
+          <tr><td><strong>Captain Mode</strong></td><td>—</td><td>Yes</td><td>Yes</td><td>Yes</td></tr>
+          <tr><td><strong>Auto-cleanup</strong></td><td>—</td><td>Yes</td><td>Yes</td><td>Yes</td></tr>
+          <tr><td><strong>Templates</strong></td><td>—</td><td>—</td><td>Yes</td><td>Yes</td></tr>
+          <tr><td><strong>Analytics</strong></td><td>—</td><td>—</td><td>Yes</td><td>Yes</td></tr>
+          <tr><td><strong>REST API</strong></td><td>—</td><td>—</td><td>—</td><td>Yes</td></tr>
+          <tr><td><strong>Webhooks</strong></td><td>—</td><td>—</td><td>—</td><td>Yes</td></tr>
+          <tr><td><strong>White-label</strong></td><td>—</td><td>—</td><td>—</td><td>Yes</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <p>Run <code>/admin help</code> in Discord for a quick in-server reference, or <code>/help</code> for the player-facing guide.</p>
+  </section>
+
+</main>
+</div>
+
+<!-- ======================================================================
+     Sidebar active link tracking
+     ====================================================================== -->
+<script>
+  // Highlight active sidebar link on scroll
+  const sections = document.querySelectorAll('section[id]');
+  const navLinks = document.querySelectorAll('.sidebar a');
+
+  const observer = new IntersectionObserver(entries => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        navLinks.forEach(link => link.classList.remove('active'));
+        const active = document.querySelector(`.sidebar a[href="#${entry.target.id}"]`);
+        if (active) active.classList.add('active');
+      }
+    });
+  }, { rootMargin: '-80px 0px -60% 0px', threshold: 0 });
+
+  sections.forEach(section => observer.observe(section));
+
+  // Close sidebar on mobile when link clicked
+  navLinks.forEach(link => {
+    link.addEventListener('click', () => {
+      document.querySelector('.sidebar').classList.remove('open');
+    });
+  });
+</script>
+
+</body>
+</html>
