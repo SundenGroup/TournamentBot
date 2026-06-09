@@ -90,6 +90,10 @@ async function createTournament(data) {
       advancingPerGroup: data.advancingPerGroup ?? null, // null = auto calculate
 
       captainMode: data.captainMode ?? serverCfg.captainMode ?? false,
+
+      // Live web bracket page at <publicBaseUrl>/b/<id> (Pro/Business feature,
+      // toggled at creation). The page is public to anyone with the link.
+      publicBracket: data.publicBracket ?? false,
     },
 
     setupMode: data.setupMode || 'simple',

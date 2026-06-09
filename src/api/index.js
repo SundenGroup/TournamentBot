@@ -7,6 +7,7 @@ const { handleWebhook, constructWebhookEvent, isStripeConfigured } = require('..
 const { authenticate } = require('./middleware/auth');
 const { rateLimit } = require('./middleware/rateLimit');
 const tournamentsRouter = require('./v1/tournaments');
+const publicBracketRouter = require('./publicBracket');
 
 const app = express();
 
@@ -59,6 +60,12 @@ app.get('/health', (req, res) => {
     version: '1.0.0',
   });
 });
+
+// ============================================================================
+// Public live bracket pages (no auth — gated per-tournament by publicBracket)
+// ============================================================================
+
+app.use(publicBracketRouter);
 
 // ============================================================================
 // REST API v1 (requires auth)

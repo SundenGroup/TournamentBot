@@ -9,6 +9,7 @@ const {
   checkConcurrentLimit,
   checkTournamentLimit,
   checkParticipantLimit,
+  checkFeature,
   recordTournamentCreation,
   getEffectiveTier,
   getUpgradeEmbed,
@@ -103,6 +104,10 @@ module.exports = {
       console.log(`[Subscription] Guild ${guildId} using tournament token`);
     }
 
+    // Live web bracket (Pro/Business): enabled automatically in simple mode
+    // when the tier allows it — advanced mode exposes an explicit toggle.
+    const publicBracket = (await checkFeature(guildId, 'public_bracket')).allowed;
+
     // Get or create announcement channel
     const announcementChannel = await getOrCreateAnnouncementChannel(interaction.guild);
     const targetChannel = announcementChannel || interaction.channel;
@@ -116,6 +121,7 @@ module.exports = {
       gameShortName: gamePreset === 'custom' ? gameName.substring(0, 4).toUpperCase() : preset?.shortName,
       maxParticipants,
       startTime,
+      publicBracket,
       setupMode: 'simple',
       createdBy: interaction.user.id,
     });

@@ -23,4 +23,7 @@ module.exports = {
   },
   nodeEnv: process.env.NODE_ENV || 'development',
   features,
+  // Public base URL for the hosted bracket pages (nginx on the droplet
+  // terminates TLS for this domain and proxies to the bot's Express app).
+  publicBaseUrl: process.env.PUBLIC_BASE_URL || 'https://tournaments.clutch.game',
 };

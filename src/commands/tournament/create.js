@@ -382,10 +382,18 @@ async function handleSimpleCreate(interaction) {
 }
 
 async function handleAdvancedCreate(interaction) {
-  const { createSession } = require('../../data/wizardSessions');
+  const { createSession, updateSession } = require('../../data/wizardSessions');
   const { getPresetKeys, getFeaturedPresetKeys } = require('../../config/gamePresets');
+  const { checkFeature } = require('../../services/subscriptionService');
 
   const session = await createSession(interaction.user.id, interaction.guildId);
+
+  // Live web bracket (Pro/Business) defaults to ON when the tier allows it;
+  // the settings screen exposes a toggle either way.
+  const bracketEligible = (await checkFeature(interaction.guildId, 'public_bracket')).allowed;
+  if (bracketEligible) {
+    await updateSession(session.id, { publicBracket: true });
+  }
 
   const featuredKeys = getFeaturedPresetKeys();
   const allKeys = getPresetKeys();
@@ -644,6 +652,12 @@ async function handleStart(interaction) {
 
     if (format === 'swiss' || format === 'round_robin' || format === 'battle_royale') {
       desc += `\nUse \`/match bracket\` to view standings.`;
+    }
+
+    const { getBracketUrl } = require('../../utils/embedBuilder');
+    const startBracketUrl = getBracketUrl(tournament);
+    if (startBracketUrl) {
+      desc += `\n\n🌐 **Live web bracket:** ${startBracketUrl}`;
     }
 
     embed.setDescription(desc);
@@ -1416,6 +1430,15 @@ function buildBracketEmbeds(tournament) {
     }
     gfEmbed.setDescription(gfDesc || 'Waiting for finalists');
     embeds.push(gfEmbed);
+  }
+
+  // Append the live web bracket link (Pro/Business, when enabled)
+  const { getBracketUrl } = require('../../utils/embedBuilder');
+  const bracketUrl = getBracketUrl(tournament);
+  if (bracketUrl) {
+    embeds.push(new EmbedBuilder()
+      .setColor(0xff154d)
+      .setDescription(`🌐 **Live web bracket:** ${bracketUrl}`));
   }
 
   return embeds;

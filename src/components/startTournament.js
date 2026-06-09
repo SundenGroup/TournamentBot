@@ -159,6 +159,12 @@ module.exports = {
         description += `\nUse \`/match list\` to see active matches.`;
       }
 
+      const { getBracketUrl } = require('../utils/embedBuilder');
+      const bracketUrl = getBracketUrl(tournament);
+      if (bracketUrl) {
+        description += `\n\n🌐 **Live web bracket:** ${bracketUrl}`;
+      }
+
       const embed = new EmbedBuilder()
         .setTitle(`🚀 Tournament Started!`)
         .setColor(0x2ecc71)

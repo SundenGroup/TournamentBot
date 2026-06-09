@@ -1,0 +1,496 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{{TITLE}} | CLUTCH</title>
+<meta name="description" content="{{DESCRIPTION}}">
+<meta property="og:title" content="{{TITLE}}">
+<meta property="og:description" content="{{DESCRIPTION}}">
+<meta property="og:type" content="website">
+<meta property="og:image" content="{{BASE}}/clutch-icon.png">
+<meta name="theme-color" content="#ff154d">
+<link rel="icon" type="image/png" href="/clutch-icon.png">
+<style>
+  :root {
+    --bg: #0a0a0c;
+    --bg-card: #141418;
+    --bg-card-hover: #1a1a20;
+    --border: #26262e;
+    --accent: #ff154d;
+    --accent-dim: rgba(255, 21, 77, 0.12);
+    --text: #ebeff4;
+    --text-dim: #8b8f9c;
+    --text-faint: #565a66;
+    --line: #33343e;
+    --gold: #ffc940;
+    --silver: #b9c2cf;
+    --bronze: #d08a4e;
+    --green: #2ecc71;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* ── Header ─────────────────────────────────────────── */
+  header {
+    border-bottom: 1px solid var(--border);
+    background: linear-gradient(180deg, #101014 0%, var(--bg) 100%);
+    padding: 18px 28px 16px;
+  }
+  .brand {
+    display: flex; align-items: center; gap: 10px;
+    font-weight: 800; font-size: 15px; letter-spacing: 3px;
+    color: var(--text);
+  }
+  .brand img { width: 26px; height: 26px; }
+  .brand .x { color: var(--accent); }
+  .title-row {
+    display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
+    margin-top: 14px;
+  }
+  .game-logo { width: 52px; height: 52px; border-radius: 10px; object-fit: contain; background: var(--bg-card); padding: 4px; }
+  h1 { font-size: 26px; font-weight: 800; letter-spacing: -0.3px; }
+  .meta-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 10px; }
+  .pill {
+    font-size: 11px; font-weight: 700; letter-spacing: 1.2px; text-transform: uppercase;
+    padding: 4px 11px; border-radius: 99px; border: 1px solid var(--border); color: var(--text-dim);
+  }
+  .pill.live { color: #fff; background: var(--accent); border-color: var(--accent); animation: pulse 2s infinite; }
+  .pill.final { color: var(--gold); border-color: var(--gold); }
+  .pill.reg { color: var(--green); border-color: var(--green); }
+  @keyframes pulse { 0%,100% { box-shadow: 0 0 0 0 rgba(255,21,77,.45);} 50% { box-shadow: 0 0 0 7px rgba(255,21,77,0);} }
+  .updated { font-size: 12px; color: var(--text-faint); margin-left: auto; }
+
+  /* ── Layout ─────────────────────────────────────────── */
+  main { flex: 1; padding: 26px 28px 50px; }
+  .section { margin-bottom: 36px; }
+  .section-title {
+    font-size: 13px; font-weight: 800; letter-spacing: 2.5px; text-transform: uppercase;
+    color: var(--text-dim); margin-bottom: 14px;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .section-title::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+
+  /* ── Podium ─────────────────────────────────────────── */
+  .podium {
+    display: flex; gap: 14px; flex-wrap: wrap; margin-bottom: 34px;
+  }
+  .podium-card {
+    flex: 1; min-width: 200px; background: var(--bg-card); border: 1px solid var(--border);
+    border-radius: 12px; padding: 18px 20px; display: flex; align-items: center; gap: 14px;
+  }
+  .podium-card .medal { font-size: 30px; }
+  .podium-card .place { font-size: 11px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--text-dim); }
+  .podium-card .pname { font-size: 18px; font-weight: 700; margin-top: 2px; }
+  .podium-card.first { border-color: var(--gold); background: linear-gradient(135deg, rgba(255,201,64,.08), var(--bg-card)); }
+  .podium-card.second { border-color: var(--silver); }
+  .podium-card.third { border-color: var(--bronze); }
+
+  /* ── Bracket tree ───────────────────────────────────── */
+  .tree-scroll { overflow-x: auto; padding-bottom: 12px; }
+  .tree { display: flex; align-items: stretch; min-width: min-content; }
+  .round-col { display: flex; flex-direction: column; width: 232px; flex-shrink: 0; }
+  .round-head {
+    text-align: center; font-size: 11px; font-weight: 700; letter-spacing: 1.5px;
+    text-transform: uppercase; color: var(--text-faint); padding: 0 14px 12px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .slots { flex: 1; display: flex; flex-direction: column; }
+  .slot { flex: 1; display: flex; align-items: center; position: relative; padding: 7px 18px 7px 16px; min-height: 78px; }
+
+  /* connectors */
+  .elbow .slot:nth-child(odd)::before {
+    content: ''; position: absolute; right: 0; top: 50%; bottom: -1px; width: 2px; background: var(--line);
+  }
+  .elbow .slot:nth-child(even)::before {
+    content: ''; position: absolute; right: 0; top: -1px; bottom: 50%; width: 2px; background: var(--line);
+  }
+  .elbow .slot::after, .straight .slot::after {
+    content: ''; position: absolute; right: 0; top: 50%; width: 18px; height: 2px; margin-top: -1px; background: var(--line);
+  }
+  .round-col.last .slot::before, .round-col.last .slot::after { display: none; }
+  .match { position: relative; width: 100%; }
+  .round-col:not(.first) .match::before {
+    content: ''; position: absolute; left: -16px; top: 50%; width: 16px; height: 2px; margin-top: -1px; background: var(--line);
+  }
+
+  /* match card */
+  .card {
+    background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px;
+    overflow: hidden; transition: border-color .15s;
+  }
+  .card:hover { border-color: var(--text-faint); }
+  .card .mnum {
+    position: absolute; top: -9px; left: 8px; font-size: 10px; font-weight: 700;
+    color: var(--text-faint); background: var(--bg); padding: 0 5px; border-radius: 4px;
+  }
+  .prow {
+    display: flex; align-items: center; gap: 8px; padding: 8px 10px; font-size: 13.5px;
+  }
+  .prow + .prow { border-top: 1px solid var(--border); }
+  .prow .seed { font-size: 10px; color: var(--text-faint); min-width: 16px; text-align: right; }
+  .prow .nm { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .prow .sc { font-weight: 700; font-size: 13px; color: var(--text-dim); min-width: 14px; text-align: center; }
+  .prow.win { background: var(--accent-dim); }
+  .prow.win .nm { font-weight: 700; }
+  .prow.win .sc { color: var(--accent); }
+  .prow.lose .nm, .prow.lose .sc { color: var(--text-dim); }
+  .prow.tbd .nm { color: var(--text-faint); font-style: italic; }
+  .prow.bye .nm { color: var(--text-faint); font-style: italic; letter-spacing: 1px; }
+
+  /* ── Tables (swiss / round robin standings) ─────────── */
+  .standings { width: 100%; border-collapse: collapse; background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+  .standings th {
+    text-align: left; font-size: 11px; letter-spacing: 1.5px; text-transform: uppercase;
+    color: var(--text-faint); padding: 10px 14px; border-bottom: 1px solid var(--border); font-weight: 700;
+  }
+  .standings td { padding: 10px 14px; font-size: 14px; border-bottom: 1px solid var(--border); }
+  .standings tr:last-child td { border-bottom: none; }
+  .standings .rank { color: var(--text-dim); font-weight: 700; width: 40px; }
+  .standings tr.top .rank { color: var(--gold); }
+  .standings .num { text-align: center; width: 64px; font-variant-numeric: tabular-nums; }
+
+  /* round cards for swiss / RR */
+  .rounds-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); gap: 14px; }
+  .round-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+  .round-card .rc-head {
+    padding: 9px 14px; font-size: 11px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase;
+    color: var(--text-dim); border-bottom: 1px solid var(--border); display: flex; justify-content: space-between;
+  }
+  .round-card .rc-head .state { color: var(--text-faint); }
+  .round-card .rc-head .state.active { color: var(--green); }
+  .rc-match { display: flex; align-items: center; padding: 8px 14px; font-size: 13.5px; gap: 8px; border-bottom: 1px solid var(--border); }
+  .rc-match:last-child { border-bottom: none; }
+  .rc-match .a, .rc-match .b { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .rc-match .b { text-align: right; }
+  .rc-match .vs { color: var(--text-faint); font-size: 11px; font-weight: 700; min-width: 38px; text-align: center; }
+  .rc-match .w { font-weight: 700; color: var(--text); }
+  .rc-match .l { color: var(--text-dim); }
+
+  /* ── Registration list ──────────────────────────────── */
+  .reg-banner {
+    background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px;
+    padding: 22px 24px; margin-bottom: 26px; display: flex; align-items: center; gap: 18px; flex-wrap: wrap;
+  }
+  .reg-count { font-size: 34px; font-weight: 800; color: var(--accent); }
+  .reg-sub { color: var(--text-dim); font-size: 14px; }
+  .entrants { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px; }
+  .entrant {
+    background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px;
+    padding: 10px 14px; font-size: 14px; display: flex; align-items: center; gap: 8px;
+  }
+  .entrant .seed { color: var(--text-faint); font-size: 11px; min-width: 18px; }
+  .entrant .ck { margin-left: auto; font-size: 12px; }
+
+  /* ── States ─────────────────────────────────────────── */
+  .empty {
+    text-align: center; padding: 90px 20px; color: var(--text-dim);
+  }
+  .empty h2 { font-size: 20px; margin-bottom: 10px; color: var(--text); }
+
+  footer {
+    border-top: 1px solid var(--border); padding: 16px 28px; display: flex; align-items: center; gap: 8px;
+    color: var(--text-faint); font-size: 12px; letter-spacing: .5px;
+  }
+  footer img { width: 16px; height: 16px; }
+  footer a { color: var(--text-dim); text-decoration: none; }
+
+  @media (max-width: 640px) {
+    header, main { padding-left: 16px; padding-right: 16px; }
+    h1 { font-size: 20px; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <div class="brand"><img src="/clutch-icon.png" alt=""> CLUTCH <span class="x">//</span> <span style="letter-spacing:1.5px; font-weight:600; color:var(--text-dim)">TOURNAMENTS</span></div>
+  <div class="title-row" id="titleRow" style="display:none">
+    <img class="game-logo" id="gameLogo" alt="" style="display:none">
+    <div>
+      <h1 id="tTitle"></h1>
+      <div class="meta-row" id="metaRow"></div>
+    </div>
+    <span class="updated" id="updated"></span>
+  </div>
+</header>
+
+<main id="main">
+  <div class="empty" id="loading"><h2>Loading bracket…</h2></div>
+</main>
+
+<footer>
+  <img src="/clutch-icon.png" alt=""> Powered by <a href="https://clutch.game">CLUTCH</a> · auto-updates every 15s
+</footer>
+
+<script>
+const TOURNAMENT_ID = '{{TOURNAMENT_ID}}';
+const POLL_MS = 15000;
+let lastFetched = null;
+let pollTimer = null;
+
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+const FORMAT_NAMES = {
+  single_elimination: 'Single Elimination',
+  double_elimination: 'Double Elimination',
+  swiss: 'Swiss',
+  round_robin: 'Round Robin',
+};
+
+// ── data fetch ─────────────────────────────────────────
+async function fetchData() {
+  try {
+    const res = await fetch(`/api/public/brackets/${TOURNAMENT_ID}`, { cache: 'no-store' });
+    if (!res.ok) {
+      if (!lastFetched) renderUnavailable();
+      return;
+    }
+    const data = await res.json();
+    lastFetched = Date.now();
+    render(data);
+    if (data.status === 'complete' || data.status === 'cancelled') {
+      clearInterval(pollTimer);
+      document.getElementById('updated').textContent = '';
+    }
+  } catch {
+    if (!lastFetched) renderUnavailable();
+  }
+}
+
+function renderUnavailable() {
+  document.getElementById('main').innerHTML =
+    '<div class="empty"><h2>Bracket not available</h2><p>This tournament does not exist or its public bracket is disabled.</p></div>';
+}
+
+// ── header ─────────────────────────────────────────────
+function renderHeader(d) {
+  document.title = `${d.title} — Live Bracket | CLUTCH`;
+  document.getElementById('loading')?.remove();
+  document.getElementById('titleRow').style.display = 'flex';
+  document.getElementById('tTitle').textContent = d.title;
+
+  const logo = document.getElementById('gameLogo');
+  if (d.game.logo) { logo.src = d.game.logo; logo.style.display = ''; }
+
+  const statusPill = {
+    registration: '<span class="pill reg">Registration open</span>',
+    checkin: '<span class="pill reg">Check-in</span>',
+    active: '<span class="pill live">● Live</span>',
+    complete: '<span class="pill final">Final</span>',
+    cancelled: '<span class="pill">Cancelled</span>',
+  }[d.status] || '';
+
+  const meta = [statusPill,
+    `<span class="pill">${esc(d.game.name || 'Custom game')}</span>`,
+    `<span class="pill">${esc(FORMAT_NAMES[d.format] || d.format)}</span>`,
+    d.teamSize > 1 ? `<span class="pill">${d.teamSize}v${d.teamSize}</span>` : '<span class="pill">Solo</span>',
+    d.format !== 'battle_royale' && d.bestOf > 1 ? `<span class="pill">Best of ${d.bestOf}</span>` : '',
+    `<span class="pill">${d.participantCount}/${d.maxParticipants} entrants</span>`,
+  ].filter(Boolean).join('');
+  document.getElementById('metaRow').innerHTML = meta;
+}
+
+setInterval(() => {
+  if (!lastFetched) return;
+  const s = Math.round((Date.now() - lastFetched) / 1000);
+  const el = document.getElementById('updated');
+  if (el.textContent !== '' || s < 2) el.textContent = `updated ${s}s ago`;
+}, 1000);
+
+// ── match card ─────────────────────────────────────────
+function participantRow(p, match, slotScore) {
+  const isWinner = match.winner && p && match.winner.id === p.id;
+  const isLoser = match.winner && p && match.winner.id !== p.id;
+  const cls = !p ? (match.isBye ? 'bye' : 'tbd') : isWinner ? 'win' : isLoser ? 'lose' : '';
+  const name = p ? esc(p.name) : (match.isBye ? 'BYE' : 'TBD');
+  const seed = p && p.seed ? `<span class="seed">${p.seed}</span>` : '<span class="seed"></span>';
+  const score = slotScore != null ? `<span class="sc">${esc(slotScore)}</span>` : (isWinner ? '<span class="sc">✓</span>' : '<span class="sc"></span>');
+  return `<div class="prow ${cls}">${seed}<span class="nm">${name}</span>${score}</div>`;
+}
+
+function splitScore(match) {
+  // score strings look like "2-1" / "16-14"; map to [winnerScore, loserScore] per slot
+  if (!match.score || !match.winner) return [null, null];
+  const m = String(match.score).match(/^(\d+)\s*[-:]\s*(\d+)$/);
+  if (!m) return [null, null];
+  const hi = m[1], lo = m[2];
+  const p1Won = match.participant1 && match.winner.id === match.participant1.id;
+  return p1Won ? [hi, lo] : [lo, hi];
+}
+
+function matchCard(match) {
+  const [s1, s2] = splitScore(match);
+  return `<div class="match"><div class="card">
+    ${match.matchNumber ? `<span class="mnum">#${match.matchNumber}</span>` : ''}
+    ${participantRow(match.participant1, match, s1)}
+    ${participantRow(match.participant2, match, s2)}
+  </div></div>`;
+}
+
+// ── elimination tree ───────────────────────────────────
+function renderTree(rounds, { sectionClassFor } = {}) {
+  let html = '<div class="tree-scroll"><div class="tree">';
+  rounds.forEach((round, i) => {
+    const prevCount = i > 0 ? rounds[i - 1].matches.length : null;
+    const count = round.matches.length;
+    // connector style: elbow when this round merges pairs, straight when 1:1 carry-over
+    let lineCls = '';
+    if (i < rounds.length - 1) {
+      const nextCount = rounds[i + 1].matches.length;
+      if (nextCount === count / 2) lineCls = 'elbow';
+      else if (nextCount === count) lineCls = 'straight';
+    }
+    const colCls = ['round-col', lineCls, i === 0 ? 'first' : '', i === rounds.length - 1 ? 'last' : ''].filter(Boolean).join(' ');
+    html += `<div class="${colCls}"><div class="round-head">${esc(round.name || `Round ${round.round ?? i + 1}`)}</div><div class="slots">`;
+    for (const match of round.matches) {
+      html += `<div class="slot">${matchCard(match)}</div>`;
+    }
+    html += '</div></div>';
+  });
+  html += '</div></div>';
+  return html;
+}
+
+function renderSingleElim(d) {
+  return `<div class="section"><div class="section-title">Bracket</div>${renderTree(d.bracket.rounds)}</div>`;
+}
+
+function renderDoubleElim(d) {
+  const b = d.bracket;
+  const gf = b.grandFinalsRounds[0].matches[0];
+  const reset = b.grandFinalsRounds[1]?.matches[0];
+  const gfRounds = [{ name: 'Grand Finals', matches: [gf] }];
+  if (reset && (b.needsReset || reset.winner)) gfRounds.push({ name: 'Bracket Reset', matches: [reset] });
+
+  return `
+    <div class="section"><div class="section-title">Winners Bracket</div>${renderTree(b.winnersRounds)}</div>
+    <div class="section"><div class="section-title">Losers Bracket</div>${renderTree(b.losersRounds)}</div>
+    <div class="section"><div class="section-title">Grand Finals</div>${renderTree(gfRounds)}</div>`;
+}
+
+// ── swiss / round robin ────────────────────────────────
+function renderStandingsTable(standings, cols) {
+  let html = '<table class="standings"><thead><tr><th>#</th><th>Name</th>';
+  for (const c of cols) html += `<th style="text-align:center">${c.label}</th>`;
+  html += '</tr></thead><tbody>';
+  standings.forEach((s, i) => {
+    html += `<tr class="${i === 0 ? 'top' : ''}"><td class="rank">${i + 1}</td><td>${esc(s.participant.name)}</td>`;
+    for (const c of cols) html += `<td class="num">${c.value(s)}</td>`;
+    html += '</tr>';
+  });
+  return html + '</tbody></table>';
+}
+
+function renderRoundCards(rounds, current) {
+  let html = '<div class="rounds-grid">';
+  for (const round of rounds) {
+    const n = round.roundNumber;
+    const state = round.status === 'complete' || round.matches.every(m => m.winner)
+      ? 'Complete' : (n === current ? 'In progress' : 'Upcoming');
+    html += `<div class="round-card"><div class="rc-head"><span>Round ${n}</span><span class="state ${state === 'In progress' ? 'active' : ''}">${state}</span></div>`;
+    for (const m of round.matches) {
+      if (m.isBye || !m.participant2) {
+        html += `<div class="rc-match"><span class="a w">${esc(m.participant1?.name ?? 'TBD')}</span><span class="vs">BYE</span><span class="b l">—</span></div>`;
+        continue;
+      }
+      const aWin = m.winner && m.winner.id === m.participant1.id;
+      const bWin = m.winner && m.winner.id === m.participant2.id;
+      const score = m.score ? esc(m.score) : (m.winner ? 'W-L' : 'vs');
+      html += `<div class="rc-match">
+        <span class="a ${aWin ? 'w' : m.winner ? 'l' : ''}">${esc(m.participant1.name)}</span>
+        <span class="vs">${aWin ? score : bWin ? score.split(/[-:]/).reverse().join('-') : score}</span>
+        <span class="b ${bWin ? 'w' : m.winner ? 'l' : ''}">${esc(m.participant2.name)}</span>
+      </div>`;
+    }
+    html += '</div>';
+  }
+  return html + '</div>';
+}
+
+function sortedStandings(d) {
+  const s = [...d.bracket.standings];
+  if (d.format === 'swiss') {
+    s.sort((a, b) => b.points - a.points || b.buchholz - a.buchholz);
+  } else {
+    s.sort((a, b) => b.wins - a.wins || a.losses - b.losses);
+  }
+  return s;
+}
+
+function renderSwiss(d) {
+  const cols = [
+    { label: 'W', value: s => s.wins }, { label: 'L', value: s => s.losses },
+    { label: 'Pts', value: s => s.points }, { label: 'Buchholz', value: s => s.buchholz },
+  ];
+  return `<div class="section"><div class="section-title">Standings · Round ${d.bracket.currentRound}/${d.bracket.totalRounds}</div>${renderStandingsTable(sortedStandings(d), cols)}</div>
+    <div class="section"><div class="section-title">Rounds</div>${renderRoundCards(d.bracket.rounds, d.bracket.currentRound)}</div>`;
+}
+
+function renderRoundRobin(d) {
+  const cols = [
+    { label: 'W', value: s => s.wins }, { label: 'L', value: s => s.losses },
+    { label: 'Played', value: s => s.matchesPlayed },
+  ];
+  return `<div class="section"><div class="section-title">Standings</div>${renderStandingsTable(sortedStandings(d), cols)}</div>
+    <div class="section"><div class="section-title">Schedule</div>${renderRoundCards(d.bracket.rounds, d.bracket.currentRound)}</div>`;
+}
+
+// ── registration / podium ──────────────────────────────
+function renderRegistration(d) {
+  const start = d.startTime ? new Date(d.startTime).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' }) : 'TBD';
+  let html = `<div class="reg-banner">
+      <div><div class="reg-count">${d.participantCount}<span style="color:var(--text-dim);font-size:20px">/${d.maxParticipants}</span></div>
+      <div class="reg-sub">${d.teamSize > 1 ? 'teams registered' : 'players registered'} · starts ${esc(start)}</div></div>
+    </div>`;
+  if (d.participants.length) {
+    html += '<div class="section"><div class="section-title">Entrants</div><div class="entrants">';
+    for (const p of d.participants) {
+      html += `<div class="entrant"><span class="seed">${p.seed ?? ''}</span>${esc(p.name)}${p.checkedIn ? '<span class="ck">✅</span>' : ''}</div>`;
+    }
+    html += '</div></div>';
+  }
+  return html;
+}
+
+function renderPodium(r) {
+  let html = '<div class="podium">';
+  if (r.winner) html += `<div class="podium-card first"><span class="medal">🥇</span><div><div class="place">Champion</div><div class="pname">${esc(r.winner.name)}</div></div></div>`;
+  if (r.runnerUp) html += `<div class="podium-card second"><span class="medal">🥈</span><div><div class="place">Runner-up</div><div class="pname">${esc(r.runnerUp.name)}</div></div></div>`;
+  if (r.thirdPlace) html += `<div class="podium-card third"><span class="medal">🥉</span><div><div class="place">Third place</div><div class="pname">${esc(r.thirdPlace.name)}</div></div></div>`;
+  return html + '</div>';
+}
+
+// ── main render ────────────────────────────────────────
+function render(d) {
+  renderHeader(d);
+  let html = '';
+
+  if (d.results) html += renderPodium(d.results);
+
+  if (!d.bracket) {
+    html += renderRegistration(d);
+  } else {
+    switch (d.bracket.type) {
+      case 'single_elimination': html += renderSingleElim(d); break;
+      case 'double_elimination': html += renderDoubleElim(d); break;
+      case 'swiss': html += renderSwiss(d); break;
+      case 'round_robin': html += renderRoundRobin(d); break;
+      default: html += '<div class="empty"><h2>Unsupported format</h2></div>';
+    }
+  }
+
+  document.getElementById('main').innerHTML = html;
+}
+
+fetchData();
+pollTimer = setInterval(fetchData, POLL_MS);
+</script>
+</body>
+</html>

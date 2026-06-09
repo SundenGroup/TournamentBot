@@ -109,6 +109,10 @@ function buildSettingsMessage(session) {
       .setCustomId(`wizardSettings:${session.id}:toggleSeeding`)
       .setLabel(`${data.seedingEnabled ? '✅' : '❌'} Seeding`)
       .setStyle(data.seedingEnabled ? ButtonStyle.Success : ButtonStyle.Secondary),
+    new ButtonBuilder()
+      .setCustomId(`wizardSettings:${session.id}:togglePublicBracket`)
+      .setLabel(`${data.publicBracket ? '✅' : '❌'} Web Bracket`)
+      .setStyle(data.publicBracket ? ButtonStyle.Success : ButtonStyle.Secondary),
   );
   rows.push(toggleRow);
 
@@ -202,6 +206,11 @@ module.exports = {
 
         case 'toggleSeeding': {
           const updated = await updateSession(sessionId, { seedingEnabled: !session.data.seedingEnabled });
+          return interaction.update(buildSettingsMessage(updated || session));
+        }
+
+        case 'togglePublicBracket': {
+          const updated = await updateSession(sessionId, { publicBracket: !session.data.publicBracket });
           return interaction.update(buildSettingsMessage(updated || session));
         }
 

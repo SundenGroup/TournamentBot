@@ -1,6 +1,13 @@
 const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const { getBranding } = require('../data/subscriptions');
 const { getEffectiveTier } = require('../services/subscriptionService');
+const config = require('../config');
+
+/** Public live-bracket page URL for a tournament (Pro/Business feature). */
+function getBracketUrl(tournament) {
+  if (!tournament.settings?.publicBracket) return null;
+  return `${config.publicBaseUrl}/b/${tournament.id}`;
+}
 
 /**
  * Apply branding to an embed if Business tier
@@ -102,6 +109,11 @@ async function createTournamentEmbed(tournament) {
     });
   }
 
+  const bracketUrl = getBracketUrl(tournament);
+  if (bracketUrl) {
+    fields.push({ name: '🌐 Live Bracket', value: bracketUrl, inline: false });
+  }
+
   embed.addFields(fields);
 
   // Add game logo as thumbnail if available
@@ -184,6 +196,18 @@ function createTournamentButtons(tournament) {
         .setLabel('Show Complete Results')
         .setEmoji('🏆')
         .setStyle(ButtonStyle.Success)
+    );
+  }
+
+  // Live web bracket link (Pro/Business, toggled at creation)
+  const bracketUrl = getBracketUrl(tournament);
+  if (bracketUrl) {
+    row2.addComponents(
+      new ButtonBuilder()
+        .setLabel('Live Bracket')
+        .setEmoji('🌐')
+        .setStyle(ButtonStyle.Link)
+        .setURL(bracketUrl)
     );
   }
 
@@ -287,6 +311,7 @@ module.exports = {
   createTournamentButtons,
   createParticipantListEmbed,
   applyBranding,
+  getBracketUrl,
   getStatusColor,
   getStatusEmoji,
   getStatusText,

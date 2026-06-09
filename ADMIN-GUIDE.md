@@ -33,7 +33,16 @@ posts an announcement with **Sign Up** / **Register Team** buttons.
 **Advanced mode — `/tournament create-advanced`**
 A guided wizard. Same basics, plus you can change **Format**, **Team Size**,
 **Best-Of**, and toggle **Check-in**, **Seeding**, **Captain Mode**, **Game Nick**,
-and **Required Roles** before creating.
+**Web Bracket**, and **Required Roles** before creating.
+
+**Live web bracket** *(Pro/Business)* — when enabled, the tournament gets a
+public, auto-updating bracket page at `tournaments.clutch.game/b/<id>`,
+linked from the announcement (🌐 Live Bracket button) and from
+`/tournament bracket` / `/match bracket`. It covers every format (elimination
+trees, Swiss/round-robin standings), shows entrants during registration, and
+updates itself every 15 seconds as results are reported — ideal for big
+tournaments where the text bracket gets unwieldy. Simple mode enables it
+automatically on eligible tiers; the wizard exposes an on/off toggle.
 
 ---
 

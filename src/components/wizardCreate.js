@@ -75,12 +75,13 @@ async function createTournamentFromWizard(interaction, session) {
     }
   }
 
-  // 4. Check premium features
+  // 4. Check premium/pro features
   const premiumFeaturesToCheck = [];
   if (data.checkinRequired) premiumFeaturesToCheck.push('checkin');
   if (data.seedingEnabled) premiumFeaturesToCheck.push('seeding');
   if (data.captainMode) premiumFeaturesToCheck.push('captain_mode');
   if (data.requiredRoles?.length > 0) premiumFeaturesToCheck.push('required_roles');
+  if (data.publicBracket) premiumFeaturesToCheck.push('public_bracket');
 
   for (const feature of premiumFeaturesToCheck) {
     const featureCheck = await checkFeature(guildId, feature);
@@ -129,6 +130,7 @@ async function createTournamentFromWizard(interaction, session) {
     gamesPerStage: data.gamesPerStage,
     advancingPerGroup: data.advancingPerGroup,
     requiredRoles: data.requiredRoles || [],
+    publicBracket: data.publicBracket ?? false,
     startTime: new Date(data.datetime),
     setupMode: 'advanced',
     createdBy: session.userId,

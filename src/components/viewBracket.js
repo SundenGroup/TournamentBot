@@ -308,6 +308,15 @@ module.exports = {
       embeds.push(gfEmbed);
     }
 
+    // Append the live web bracket link (Pro/Business, when enabled)
+    const { getBracketUrl } = require('../utils/embedBuilder');
+    const bracketUrl = getBracketUrl(tournament);
+    if (bracketUrl) {
+      embeds.push(new EmbedBuilder()
+        .setColor(0xff154d)
+        .setDescription(`🌐 **Live web bracket:** ${bracketUrl}`));
+    }
+
     return interaction.reply({ embeds, ephemeral: true });
   },
 };

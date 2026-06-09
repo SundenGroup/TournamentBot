@@ -68,6 +68,7 @@ const PREMIUM_FEATURES = [
 const PRO_FEATURES = [
   'tournament_templates',
   'advanced_analytics',
+  'public_bracket',
 ];
 
 const BUSINESS_FEATURES = [
@@ -90,6 +91,7 @@ const FEATURE_NAMES = {
   full_reminders: 'Full Reminders (24h + 1h)',
   tournament_templates: 'Tournament Templates',
   advanced_analytics: 'Advanced Analytics',
+  public_bracket: 'Live Web Bracket',
   api_access: 'Results API',
   webhooks: 'Webhooks',
   white_label: 'White-Label Branding',
