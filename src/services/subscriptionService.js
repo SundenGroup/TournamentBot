@@ -2,6 +2,7 @@
 // Tier checks, feature gates, limits, tokens, and grants
 
 const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
+const { features } = require('../config');
 const {
   getSubscription,
   getOrCreateSubscription,
@@ -265,6 +266,17 @@ async function checkFeature(guildId, feature) {
  * Check if a participant limit is within tier allowance (including boosts)
  */
 async function checkParticipantLimit(guildId, requestedLimit, boostToUse = null) {
+  // Participant boosts are part of the parked token system. With tokens
+  // disabled, allow up to the platform hard cap so the boost-purchase prompt
+  // never fires during testing. See docs/PARKED-FEATURES.md.
+  if (!features.tokens) {
+    const PLATFORM_CAP = 512;
+    if (requestedLimit > PLATFORM_CAP) {
+      return { allowed: false, reason: `Maximum ${PLATFORM_CAP} participants allowed.`, canBuyBoost: false };
+    }
+    return { allowed: true, effectiveMax: PLATFORM_CAP };
+  }
+
   const tier = await getEffectiveTier(guildId);
   const baseMax = TIER_LIMITS[tier].maxParticipants;
   const boostAmount = boostToUse || 0;
@@ -290,6 +302,13 @@ async function checkParticipantLimit(guildId, requestedLimit, boostToUse = null)
  * Check monthly tournament limit (including tokens)
  */
 async function checkTournamentLimit(guildId) {
+  // Tokens parked: the monthly cap was only ever soft because tokens could
+  // extend it. With tokens disabled we don't gate tournament count at all so
+  // testing is never blocked. See docs/PARKED-FEATURES.md.
+  if (!features.tokens) {
+    return { allowed: true, remaining: Infinity, tokensAvailable: 0, usingToken: false };
+  }
+
   const sub = await getOrCreateSubscription(guildId);
   const tier = await getEffectiveTier(guildId);
   const baseLimit = TIER_LIMITS[tier].tournamentsPerMonth;
@@ -355,13 +374,18 @@ async function checkConcurrentLimit(guildId) {
  * Record tournament creation (consumes token if needed)
  */
 async function recordTournamentCreation(guildId, participantBoostUsed = null) {
+  // Always track usage/concurrency (cheap, drives analytics + concurrent limit).
+  await incrementTournamentUsage(guildId);
+  await incrementConcurrent(guildId);
+
+  // Tokens parked: never consume tournament tokens or participant boosts.
+  if (!features.tokens) {
+    return { usedToken: false, usedBoost: null };
+  }
+
   const sub = await getOrCreateSubscription(guildId);
   const tier = await getEffectiveTier(guildId);
   const baseLimit = TIER_LIMITS[tier].tournamentsPerMonth;
-
-  // Increment usage
-  await incrementTournamentUsage(guildId);
-  await incrementConcurrent(guildId);
 
   // Check if we need to consume a token
   const usedToken = sub.usage.tournamentsThisMonth > baseLimit;
@@ -584,7 +608,8 @@ async function getStatusEmbed(guildId) {
     });
   }
 
-  // Token balance
+  // Token balance (parked — only shown when the token system is enabled)
+  if (features.tokens) {
   const tokens = sub.tokens?.tournament || 0;
   const boosts = sub.tokens?.participantBoosts?.filter(b => !b.used) || [];
 
@@ -593,6 +618,7 @@ async function getStatusEmbed(guildId) {
     { name: 'Tournament Tokens', value: `${tokens}`, inline: true },
     { name: 'Participant Boosts', value: boosts.length > 0 ? boosts.map(b => `+${b.amount}`).join(', ') : 'None', inline: true }
   );
+  }
 
   return embed;
 }

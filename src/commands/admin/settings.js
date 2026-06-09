@@ -484,23 +484,26 @@ const TEAM_NAMES = [
 ];
 
 async function handleAddPlayers(interaction) {
+  // Bulk insert + 2 message edits can exceed the 3s ack window.
+  await interaction.deferReply({ ephemeral: true });
+
   const tournamentId = interaction.options.getString('tournament');
   const count = interaction.options.getInteger('count');
   const tournament = await getTournament(tournamentId);
 
   if (!tournament) {
-    return interaction.reply({ content: '❌ Tournament not found.', ephemeral: true });
+    return interaction.editReply({ content: '❌ Tournament not found.' });
   }
 
   if (tournament.settings.teamSize > 1) {
-    return interaction.reply({ content: '❌ This is a team tournament. Use `/admin add-teams` instead.', ephemeral: true });
+    return interaction.editReply({ content: '❌ This is a team tournament. Use `/admin add-teams` instead.' });
   }
 
   const available = tournament.settings.maxParticipants - tournament.participants.length;
   const toAdd = Math.min(count, available);
 
   if (toAdd === 0) {
-    return interaction.reply({ content: '❌ Tournament is already full.', ephemeral: true });
+    return interaction.editReply({ content: '❌ Tournament is already full.' });
   }
 
   const usedNames = new Set(tournament.participants.map(p => p.username));
@@ -531,30 +534,32 @@ async function handleAddPlayers(interaction) {
   await updateTournament(tournamentId, { participants: tournament.participants });
   await updateTournamentMessages(interaction, tournament);
 
-  return interaction.reply({
+  return interaction.editReply({
     content: `✅ Added ${added} fake players to **${tournament.title}**. (${tournament.participants.length}/${tournament.settings.maxParticipants})`,
-    ephemeral: true,
   });
 }
 
 async function handleAddTeams(interaction) {
+  // Bulk insert + 2 message edits can exceed the 3s ack window.
+  await interaction.deferReply({ ephemeral: true });
+
   const tournamentId = interaction.options.getString('tournament');
   const count = interaction.options.getInteger('count');
   const tournament = await getTournament(tournamentId);
 
   if (!tournament) {
-    return interaction.reply({ content: '❌ Tournament not found.', ephemeral: true });
+    return interaction.editReply({ content: '❌ Tournament not found.' });
   }
 
   if (tournament.settings.teamSize === 1) {
-    return interaction.reply({ content: '❌ This is a solo tournament. Use `/admin add-players` instead.', ephemeral: true });
+    return interaction.editReply({ content: '❌ This is a solo tournament. Use `/admin add-players` instead.' });
   }
 
   const available = tournament.settings.maxParticipants - tournament.teams.length;
   const toAdd = Math.min(count, available);
 
   if (toAdd === 0) {
-    return interaction.reply({ content: '❌ Tournament is already full.', ephemeral: true });
+    return interaction.editReply({ content: '❌ Tournament is already full.' });
   }
 
   const usedTeamNames = new Set(tournament.teams.map(t => t.name));
@@ -597,9 +602,8 @@ async function handleAddTeams(interaction) {
   await updateTournament(tournamentId, { teams: tournament.teams });
   await updateTournamentMessages(interaction, tournament);
 
-  return interaction.reply({
+  return interaction.editReply({
     content: `✅ Added ${added} fake teams to **${tournament.title}**. (${tournament.teams.length}/${tournament.settings.maxParticipants})`,
-    ephemeral: true,
   });
 }
 
@@ -721,16 +725,8 @@ async function handleHelp(interaction) {
         '`branding` — White-label branding *(Business)*',
       ].join('\n'),
       inline: false,
-    },
-    {
-      name: '/tokens (Add-ons)',
-      value: [
-        '`balance` — Check token & boost balance',
-        '`buy-tournaments` — Purchase tournament tokens',
-        '`buy-boost` — Purchase participant boost',
-      ].join('\n'),
-      inline: false,
     }
+    // NOTE: the /tokens add-on command is parked (see docs/PARKED-FEATURES.md).
   );
 
   // Pro tier features

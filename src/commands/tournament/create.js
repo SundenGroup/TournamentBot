@@ -92,34 +92,6 @@ module.exports = {
     )
     .addSubcommand(subcommand =>
       subcommand
-        .setName('br-report')
-        .setDescription('Report Battle Royale game result')
-        .addStringOption(option =>
-          option.setName('tournament')
-            .setDescription('Tournament')
-            .setRequired(true)
-            .setAutocomplete(true)
-        )
-        .addStringOption(option =>
-          option.setName('group')
-            .setDescription('Group (or "finals")')
-            .setRequired(true)
-            .setAutocomplete(true)
-        )
-        .addIntegerOption(option =>
-          option.setName('game_number')
-            .setDescription('Game number (1, 2, 3...)')
-            .setRequired(true)
-            .setMinValue(1)
-        )
-        .addStringOption(option =>
-          option.setName('placements')
-            .setDescription('Lobby numbers in finish order (e.g., 1,5,3,2,8...)')
-            .setRequired(true)
-        )
-    )
-    .addSubcommand(subcommand =>
-      subcommand
         .setName('bracket')
         .setDescription('View bracket/standings')
         .addStringOption(option =>
@@ -376,7 +348,7 @@ async function handleSimpleCreate(interaction) {
     label: GAME_PRESETS[key].displayName,
     value: key,
     emoji: GAME_PRESETS[key].icon,
-    description: `${GAME_PRESETS[key].defaultTeamSize}v${GAME_PRESETS[key].defaultTeamSize} ${GAME_PRESETS[key].defaultFormat.replace('_', ' ')}`,
+    description: `${GAME_PRESETS[key].category ? GAME_PRESETS[key].category + ' • ' : ''}${GAME_PRESETS[key].defaultTeamSize > 1 ? `${GAME_PRESETS[key].defaultTeamSize}v${GAME_PRESETS[key].defaultTeamSize}` : 'Solo'}`,
   }));
 
   if (hasMoreGames) {
@@ -423,7 +395,7 @@ async function handleAdvancedCreate(interaction) {
     label: GAME_PRESETS[key].displayName,
     value: key,
     emoji: GAME_PRESETS[key].icon,
-    description: `${GAME_PRESETS[key].defaultTeamSize}v${GAME_PRESETS[key].defaultTeamSize} ${GAME_PRESETS[key].defaultFormat.replace('_', ' ')}`,
+    description: `${GAME_PRESETS[key].category ? GAME_PRESETS[key].category + ' • ' : ''}${GAME_PRESETS[key].defaultTeamSize > 1 ? `${GAME_PRESETS[key].defaultTeamSize}v${GAME_PRESETS[key].defaultTeamSize}` : 'Solo'}`,
   }));
 
   if (hasMoreGames) {

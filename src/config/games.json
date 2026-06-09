@@ -3,6 +3,7 @@
     "displayName": "Counter-Strike 2",
     "shortName": "CS2",
     "icon": "🎯",
+    "category": "FPS",
     "featured": true,
     "logo": null,
     "defaultTeamSize": 5,
@@ -21,10 +22,94 @@
     }
   },
 
+  "valorant": {
+    "displayName": "VALORANT",
+    "shortName": "VAL",
+    "icon": "🔫",
+    "category": "FPS",
+    "featured": true,
+    "logo": null,
+    "defaultTeamSize": 5,
+    "teamSizeOptions": [1, 5],
+    "defaultFormat": "double_elimination",
+    "formatOptions": ["single_elimination", "double_elimination", "swiss", "round_robin"],
+    "defaultBestOf": 3,
+    "bestOfOptions": [1, 3, 5],
+    "mapPool": ["Ascent", "Bind", "Breeze", "Fracture", "Haven", "Icebox", "Lotus", "Pearl", "Split", "Sunset"],
+    "mapPickProcess": "veto",
+    "ruleset": "Standard competitive rules.",
+    "customFields": {
+      "allowedAgents": { "type": "string", "default": "all", "label": "Agent Restrictions" }
+    }
+  },
+
+  "deadlock": {
+    "displayName": "Deadlock",
+    "shortName": "DL",
+    "icon": "💀",
+    "category": "Hero Shooter",
+    "featured": true,
+    "logo": null,
+    "defaultTeamSize": 6,
+    "teamSizeOptions": [6],
+    "defaultFormat": "single_elimination",
+    "formatOptions": ["single_elimination", "double_elimination", "swiss", "round_robin"],
+    "defaultBestOf": 3,
+    "bestOfOptions": [1, 3, 5],
+    "mapPool": null,
+    "mapPickProcess": null,
+    "ruleset": "Standard competitive rules.",
+    "customFields": {}
+  },
+
+  "marvel_rivals": {
+    "displayName": "Marvel Rivals",
+    "shortName": "MR",
+    "icon": "🦸",
+    "category": "Hero Shooter",
+    "featured": true,
+    "logo": null,
+    "defaultTeamSize": 6,
+    "teamSizeOptions": [6],
+    "defaultFormat": "single_elimination",
+    "formatOptions": ["single_elimination", "double_elimination", "swiss", "round_robin"],
+    "defaultBestOf": 3,
+    "bestOfOptions": [1, 3, 5],
+    "mapPool": null,
+    "mapPickProcess": null,
+    "ruleset": "Standard competitive rules.",
+    "customFields": {
+      "heroRestrictions": { "type": "string", "default": "none", "label": "Hero Restrictions" }
+    }
+  },
+
+  "overwatch": {
+    "displayName": "Overwatch",
+    "shortName": "OW",
+    "icon": "🛡️",
+    "category": "Hero Shooter",
+    "featured": true,
+    "logo": null,
+    "defaultTeamSize": 5,
+    "teamSizeOptions": [5],
+    "defaultFormat": "single_elimination",
+    "formatOptions": ["single_elimination", "double_elimination", "swiss", "round_robin"],
+    "defaultBestOf": 3,
+    "bestOfOptions": [1, 3, 5],
+    "mapPool": null,
+    "mapPickProcess": null,
+    "ruleset": "Role Queue enabled. Standard competitive rules.",
+    "customFields": {
+      "roleQueue": { "type": "boolean", "default": true, "label": "Role Queue" },
+      "heroPool": { "type": "string", "default": "all", "label": "Hero Restrictions" }
+    }
+  },
+
   "league_of_legends": {
     "displayName": "League of Legends",
     "shortName": "LoL",
     "icon": "⚔️",
+    "category": "MOBA",
     "featured": true,
     "logo": null,
     "defaultTeamSize": 5,
@@ -52,31 +137,119 @@
     }
   },
 
-  "pubg": {
-    "displayName": "PUBG: Battlegrounds",
-    "shortName": "PUBG",
-    "icon": "🪖",
+  "dota2": {
+    "displayName": "Dota 2",
+    "shortName": "DOTA",
+    "icon": "🗡️",
+    "category": "MOBA",
     "featured": true,
     "logo": null,
-    "defaultTeamSize": 4,
-    "teamSizeOptions": [1, 2, 4],
-    "defaultFormat": "battle_royale",
-    "formatOptions": ["battle_royale"],
-    "defaultBestOf": 1,
-    "bestOfOptions": [1],
-    "mapPool": ["Erangel", "Miramar", "Taego", "Deston", "Vikendi"],
-    "mapPickProcess": "random",
-    "ruleset": "WWCD format. Placement points scoring.",
+    "defaultTeamSize": 5,
+    "teamSizeOptions": [1, 5],
+    "defaultFormat": "double_elimination",
+    "formatOptions": ["single_elimination", "double_elimination", "swiss", "round_robin"],
+    "defaultBestOf": 3,
+    "bestOfOptions": [1, 3, 5],
+    "mapPool": null,
+    "mapPickProcess": null,
+    "ruleset": "Captains Mode. Standard competitive rules.",
     "customFields": {
-      "gamesPerStage": { "type": "number", "default": 6, "label": "Games per Stage" },
-      "lobbySize": { "type": "number", "default": 16, "label": "Lobby Size (Teams)" }
+      "draftMode": {
+        "type": "select",
+        "options": ["captains_mode", "all_pick"],
+        "default": "captains_mode",
+        "label": "Draft Mode"
+      }
     }
+  },
+
+  "mobile_legends": {
+    "displayName": "Mobile Legends",
+    "shortName": "MLBB",
+    "icon": "🏹",
+    "category": "MOBA",
+    "featured": true,
+    "logo": null,
+    "defaultTeamSize": 5,
+    "teamSizeOptions": [5],
+    "defaultFormat": "single_elimination",
+    "formatOptions": ["single_elimination", "double_elimination", "swiss", "round_robin"],
+    "defaultBestOf": 3,
+    "bestOfOptions": [1, 3, 5],
+    "mapPool": null,
+    "mapPickProcess": null,
+    "ruleset": "Draft pick mode. Standard competitive rules.",
+    "customFields": {}
+  },
+
+  "street_fighter_6": {
+    "displayName": "Street Fighter 6",
+    "shortName": "SF6",
+    "icon": "👊",
+    "category": "Fighting",
+    "featured": true,
+    "logo": null,
+    "defaultTeamSize": 1,
+    "teamSizeOptions": [1],
+    "defaultFormat": "double_elimination",
+    "formatOptions": ["single_elimination", "double_elimination", "swiss", "round_robin"],
+    "defaultBestOf": 3,
+    "bestOfOptions": [3, 5],
+    "mapPool": null,
+    "mapPickProcess": null,
+    "ruleset": "Standard tournament rules. Best of set applies per match.",
+    "customFields": {
+      "roundsPerGame": { "type": "number", "default": 3, "label": "Rounds per Game" },
+      "timerSetting": { "type": "number", "default": 99, "label": "Round Timer" }
+    }
+  },
+
+  "tekken_8": {
+    "displayName": "Tekken 8",
+    "shortName": "T8",
+    "icon": "🥋",
+    "category": "Fighting",
+    "featured": true,
+    "logo": null,
+    "defaultTeamSize": 1,
+    "teamSizeOptions": [1],
+    "defaultFormat": "double_elimination",
+    "formatOptions": ["single_elimination", "double_elimination", "swiss", "round_robin"],
+    "defaultBestOf": 3,
+    "bestOfOptions": [3, 5],
+    "mapPool": null,
+    "mapPickProcess": null,
+    "ruleset": "Standard tournament rules. Best of set applies per match.",
+    "customFields": {
+      "roundsPerGame": { "type": "number", "default": 3, "label": "Rounds per Game" },
+      "timerSetting": { "type": "number", "default": 60, "label": "Round Timer" }
+    }
+  },
+
+  "2xko": {
+    "displayName": "2XKO",
+    "shortName": "2XKO",
+    "icon": "🥊",
+    "category": "Fighting",
+    "featured": true,
+    "logo": null,
+    "defaultTeamSize": 2,
+    "teamSizeOptions": [1, 2],
+    "defaultFormat": "double_elimination",
+    "formatOptions": ["single_elimination", "double_elimination", "swiss", "round_robin"],
+    "defaultBestOf": 3,
+    "bestOfOptions": [3, 5],
+    "mapPool": null,
+    "mapPickProcess": null,
+    "ruleset": "Standard tournament rules.",
+    "customFields": {}
   },
 
   "rocket_league": {
     "displayName": "Rocket League",
     "shortName": "RL",
     "icon": "🚗",
+    "category": "Sports",
     "featured": true,
     "logo": null,
     "defaultTeamSize": 3,
@@ -99,45 +272,43 @@
     }
   },
 
-  "fortnite": {
-    "displayName": "Fortnite",
-    "shortName": "FN",
-    "icon": "🏝️",
-    "featured": true,
-    "logo": null,
-    "defaultTeamSize": 4,
-    "teamSizeOptions": [1, 2, 3, 4],
-    "defaultFormat": "battle_royale",
-    "formatOptions": ["battle_royale", "single_elimination", "double_elimination"],
-    "defaultBestOf": 1,
-    "bestOfOptions": [1, 3],
-    "mapPool": null,
-    "mapPickProcess": null,
-    "ruleset": "Battle Royale format. Placement points scoring.",
-    "customFields": {
-      "gamesPerStage": { "type": "number", "default": 3, "label": "Games per Stage" },
-      "lobbySize": { "type": "number", "default": 25, "label": "Lobby Size" }
-    }
-  },
-
-  "street_fighter_6": {
-    "displayName": "Street Fighter 6",
-    "shortName": "SF6",
-    "icon": "👊",
+  "goals": {
+    "displayName": "GOALS",
+    "shortName": "GOALS",
+    "icon": "⚽",
+    "category": "Sports",
     "featured": true,
     "logo": null,
     "defaultTeamSize": 1,
-    "teamSizeOptions": [1],
-    "defaultFormat": "double_elimination",
+    "teamSizeOptions": [1, 2, 3],
+    "defaultFormat": "single_elimination",
     "formatOptions": ["single_elimination", "double_elimination", "swiss", "round_robin"],
     "defaultBestOf": 3,
-    "bestOfOptions": [3, 5],
+    "bestOfOptions": [1, 3, 5],
     "mapPool": null,
     "mapPickProcess": null,
-    "ruleset": "Standard tournament rules. Best of set applies per match.",
+    "ruleset": "Standard rules.",
+    "customFields": {}
+  },
+
+  "ea_sports_fc": {
+    "displayName": "EA Sports FC",
+    "shortName": "FC",
+    "icon": "🏟️",
+    "category": "Sports",
+    "featured": true,
+    "logo": null,
+    "defaultTeamSize": 1,
+    "teamSizeOptions": [1, 2],
+    "defaultFormat": "single_elimination",
+    "formatOptions": ["single_elimination", "double_elimination", "swiss", "round_robin"],
+    "defaultBestOf": 3,
+    "bestOfOptions": [1, 3, 5],
+    "mapPool": null,
+    "mapPickProcess": null,
+    "ruleset": "Standard FUT/Seasons rules. 6-minute halves.",
     "customFields": {
-      "roundsPerGame": { "type": "number", "default": 3, "label": "Rounds per Game" },
-      "timerSetting": { "type": "number", "default": 99, "label": "Round Timer" }
+      "halfLength": { "type": "number", "default": 6, "label": "Half Length (minutes)" }
     }
   },
 
@@ -145,6 +316,7 @@
     "displayName": "GeoGuessr",
     "shortName": "GEO",
     "icon": "🌍",
+    "category": "Casual",
     "featured": true,
     "logo": null,
     "defaultTeamSize": 1,
@@ -162,294 +334,11 @@
     }
   },
 
-  "marvel_rivals": {
-    "displayName": "Marvel Rivals",
-    "shortName": "MR",
-    "icon": "🦸",
-    "logo": null,
-    "defaultTeamSize": 6,
-    "teamSizeOptions": [6],
-    "defaultFormat": "single_elimination",
-    "formatOptions": ["single_elimination", "double_elimination", "swiss", "round_robin"],
-    "defaultBestOf": 3,
-    "bestOfOptions": [1, 3, 5],
-    "mapPool": null,
-    "mapPickProcess": null,
-    "ruleset": "Standard competitive rules.",
-    "customFields": {
-      "heroRestrictions": { "type": "string", "default": "none", "label": "Hero Restrictions" }
-    }
-  },
-
-  "goals": {
-    "displayName": "GOALS",
-    "shortName": "GOALS",
-    "icon": "⚽",
-    "logo": null,
-    "defaultTeamSize": 1,
-    "teamSizeOptions": [1, 2, 3],
-    "defaultFormat": "single_elimination",
-    "formatOptions": ["single_elimination", "double_elimination", "swiss", "round_robin"],
-    "defaultBestOf": 3,
-    "bestOfOptions": [1, 3, 5],
-    "mapPool": null,
-    "mapPickProcess": null,
-    "ruleset": "Standard rules.",
-    "customFields": {}
-  },
-
-  "2xko": {
-    "displayName": "2XKO",
-    "shortName": "2XKO",
-    "icon": "🥊",
-    "logo": null,
-    "defaultTeamSize": 2,
-    "teamSizeOptions": [1, 2],
-    "defaultFormat": "double_elimination",
-    "formatOptions": ["single_elimination", "double_elimination", "swiss", "round_robin"],
-    "defaultBestOf": 3,
-    "bestOfOptions": [3, 5],
-    "mapPool": null,
-    "mapPickProcess": null,
-    "ruleset": "Standard tournament rules.",
-    "customFields": {}
-  },
-
-  "valorant": {
-    "displayName": "VALORANT",
-    "shortName": "VAL",
-    "icon": "🔫",
-    "logo": null,
-    "defaultTeamSize": 5,
-    "teamSizeOptions": [1, 5],
-    "defaultFormat": "single_elimination",
-    "formatOptions": ["single_elimination", "double_elimination", "swiss", "round_robin"],
-    "defaultBestOf": 3,
-    "bestOfOptions": [1, 3, 5],
-    "mapPool": ["Ascent", "Bind", "Breeze", "Fracture", "Haven", "Icebox", "Lotus", "Pearl", "Split", "Sunset"],
-    "mapPickProcess": "veto",
-    "ruleset": "Standard competitive rules.",
-    "customFields": {
-      "allowedAgents": { "type": "string", "default": "all", "label": "Agent Restrictions" }
-    }
-  },
-
-  "dota2": {
-    "displayName": "Dota 2",
-    "shortName": "DOTA",
-    "icon": "🗡️",
-    "logo": null,
-    "defaultTeamSize": 5,
-    "teamSizeOptions": [1, 5],
-    "defaultFormat": "double_elimination",
-    "formatOptions": ["single_elimination", "double_elimination", "swiss", "round_robin"],
-    "defaultBestOf": 3,
-    "bestOfOptions": [1, 3, 5],
-    "mapPool": null,
-    "mapPickProcess": null,
-    "ruleset": "Captains Mode. Standard competitive rules.",
-    "customFields": {
-      "draftMode": {
-        "type": "select",
-        "options": ["captains_mode", "all_pick"],
-        "default": "captains_mode",
-        "label": "Draft Mode"
-      }
-    }
-  },
-
-  "pubg_mobile": {
-    "displayName": "PUBG Mobile",
-    "shortName": "PUBGM",
-    "icon": "📱",
-    "logo": null,
-    "defaultTeamSize": 4,
-    "teamSizeOptions": [1, 2, 4],
-    "defaultFormat": "battle_royale",
-    "formatOptions": ["battle_royale"],
-    "defaultBestOf": 1,
-    "bestOfOptions": [1],
-    "mapPool": ["Erangel", "Miramar", "Sanhok", "Vikendi", "Livik"],
-    "mapPickProcess": "random",
-    "ruleset": "Placement + kill points scoring.",
-    "customFields": {
-      "gamesPerStage": { "type": "number", "default": 6, "label": "Games per Stage" },
-      "lobbySize": { "type": "number", "default": 16, "label": "Lobby Size (Teams)" }
-    }
-  },
-
-  "overwatch": {
-    "displayName": "Overwatch",
-    "shortName": "OW",
-    "icon": "🛡️",
-    "logo": null,
-    "defaultTeamSize": 5,
-    "teamSizeOptions": [5],
-    "defaultFormat": "single_elimination",
-    "formatOptions": ["single_elimination", "double_elimination", "swiss", "round_robin"],
-    "defaultBestOf": 3,
-    "bestOfOptions": [1, 3, 5],
-    "mapPool": null,
-    "mapPickProcess": null,
-    "ruleset": "Role Queue enabled. Standard competitive rules.",
-    "customFields": {
-      "roleQueue": { "type": "boolean", "default": true, "label": "Role Queue" },
-      "heroPool": { "type": "string", "default": "all", "label": "Hero Restrictions" }
-    }
-  },
-
-  "call_of_duty": {
-    "displayName": "Call of Duty",
-    "shortName": "CoD",
-    "icon": "💥",
-    "logo": null,
-    "defaultTeamSize": 4,
-    "teamSizeOptions": [1, 2, 4],
-    "defaultFormat": "double_elimination",
-    "formatOptions": ["single_elimination", "double_elimination", "swiss", "round_robin"],
-    "defaultBestOf": 5,
-    "bestOfOptions": [3, 5, 7],
-    "mapPool": null,
-    "mapPickProcess": "veto",
-    "ruleset": "CDL ruleset. Hardpoint, Search & Destroy, Control rotation.",
-    "customFields": {
-      "gameModes": { "type": "string", "default": "HP, SND, CTL", "label": "Game Modes" }
-    }
-  },
-
-  "mobile_legends": {
-    "displayName": "Mobile Legends",
-    "shortName": "MLBB",
-    "icon": "🏹",
-    "logo": null,
-    "defaultTeamSize": 5,
-    "teamSizeOptions": [5],
-    "defaultFormat": "single_elimination",
-    "formatOptions": ["single_elimination", "double_elimination", "swiss", "round_robin"],
-    "defaultBestOf": 3,
-    "bestOfOptions": [1, 3, 5],
-    "mapPool": null,
-    "mapPickProcess": null,
-    "ruleset": "Draft pick mode. Standard competitive rules.",
-    "customFields": {}
-  },
-
-  "ea_sports_fc": {
-    "displayName": "EA Sports FC",
-    "shortName": "FC",
-    "icon": "🏟️",
-    "logo": null,
-    "defaultTeamSize": 1,
-    "teamSizeOptions": [1, 2],
-    "defaultFormat": "single_elimination",
-    "formatOptions": ["single_elimination", "double_elimination", "swiss", "round_robin"],
-    "defaultBestOf": 3,
-    "bestOfOptions": [1, 3, 5],
-    "mapPool": null,
-    "mapPickProcess": null,
-    "ruleset": "Standard FUT/Seasons rules. 6-minute halves.",
-    "customFields": {
-      "halfLength": { "type": "number", "default": 6, "label": "Half Length (minutes)" }
-    }
-  },
-
-  "starcraft": {
-    "displayName": "StarCraft",
-    "shortName": "SC",
-    "icon": "🌌",
-    "logo": null,
-    "defaultTeamSize": 1,
-    "teamSizeOptions": [1],
-    "defaultFormat": "double_elimination",
-    "formatOptions": ["single_elimination", "double_elimination", "swiss", "round_robin"],
-    "defaultBestOf": 3,
-    "bestOfOptions": [1, 3, 5, 7],
-    "mapPool": null,
-    "mapPickProcess": "veto",
-    "ruleset": "Standard competitive rules. Loser picks next map.",
-    "customFields": {}
-  },
-
-  "rainbow_six_siege": {
-    "displayName": "Rainbow Six Siege",
-    "shortName": "R6",
-    "icon": "🔒",
-    "logo": null,
-    "defaultTeamSize": 5,
-    "teamSizeOptions": [5],
-    "defaultFormat": "single_elimination",
-    "formatOptions": ["single_elimination", "double_elimination", "swiss", "round_robin"],
-    "defaultBestOf": 3,
-    "bestOfOptions": [1, 3, 5],
-    "mapPool": null,
-    "mapPickProcess": "veto",
-    "ruleset": "Standard competitive settings. 6th pick enabled.",
-    "customFields": {
-      "sixthPick": { "type": "boolean", "default": true, "label": "6th Pick Enabled" }
-    }
-  },
-
-  "tekken_8": {
-    "displayName": "Tekken 8",
-    "shortName": "T8",
-    "icon": "🥋",
-    "logo": null,
-    "defaultTeamSize": 1,
-    "teamSizeOptions": [1],
-    "defaultFormat": "double_elimination",
-    "formatOptions": ["single_elimination", "double_elimination", "swiss", "round_robin"],
-    "defaultBestOf": 3,
-    "bestOfOptions": [3, 5],
-    "mapPool": null,
-    "mapPickProcess": null,
-    "ruleset": "Standard tournament rules. Best of set applies per match.",
-    "customFields": {
-      "roundsPerGame": { "type": "number", "default": 3, "label": "Rounds per Game" },
-      "timerSetting": { "type": "number", "default": 60, "label": "Round Timer" }
-    }
-  },
-
-  "apex_legends": {
-    "displayName": "Apex Legends",
-    "shortName": "APEX",
-    "icon": "🔺",
-    "logo": null,
-    "defaultTeamSize": 3,
-    "teamSizeOptions": [1, 2, 3],
-    "defaultFormat": "battle_royale",
-    "formatOptions": ["battle_royale"],
-    "defaultBestOf": 1,
-    "bestOfOptions": [1],
-    "mapPool": ["World's Edge", "Storm Point", "Broken Moon", "Kings Canyon", "Olympus"],
-    "mapPickProcess": "random",
-    "ruleset": "ALGS format. Placement + kill points.",
-    "customFields": {
-      "gamesPerStage": { "type": "number", "default": 6, "label": "Games per Stage" },
-      "lobbySize": { "type": "number", "default": 20, "label": "Lobby Size (Teams)" }
-    }
-  },
-
-  "deadlock": {
-    "displayName": "Deadlock",
-    "shortName": "DL",
-    "icon": "💀",
-    "logo": null,
-    "defaultTeamSize": 6,
-    "teamSizeOptions": [6],
-    "defaultFormat": "single_elimination",
-    "formatOptions": ["single_elimination", "double_elimination", "swiss", "round_robin"],
-    "defaultBestOf": 3,
-    "bestOfOptions": [1, 3, 5],
-    "mapPool": null,
-    "mapPickProcess": null,
-    "ruleset": "Standard competitive rules.",
-    "customFields": {}
-  },
-
   "custom": {
     "displayName": null,
     "shortName": null,
     "icon": "🎮",
+    "category": "Custom",
     "logo": null,
     "defaultTeamSize": 1,
     "teamSizeOptions": [1, 2, 3, 4, 5, 6, 8, 10],

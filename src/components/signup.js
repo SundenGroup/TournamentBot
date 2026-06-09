@@ -49,7 +49,10 @@ module.exports = {
 
         await interaction.showModal(modal);
       } else {
-        // Direct signup for solo tournaments without game nick requirement
+        // Direct signup for solo tournaments without game nick requirement.
+        // The DB write + message refresh can exceed the 3s ack window, so defer.
+        await interaction.deferReply({ ephemeral: true });
+
         const result = await addParticipant(tournamentId, {
           id: interaction.user.id,
           username: interaction.user.username,
@@ -57,13 +60,12 @@ module.exports = {
         });
 
         if (!result.success) {
-          return interaction.reply({ content: `❌ ${result.error}`, ephemeral: true });
+          return interaction.editReply({ content: `❌ ${result.error}` });
         }
 
         await updateTournamentMessages(interaction.client, result.tournament);
-        return interaction.reply({
+        return interaction.editReply({
           content: `✅ You're signed up for **${tournament.title}**!`,
-          ephemeral: true,
         });
       }
     } else {

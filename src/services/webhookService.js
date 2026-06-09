@@ -32,7 +32,7 @@ async function sendWebhook(guildId, event, data) {
     return { sent: false, reason: 'Webhook not configured' };
   }
 
-  const tier = getEffectiveTier(guildId);
+  const tier = await getEffectiveTier(guildId);
   if (tier !== 'business') {
     return { sent: false, reason: 'Business tier required' };
   }

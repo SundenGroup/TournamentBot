@@ -9,12 +9,12 @@ module.exports = {
 
   async execute(interaction) {
     // Pro feature gate
-    const featureCheck = checkFeature(interaction.guildId, 'advanced_analytics');
+    const featureCheck = await checkFeature(interaction.guildId, 'advanced_analytics');
     if (!featureCheck.allowed) {
-      return interaction.reply(getUpgradeEmbed('advanced_analytics', getEffectiveTier(interaction.guildId)));
+      return interaction.reply(getUpgradeEmbed('advanced_analytics', await getEffectiveTier(interaction.guildId)));
     }
 
-    const embed = getAnalyticsEmbed(interaction.guildId, interaction.guild.name);
+    const embed = await getAnalyticsEmbed(interaction.guildId, interaction.guild.name);
     return interaction.reply({ embeds: [embed], ephemeral: true });
   },
 };

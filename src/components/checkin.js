@@ -5,15 +5,17 @@ const webhooks = require('../services/webhookService');
 module.exports = {
   customId: 'checkin',
   async execute(interaction, args) {
+    await interaction.deferReply({ ephemeral: true });
+
     const tournamentId = args[0];
     const tournament = await getTournament(tournamentId);
 
     if (!tournament) {
-      return interaction.reply({ content: '❌ Tournament not found.', ephemeral: true });
+      return interaction.editReply({ content: '❌ Tournament not found.' });
     }
 
     if (!tournament.checkinOpen && tournament.status !== 'checkin') {
-      return interaction.reply({ content: '❌ Check-in is not open yet.', ephemeral: true });
+      return interaction.editReply({ content: '❌ Check-in is not open yet.', ephemeral: true });
     }
 
     const isSolo = tournament.settings.teamSize === 1;
@@ -21,11 +23,11 @@ module.exports = {
     if (isSolo) {
       const participant = tournament.participants.find(p => p.id === interaction.user.id);
       if (!participant) {
-        return interaction.reply({ content: '❌ You are not registered for this tournament.', ephemeral: true });
+        return interaction.editReply({ content: '❌ You are not registered for this tournament.', ephemeral: true });
       }
 
       if (participant.checkedIn) {
-        return interaction.reply({ content: '✅ You are already checked in!', ephemeral: true });
+        return interaction.editReply({ content: '✅ You are already checked in!', ephemeral: true });
       }
 
       participant.checkedIn = true;
@@ -36,7 +38,7 @@ module.exports = {
 
       await updateTournamentMessages(interaction.client, tournament);
 
-      return interaction.reply({
+      return interaction.editReply({
         content: `✅ You are now checked in for **${tournament.title}**!`,
         ephemeral: true,
       });
@@ -51,7 +53,7 @@ module.exports = {
       }
 
       if (!playerTeam) {
-        return interaction.reply({ content: '❌ You are not on a team in this tournament.', ephemeral: true });
+        return interaction.editReply({ content: '❌ You are not on a team in this tournament.', ephemeral: true });
       }
 
       if (!playerTeam.memberCheckins) {
@@ -59,7 +61,7 @@ module.exports = {
       }
 
       if (playerTeam.memberCheckins[interaction.user.id]) {
-        return interaction.reply({ content: '✅ You are already checked in!', ephemeral: true });
+        return interaction.editReply({ content: '✅ You are already checked in!', ephemeral: true });
       }
 
       playerTeam.memberCheckins[interaction.user.id] = true;
@@ -77,7 +79,7 @@ module.exports = {
       await updateTournament(tournamentId, { teams: tournament.teams });
       await updateTournamentMessages(interaction.client, tournament);
 
-      return interaction.reply({
+      return interaction.editReply({
         content: `✅ You are checked in for team **${playerTeam.name}**! (${checkedInCount}/${tournament.settings.teamSize} members)`,
         ephemeral: true,
       });

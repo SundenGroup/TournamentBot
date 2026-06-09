@@ -19,7 +19,8 @@ const FORMAT_LABELS = {
   battle_royale: 'Battle Royale',
 };
 
-const ALL_FORMATS = ['single_elimination', 'double_elimination', 'swiss', 'round_robin', 'battle_royale'];
+// Battle Royale is parked (see docs/PARKED-FEATURES.md) — not offered as a format.
+const ALL_FORMATS = ['single_elimination', 'double_elimination', 'swiss', 'round_robin'];
 
 function buildSettingsMessage(session) {
   const { data } = session;
@@ -164,40 +165,45 @@ module.exports = {
     if (interaction.isStringSelectMenu()) {
       const value = interaction.values[0];
 
+      let updated = session;
       switch (subAction) {
         case 'format':
-          await updateSession(sessionId, { format: value });
+          updated = await updateSession(sessionId, { format: value });
           break;
         case 'teamSize':
-          await updateSession(sessionId, { teamSize: parseInt(value, 10) });
+          updated = await updateSession(sessionId, { teamSize: parseInt(value, 10) });
           break;
         case 'bestOf':
-          await updateSession(sessionId, { bestOf: parseInt(value, 10) });
+          updated = await updateSession(sessionId, { bestOf: parseInt(value, 10) });
           break;
       }
 
-      const message = buildSettingsMessage(session);
-      return interaction.update(message);
+      // Render with the freshly-updated session, not the stale snapshot.
+      return interaction.update(buildSettingsMessage(updated || session));
     }
 
     // Handle button interactions
     if (interaction.isButton()) {
       switch (subAction) {
-        case 'toggleCheckin':
-          await updateSession(sessionId, { checkinRequired: !session.data.checkinRequired });
-          return interaction.update(buildSettingsMessage(session));
+        case 'toggleCheckin': {
+          const updated = await updateSession(sessionId, { checkinRequired: !session.data.checkinRequired });
+          return interaction.update(buildSettingsMessage(updated || session));
+        }
 
-        case 'toggleGameNick':
-          await updateSession(sessionId, { requireGameNick: !session.data.requireGameNick });
-          return interaction.update(buildSettingsMessage(session));
+        case 'toggleGameNick': {
+          const updated = await updateSession(sessionId, { requireGameNick: !session.data.requireGameNick });
+          return interaction.update(buildSettingsMessage(updated || session));
+        }
 
-        case 'toggleCaptain':
-          await updateSession(sessionId, { captainMode: !session.data.captainMode });
-          return interaction.update(buildSettingsMessage(session));
+        case 'toggleCaptain': {
+          const updated = await updateSession(sessionId, { captainMode: !session.data.captainMode });
+          return interaction.update(buildSettingsMessage(updated || session));
+        }
 
-        case 'toggleSeeding':
-          await updateSession(sessionId, { seedingEnabled: !session.data.seedingEnabled });
-          return interaction.update(buildSettingsMessage(session));
+        case 'toggleSeeding': {
+          const updated = await updateSession(sessionId, { seedingEnabled: !session.data.seedingEnabled });
+          return interaction.update(buildSettingsMessage(updated || session));
+        }
 
         case 'editInfo': {
           const preset = GAME_PRESETS[session.data.gamePreset];

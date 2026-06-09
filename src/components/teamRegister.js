@@ -5,11 +5,15 @@ const { updateTournamentMessages } = require('../utils/tournamentUpdater');
 module.exports = {
   customId: 'teamRegister',
   async execute(interaction, args) {
+    // Member resolution, the DB write, message edits and DM loop below can all
+    // exceed Discord's 3s ack window, so acknowledge immediately and edit after.
+    await interaction.deferReply({ ephemeral: true });
+
     const tournamentId = args[0];
     const tournament = await getTournament(tournamentId);
 
     if (!tournament) {
-      return interaction.reply({ content: '❌ Tournament not found.', ephemeral: true });
+      return interaction.editReply({ content: '❌ Tournament not found.' });
     }
 
     // Check required roles
@@ -18,7 +22,7 @@ module.exports = {
       const hasRole = requiredRoles.some(roleId => interaction.member.roles.cache.has(roleId));
       if (!hasRole) {
         const roleList = requiredRoles.map(id => `<@&${id}>`).join(', ');
-        return interaction.reply({
+        return interaction.editReply({
           content: `❌ You need one of these roles to sign up: ${roleList}`,
           ephemeral: true,
         });
@@ -32,7 +36,7 @@ module.exports = {
     const expectedMembers = tournament.settings.teamSize - 1;
 
     if (memberLines.length !== expectedMembers) {
-      return interaction.reply({
+      return interaction.editReply({
         content: `❌ Teams must have exactly ${tournament.settings.teamSize} players. You provided ${memberLines.length + 1} (including yourself). Please provide ${expectedMembers} other members.`,
         ephemeral: true,
       });
@@ -75,7 +79,7 @@ module.exports = {
         }
 
         if (!member) {
-          return interaction.reply({
+          return interaction.editReply({
             content: `❌ Could not find user: **${input}**. Make sure they are in this server and you typed their username correctly.`,
             ephemeral: true,
           });
@@ -106,7 +110,7 @@ module.exports = {
         if (teamGameNicks) {
           const nickLines = teamGameNicks.split('\n').map(l => l.trim()).filter(l => l.length > 0);
           if (nickLines.length !== tournament.settings.teamSize) {
-            return interaction.reply({
+            return interaction.editReply({
               content: `❌ Please provide exactly ${tournament.settings.teamSize} game nicks (one per line). You provided ${nickLines.length}. First line is your nick, then each member in order.`,
               ephemeral: true,
             });
@@ -154,7 +158,7 @@ module.exports = {
     });
 
     if (!result.success) {
-      return interaction.reply({ content: `❌ ${result.error}`, ephemeral: true });
+      return interaction.editReply({ content: `❌ ${result.error}`, ephemeral: true });
     }
 
     await updateTournamentMessages(interaction.client, result.tournament);
@@ -173,7 +177,7 @@ module.exports = {
       }
     }
 
-    return interaction.reply({
+    return interaction.editReply({
       content: `✅ Team **${teamName}** has been registered for **${tournament.title}**!`,
       ephemeral: true,
     });

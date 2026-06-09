@@ -4,11 +4,13 @@ const { updateTournamentMessages } = require('../utils/tournamentUpdater');
 module.exports = {
   customId: 'soloSignup',
   async execute(interaction, args) {
+    await interaction.deferReply({ ephemeral: true });
+
     const tournamentId = args[0];
     const tournament = await getTournament(tournamentId);
 
     if (!tournament) {
-      return interaction.reply({ content: '❌ Tournament not found.', ephemeral: true });
+      return interaction.editReply({ content: '❌ Tournament not found.' });
     }
 
     // Check required roles
@@ -17,7 +19,7 @@ module.exports = {
       const hasRole = requiredRoles.some(roleId => interaction.member.roles.cache.has(roleId));
       if (!hasRole) {
         const roleList = requiredRoles.map(id => `<@&${id}>`).join(', ');
-        return interaction.reply({
+        return interaction.editReply({
           content: `❌ You need one of these roles to sign up: ${roleList}`,
           ephemeral: true,
         });
@@ -34,11 +36,11 @@ module.exports = {
     });
 
     if (!result.success) {
-      return interaction.reply({ content: `❌ ${result.error}`, ephemeral: true });
+      return interaction.editReply({ content: `❌ ${result.error}`, ephemeral: true });
     }
 
     await updateTournamentMessages(interaction.client, result.tournament);
-    return interaction.reply({
+    return interaction.editReply({
       content: `✅ You're signed up for **${tournament.title}**!\nIn-game nick: **${gameNick}**`,
       ephemeral: true,
     });

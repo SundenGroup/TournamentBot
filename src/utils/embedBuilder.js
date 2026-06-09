@@ -7,7 +7,7 @@ const { getEffectiveTier } = require('../services/subscriptionService');
  */
 async function applyBranding(embed, guildId) {
   // Only apply branding for Business tier
-  const tier = getEffectiveTier(guildId);
+  const tier = await getEffectiveTier(guildId);
   if (tier !== 'business') return embed;
 
   const branding = await getBranding(guildId);

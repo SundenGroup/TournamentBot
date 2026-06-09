@@ -23,7 +23,9 @@ async function refreshApiKeyCache() {
   const subscriptions = await getAllSubscriptions();
 
   for (const sub of subscriptions) {
-    if (sub.apiKey && sub.apiKeyHash) {
+    // Only the hash is stored at rest (plaintext keys are shown once and never
+    // persisted), so the cache is keyed off the hash alone.
+    if (sub.apiKeyHash) {
       apiKeyCache.set(sub.apiKeyHash, sub.guildId);
     }
   }
@@ -96,7 +98,7 @@ async function authenticate(req, res, next) {
   }
 
   // Verify Business tier
-  const tier = getEffectiveTier(guildId);
+  const tier = await getEffectiveTier(guildId);
   if (tier !== 'business') {
     return res.status(403).json({
       error: 'Business tier required',

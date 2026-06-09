@@ -365,8 +365,9 @@ module.exports = {
         const apiKey = generateApiKey();
         const keyHash = hashApiKey(apiKey);
 
+        // Persist only the hash — the plaintext key is shown once below and never
+        // stored at rest.
         await updateSubscription(interaction.guildId, {
-          apiKey: apiKey, // Store temporarily for display (will be cleared from view after first display)
           apiKeyHash: keyHash,
         });
 
@@ -418,8 +419,8 @@ module.exports = {
         const apiKey = generateApiKey();
         const keyHash = hashApiKey(apiKey);
 
+        // Persist only the hash (see generate above).
         await updateSubscription(interaction.guildId, {
-          apiKey: apiKey,
           apiKeyHash: keyHash,
         });
 

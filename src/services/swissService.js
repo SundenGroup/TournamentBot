@@ -73,8 +73,41 @@ function generateRound(standings, roundNumber) {
   // Calculate starting match number based on previous rounds
   // This ensures unique match numbers across all rounds
   if (roundNumber > 1) {
-    // Each round has ceil(participants/2) matches
+    // Each round has ceil(participants/2) matches (the bye counts as a match)
     matchNumber = (roundNumber - 1) * Math.ceil(standings.length / 2) + 1;
+  }
+
+  // If there is an odd number of players, exactly one gets a bye. Assign it to
+  // the LOWEST-ranked player who has not already had a bye (standard Swiss),
+  // and remove them from the pairing pool up front. The previous code let the
+  // leftover player take a bye and never tracked it, so the same player could
+  // be handed repeated byes.
+  if (sorted.length % 2 === 1) {
+    let byeStanding = null;
+    for (let k = sorted.length - 1; k >= 0; k--) {
+      if (!sorted[k].hasBye) { byeStanding = sorted[k]; break; }
+    }
+    // Everyone has already had a bye — fall back to the lowest-ranked player.
+    if (!byeStanding) byeStanding = sorted[sorted.length - 1];
+
+    byeStanding.hasBye = true;
+    byeStanding.wins++;
+    byeStanding.points++; // a bye scores the same as a win, consistent with advanceWinner
+    paired.add(byeStanding.participant.id);
+
+    matches.push({
+      id: uuidv4(),
+      matchNumber: matchNumber++,
+      roundNumber,
+      roundName: `Swiss Round ${roundNumber}`,
+      participant1: byeStanding.participant,
+      participant2: null,
+      winner: byeStanding.participant,
+      loser: null,
+      score: null,
+      isBye: true,
+      channelId: null,
+    });
   }
 
   // Swiss pairing: pair players with similar records who haven't played each other
@@ -108,8 +141,7 @@ function generateRound(standings, roundNumber) {
     }
 
     if (opponent) {
-      // Create the match
-      const match = {
+      matches.push({
         id: uuidv4(),
         matchNumber: matchNumber++,
         roundNumber,
@@ -120,33 +152,10 @@ function generateRound(standings, roundNumber) {
         loser: null,
         score: null,
         channelId: null,
-      };
+      });
 
-      matches.push(match);
       paired.add(player.participant.id);
       paired.add(opponent.participant.id);
-    } else {
-      // Odd player gets a bye (automatic win)
-      const match = {
-        id: uuidv4(),
-        matchNumber: matchNumber++,
-        roundNumber,
-        roundName: `Swiss Round ${roundNumber}`,
-        participant1: player.participant,
-        participant2: null,
-        winner: player.participant,
-        loser: null,
-        score: null,
-        isBye: true,
-        channelId: null,
-      };
-
-      // Award the bye
-      player.wins++;
-      player.points++;
-
-      matches.push(match);
-      paired.add(player.participant.id);
     }
   }
 

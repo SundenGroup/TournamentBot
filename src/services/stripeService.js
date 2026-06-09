@@ -2,6 +2,7 @@
 // Handles checkout sessions, subscriptions, and webhook processing
 
 const Stripe = require('stripe');
+const db = require('../db');
 const {
   getSubscription,
   getOrCreateSubscription,
@@ -230,11 +231,29 @@ async function createBillingPortalSession(guildId) {
 async function handleWebhook(event) {
   console.log(`[Stripe] Received webhook event: ${event.type}`);
 
+  // Idempotency: Stripe delivers events at least once and retries on failure.
+  // Atomically record the event id; if it was already processed, no-op. This
+  // prevents duplicate subscription activations / token grants on retries.
+  try {
+    const inserted = await db('processed_stripe_events')
+      .insert({ event_id: event.id, type: event.type })
+      .onConflict('event_id')
+      .ignore()
+      .returning('event_id');
+
+    if (!inserted || inserted.length === 0) {
+      console.log(`[Stripe] Duplicate event ${event.id} (${event.type}) — already processed, skipping`);
+      return;
+    }
+  } catch (err) {
+    console.error('[Stripe] Idempotency check failed, processing anyway:', err.message);
+  }
+
   switch (event.type) {
     case 'checkout.session.completed': {
       const session = event.data.object;
-      const guildId = session.metadata.guild_id;
-      const productType = session.metadata.product_type;
+      const guildId = session.metadata?.guild_id;
+      const productType = session.metadata?.product_type || '';
 
       if (session.mode === 'subscription') {
         // Subscription purchase

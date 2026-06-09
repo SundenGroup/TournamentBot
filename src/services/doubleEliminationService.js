@@ -289,7 +289,7 @@ function generateBracket(participants, settings) {
     { round: 2, name: 'Grand Finals Reset', matches: [bracketReset] },
   ];
 
-  return {
+  const bracket = {
     type: 'double_elimination',
     bracketSize,
     winnersRounds,
@@ -300,6 +300,17 @@ function generateBracket(participants, settings) {
     lbComplete: false,
     needsReset: false,
   };
+
+  // Byes are fully known at generation time. Mark which slots can never be
+  // filled (a winners-bracket bye produces no loser, so the losers-bracket slot
+  // it would have fed is permanently empty), then auto-advance any match that
+  // can only ever receive a single player. Without this, every non-power-of-2
+  // field deadlocks: losers-bracket matches fed by a bye sit forever with one
+  // empty slot and never become playable.
+  computeWalkoverFlags(bracket);
+  resolveWalkovers(bracket);
+
+  return bracket;
 }
 
 function advanceWinner(bracket, matchId, winnerId, score = null) {
@@ -396,7 +407,151 @@ function advanceWinner(bracket, matchId, winnerId, score = null) {
     }
   }
 
+  // A reported result may have dropped a loser into (or advanced a winner toward)
+  // a match whose other slot is a structural bye. Cascade any such walkovers.
+  resolveWalkovers(bracket);
+
   return bracket;
+}
+
+// ============================================================================
+// Walkover / bye resolution
+// ----------------------------------------------------------------------------
+// `computeWalkoverFlags` runs once at generation. For every match it records:
+//   producesWinner — will this match ever yield a winner?
+//   producesLoser  — will this match drop a loser into the losers bracket?
+//                    (only winners-bracket matches drop losers)
+//   p1Dead/p2Dead  — is that participant slot fed by a source that can never
+//                    produce a player? (i.e. a permanently empty slot)
+// Because byes only ever occur in winners-bracket round 1 and are known up
+// front, a single forward pass (WB → LB → GF, all source links point backward)
+// is enough to label the whole structure.
+//
+// `resolveWalkovers` then auto-advances any match that has exactly one real
+// participant and a dead other slot, propagating winners forward and repeating
+// until stable.
+// ============================================================================
+
+function computeWalkoverFlags(bracket) {
+  const byId = {};
+  for (const round of bracket.winnersRounds) for (const m of round.matches) byId[m.id] = m;
+  for (const round of bracket.losersRounds) for (const m of round.matches) byId[m.id] = m;
+  for (const round of bracket.grandFinalsRounds) for (const m of round.matches) byId[m.id] = m;
+
+  // Winners bracket — process round by round.
+  bracket.winnersRounds.forEach((round, roundIdx) => {
+    for (const m of round.matches) {
+      if (roundIdx === 0) {
+        // Round 1: at least one real player guaranteed. A bye (one empty slot)
+        // produces a winner but no loser.
+        m.producesWinner = true;
+        m.producesLoser = !!(m.participant1 && m.participant2);
+        m.p1Dead = !m.participant1 && !m.participant2; // never (guaranteed ≥1)
+        m.p2Dead = false;
+      } else {
+        // Fed by winners of two WB matches, which always produce a winner.
+        m.producesWinner = true;
+        m.producesLoser = true;
+        m.p1Dead = false;
+        m.p2Dead = false;
+      }
+    }
+  });
+
+  // Losers bracket — losers never drop further, so producesLoser is always false.
+  for (const round of bracket.losersRounds) {
+    for (const m of round.matches) {
+      let p1Dead;
+      let p2Dead;
+      if (m.sourceFromWb1Id !== undefined || m.sourceFromWb2Id !== undefined) {
+        // LB round 1: p2 = loser of sourceFromWb1, p1 = loser of sourceFromWb2.
+        const src1 = byId[m.sourceFromWb1Id];
+        const src2 = byId[m.sourceFromWb2Id];
+        p2Dead = !src1 || !src1.producesLoser;
+        p1Dead = !src2 || !src2.producesLoser;
+      } else if (m.sourceLbMatchId !== undefined || m.sourceFromWbId !== undefined) {
+        // LB drop-in round: p1 = LB winner, p2 = dropping WB loser.
+        const lbSrc = byId[m.sourceLbMatchId];
+        const wbSrc = byId[m.sourceFromWbId];
+        p1Dead = !lbSrc || !lbSrc.producesWinner;
+        p2Dead = !wbSrc || !wbSrc.producesLoser;
+      } else {
+        // Pure LB round: both slots from LB winners.
+        const s1 = byId[m.sourceLbMatch1Id];
+        const s2 = byId[m.sourceLbMatch2Id];
+        p1Dead = !s1 || !s1.producesWinner;
+        p2Dead = !s2 || !s2.producesWinner;
+      }
+      m.p1Dead = p1Dead;
+      m.p2Dead = p2Dead;
+      m.producesWinner = !(p1Dead && p2Dead);
+      m.producesLoser = false;
+    }
+  }
+
+  // Grand finals: WB champ (p1) always live; LB champ (p2) live unless the
+  // entire losers bracket collapsed (impossible for ≥2 entrants).
+  const gf = bracket.grandFinalsRounds[0].matches[0];
+  const lbFinals = byId[gf.sourceLbFinalsId];
+  gf.p1Dead = false;
+  gf.p2Dead = !lbFinals || !lbFinals.producesWinner;
+  gf.producesWinner = true;
+  gf.producesLoser = false;
+}
+
+function placeWinnerForward(bracket, match, winner) {
+  if (!match.nextWinMatchId) return;
+  const next = findMatch(bracket, match.nextWinMatchId);
+  if (!next) return;
+
+  if (next.bracket === 'grand_finals') {
+    if (match.bracket === 'winners') next.participant1 = winner;
+    else next.participant2 = winner;
+  } else if (
+    next.sourceMatch1Id === match.id ||
+    next.sourceLbMatchId === match.id ||
+    next.sourceLbMatch1Id === match.id
+  ) {
+    next.participant1 = winner;
+  } else {
+    next.participant2 = winner;
+  }
+}
+
+function resolveWalkovers(bracket) {
+  const allMatches = () => {
+    const list = [];
+    for (const round of bracket.winnersRounds) list.push(...round.matches);
+    for (const round of bracket.losersRounds) list.push(...round.matches);
+    for (const round of bracket.grandFinalsRounds) list.push(...round.matches);
+    return list;
+  };
+
+  let changed = true;
+  while (changed) {
+    changed = false;
+    for (const m of allMatches()) {
+      if (m.winner) continue;
+      if (m.bracket === 'grand_finals') continue; // GF/reset are real contests
+      if (m.producesWinner === false) continue;   // dead match — never resolves
+
+      const p1 = m.participant1;
+      const p2 = m.participant2;
+
+      // Auto-advance only when exactly one real player is present and the other
+      // slot is a structural bye (dead). Two present players is a real match.
+      let soleWinner = null;
+      if (p1 && !p2 && m.p2Dead) soleWinner = p1;
+      else if (p2 && !p1 && m.p1Dead) soleWinner = p2;
+
+      if (soleWinner) {
+        m.winner = soleWinner;
+        m.loser = null; // a walkover has no loser to drop
+        placeWinnerForward(bracket, m, soleWinner);
+        changed = true;
+      }
+    }
+  }
 }
 
 function findMatch(bracket, matchId) {
@@ -476,13 +631,15 @@ function getResults(bracket) {
     ? finalMatch.participant2
     : finalMatch.participant1;
 
-  // Third place is LB semi-finals loser
+  // Third place is the loser of the Losers Finals — the player eliminated by
+  // the LB champion (who then went to Grand Finals). The previous code read the
+  // Losers Semi-Finals (one round too early).
   let thirdPlace = null;
-  if (bracket.losersRounds.length >= 2) {
-    const lbSemis = bracket.losersRounds[bracket.losersRounds.length - 2];
-    const lbSemiMatch = lbSemis.matches[0];
-    if (lbSemiMatch?.loser) {
-      thirdPlace = lbSemiMatch.loser;
+  if (bracket.losersRounds.length >= 1) {
+    const lbFinals = bracket.losersRounds[bracket.losersRounds.length - 1];
+    const lbFinalsMatch = lbFinals.matches[0];
+    if (lbFinalsMatch?.loser) {
+      thirdPlace = lbFinalsMatch.loser;
     }
   }
 

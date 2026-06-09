@@ -1,0 +1,108 @@
+// Ad-hoc bracket engine test harness (not part of the bot runtime).
+// Simulates full tournaments and asserts they always reach a single champion.
+const single = require('./src/services/singleEliminationService');
+const double = require('./src/services/doubleEliminationService');
+const swiss = require('./src/services/swissService');
+const rr = require('./src/services/roundRobinService');
+
+let failures = 0;
+function check(cond, msg) {
+  if (!cond) { console.error('  ✗ ' + msg); failures++; }
+}
+
+function makePlayers(n) {
+  return Array.from({ length: n }, (_, i) => ({ id: `p${i + 1}`, username: `Player${i + 1}`, seed: i + 1 }));
+}
+
+// Play every active match (winner = participant1) until none remain, with a
+// safety cap to catch deadlocks (the original double-elim bug).
+function playOut(service, bracket, { genNext = false } = {}) {
+  let guard = 0;
+  while (true) {
+    if (++guard > 100000) return { deadlock: true };
+    let active = service.getActiveMatches(bracket);
+    if (active.length === 0) {
+      if (genNext && !service.isComplete(bracket) && service.isRoundComplete && service.isRoundComplete(bracket)) {
+        try { service.generateNextRound(bracket); continue; } catch { break; }
+      }
+      break;
+    }
+    for (const m of active) {
+      const winnerId = m.participant1.id;
+      service.advanceWinner(bracket, m.id, winnerId, '2-0');
+    }
+  }
+  return { deadlock: false };
+}
+
+console.log('=== SINGLE ELIMINATION ===');
+for (const n of [2, 3, 4, 5, 6, 7, 8, 11, 13, 16, 23, 32]) {
+  const b = single.generateBracket(makePlayers(n), {});
+  const r = playOut(single, b);
+  const done = single.isComplete(b);
+  const res = single.getResults(b);
+  check(!r.deadlock, `SE n=${n} deadlocked`);
+  check(done, `SE n=${n} did not complete`);
+  check(res && res.winner, `SE n=${n} no winner`);
+  console.log(`  n=${n}: complete=${done} winner=${res?.winner?.id} 3rd=${res?.thirdPlace?.id ?? '—'}`);
+}
+
+console.log('=== DOUBLE ELIMINATION (the deadlock case) ===');
+for (const n of [2, 3, 4, 5, 6, 7, 8, 11, 13, 16, 23, 32]) {
+  const b = double.generateBracket(makePlayers(n), {});
+  const r = playOut(double, b);
+  const done = double.isComplete(b);
+  const res = double.getResults(b);
+  check(!r.deadlock, `DE n=${n} DEADLOCKED`);
+  check(done, `DE n=${n} did not complete`);
+  check(res && res.winner, `DE n=${n} no winner`);
+  console.log(`  n=${n}: complete=${done} winner=${res?.winner?.id} runnerUp=${res?.runnerUp?.id ?? '—'} 3rd=${res?.thirdPlace?.id ?? '—'}`);
+}
+
+console.log('=== DOUBLE ELIM — LB champion wins (forces bracket reset) ===');
+{
+  // Play so that the WB finalist loses the grand finals → reset must trigger and resolve.
+  const b = double.generateBracket(makePlayers(8), {});
+  let guard = 0;
+  while (!double.isComplete(b)) {
+    if (++guard > 100000) { check(false, 'reset-path deadlock'); break; }
+    const active = double.getActiveMatches(b);
+    if (!active.length) break;
+    for (const m of active) {
+      // In grand finals, let the LB champion (participant2) win the first game to force a reset.
+      let winnerId = m.participant1.id;
+      if (m.bracket === 'grand_finals' && !m.isReset && m.participant2) winnerId = m.participant2.id;
+      double.advanceWinner(b, m.id, winnerId, '2-1');
+    }
+  }
+  check(double.isComplete(b), 'DE reset path did not complete');
+  console.log(`  reset complete=${double.isComplete(b)} needsReset=${b.needsReset} winner=${double.getResults(b)?.winner?.id}`);
+}
+
+console.log('=== SWISS ===');
+for (const n of [4, 5, 7, 8]) {
+  const b = swiss.generateBracket(makePlayers(n), {});
+  playOut(swiss, b, { genNext: true });
+  const done = swiss.isComplete(b);
+  check(done, `Swiss n=${n} did not complete`);
+  // No player should receive more than one bye.
+  const byeCounts = {};
+  for (const round of b.rounds) for (const m of round.matches) if (m.isBye) byeCounts[m.winner.id] = (byeCounts[m.winner.id] || 0) + 1;
+  const repeat = Object.entries(byeCounts).filter(([, c]) => c > 1);
+  check(repeat.length === 0, `Swiss n=${n} gave repeat byes: ${JSON.stringify(repeat)}`);
+  console.log(`  n=${n}: complete=${done} rounds=${b.rounds.length} byes=${JSON.stringify(byeCounts)}`);
+}
+
+console.log('=== ROUND ROBIN ===');
+for (const n of [3, 4, 5, 6]) {
+  const b = rr.generateBracket(makePlayers(n), {});
+  playOut(rr, b);
+  const done = rr.isComplete(b);
+  const standings = rr.getStandings(b);
+  check(done, `RR n=${n} did not complete`);
+  check(standings.length === n, `RR n=${n} standings count ${standings.length}`);
+  console.log(`  n=${n}: complete=${done} matches=${b.totalMatches} winner=${standings[0]?.participant.id}`);
+}
+
+console.log('\n' + (failures === 0 ? '✅ ALL CHECKS PASSED' : `❌ ${failures} CHECK(S) FAILED`));
+process.exit(failures === 0 ? 0 : 1);

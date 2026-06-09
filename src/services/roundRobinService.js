@@ -162,19 +162,27 @@ function advanceWinner(bracket, matchId, winnerId, score) {
  * @param {Object} bracket - Round Robin bracket
  */
 function updateRoundStatus(bracket) {
+  // Mark every fully-played round complete and find the first one that isn't.
+  // Then activate exactly that round and point currentRound at it. The previous
+  // version advanced currentRound on every complete round in the loop, which
+  // could skip past an incomplete middle round.
+  let firstIncomplete = null;
   for (let i = 0; i < bracket.rounds.length; i++) {
     const round = bracket.rounds[i];
     const allComplete = round.matches.every(m => m.winner !== null);
-
     if (allComplete) {
       round.status = 'complete';
-
-      // Activate next round if exists
-      if (i + 1 < bracket.rounds.length) {
-        bracket.rounds[i + 1].status = 'active';
-        bracket.currentRound = i + 2;
-      }
+    } else if (firstIncomplete === null) {
+      firstIncomplete = i;
     }
+  }
+
+  if (firstIncomplete === null) {
+    // All rounds done.
+    bracket.currentRound = bracket.rounds.length + 1;
+  } else {
+    bracket.rounds[firstIncomplete].status = 'active';
+    bracket.currentRound = bracket.rounds[firstIncomplete].roundNumber;
   }
 }
 
@@ -244,25 +252,54 @@ function getStandings(bracket) {
 }
 
 /**
- * Sort standings by wins, then head-to-head
+ * Sort standings by wins, then a head-to-head mini-league among tied teams.
+ *
+ * The previous comparator applied raw pairwise head-to-head directly inside the
+ * sort callback. That is non-transitive: with a 3-way cycle (A beat B, B beat C,
+ * C beat A) the comparator returns inconsistent orderings and Array.sort produces
+ * a garbage result. Instead we group teams by win count and, within each tied
+ * group, rank by record *against the other tied teams only* (transitive), then by
+ * fewer total losses, then deterministically by id.
+ *
  * @param {Array} standings - Standings array
  * @returns {Array} Sorted standings
  */
 function sortStandings(standings) {
-  return [...standings].sort((a, b) => {
-    // Primary: wins
-    if (b.wins !== a.wins) return b.wins - a.wins;
+  // Group by wins (descending).
+  const groups = new Map();
+  for (const s of standings) {
+    if (!groups.has(s.wins)) groups.set(s.wins, []);
+    groups.get(s.wins).push(s);
+  }
 
-    // Tiebreaker: head-to-head
-    const h2h = a.headToHead[b.participant.id];
-    if (h2h === 'win') return -1;
-    if (h2h === 'loss') return 1;
+  const winKeys = [...groups.keys()].sort((a, b) => b - a);
+  const result = [];
 
-    // Secondary tiebreaker: fewer losses
-    if (a.losses !== b.losses) return a.losses - b.losses;
+  for (const winKey of winKeys) {
+    const group = groups.get(winKey);
+    const tiedIds = new Set(group.map(s => s.participant.id));
 
-    return 0;
-  });
+    // Head-to-head wins within this tied group only (a transitive metric).
+    const miniWins = new Map();
+    for (const s of group) {
+      let w = 0;
+      for (const [oppId, outcome] of Object.entries(s.headToHead)) {
+        if (tiedIds.has(oppId) && outcome === 'win') w++;
+      }
+      miniWins.set(s.participant.id, w);
+    }
+
+    group.sort((a, b) => {
+      const mw = miniWins.get(b.participant.id) - miniWins.get(a.participant.id);
+      if (mw !== 0) return mw;
+      if (a.losses !== b.losses) return a.losses - b.losses;
+      return a.participant.id < b.participant.id ? -1 : a.participant.id > b.participant.id ? 1 : 0;
+    });
+
+    result.push(...group);
+  }
+
+  return result;
 }
 
 /**

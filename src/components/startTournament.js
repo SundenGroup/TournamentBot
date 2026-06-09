@@ -37,7 +37,11 @@ module.exports = {
       return interaction.reply({ content: '❌ Need at least 2 participants to start.', ephemeral: true });
     }
 
-    // Immediately mark as active to prevent concurrent starts
+    // Immediately mark as active to prevent concurrent starts. Remember the
+    // prior status so we can roll back if bracket generation fails — otherwise a
+    // failed start leaves the tournament stuck "active" with no bracket and no
+    // registration buttons (unrecoverable for users).
+    const previousStatus = tournament.status;
     await updateTournament(tournamentId, { status: 'active' });
 
     await interaction.deferReply({ ephemeral: true });
@@ -168,7 +172,14 @@ module.exports = {
 
     } catch (error) {
       console.error('Error starting tournament:', error);
-      await interaction.editReply({ content: `❌ Error starting tournament: ${error.message}` });
+      // Roll back so the tournament returns to registration instead of being
+      // bricked in an "active" state with no bracket.
+      try {
+        await updateTournament(tournamentId, { status: previousStatus, bracket: null });
+      } catch (rollbackError) {
+        console.error('Failed to roll back tournament status:', rollbackError);
+      }
+      await interaction.editReply({ content: `❌ Error starting tournament: ${error.message}\n\nThe tournament has been returned to its previous state — you can try again.` });
     }
   },
 };

@@ -151,32 +151,32 @@ module.exports = {
     if (interaction.isStringSelectMenu()) {
       const value = interaction.values[0];
 
+      let updated = session;
       switch (subAction) {
         case 'lobbySize':
-          await updateSession(sessionId, { lobbySize: parseInt(value, 10) });
+          updated = await updateSession(sessionId, { lobbySize: parseInt(value, 10) });
           break;
         case 'gamesPerStage':
-          await updateSession(sessionId, { gamesPerStage: parseInt(value, 10) });
+          updated = await updateSession(sessionId, { gamesPerStage: parseInt(value, 10) });
           break;
         case 'advancingPerGroup':
-          await updateSession(sessionId, { advancingPerGroup: value === 'auto' ? null : parseInt(value, 10) });
+          updated = await updateSession(sessionId, { advancingPerGroup: value === 'auto' ? null : parseInt(value, 10) });
           break;
         case 'checkinWindow':
-          await updateSession(sessionId, { checkinWindow: parseInt(value, 10) });
+          updated = await updateSession(sessionId, { checkinWindow: parseInt(value, 10) });
           break;
       }
 
-      const message = buildOptionsMessage(session);
-      return interaction.update(message);
+      // Render with the freshly-updated session, not the stale snapshot.
+      return interaction.update(buildOptionsMessage(updated || session));
     }
 
     // Handle role select menu
     if (interaction.isRoleSelectMenu()) {
       if (subAction === 'requiredRoles') {
         const roleIds = interaction.values; // Array of role IDs
-        await updateSession(sessionId, { requiredRoles: roleIds });
-        const message = buildOptionsMessage(session);
-        return interaction.update(message);
+        const updated = await updateSession(sessionId, { requiredRoles: roleIds });
+        return interaction.update(buildOptionsMessage(updated || session));
       }
     }
 

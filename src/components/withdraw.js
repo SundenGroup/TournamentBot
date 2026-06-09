@@ -4,11 +4,13 @@ const { updateTournamentMessages } = require('../utils/tournamentUpdater');
 module.exports = {
   customId: 'withdraw',
   async execute(interaction, args) {
+    await interaction.deferReply({ ephemeral: true });
+
     const tournamentId = args[0];
     const tournament = await getTournament(tournamentId);
 
     if (!tournament) {
-      return interaction.reply({ content: '❌ Tournament not found.', ephemeral: true });
+      return interaction.editReply({ content: '❌ Tournament not found.' });
     }
 
     const isSolo = tournament.settings.teamSize === 1;
@@ -17,11 +19,11 @@ module.exports = {
       const result = await removeParticipant(tournamentId, interaction.user.id);
 
       if (!result.success) {
-        return interaction.reply({ content: `❌ ${result.error}`, ephemeral: true });
+        return interaction.editReply({ content: `❌ ${result.error}`, ephemeral: true });
       }
 
       await updateTournamentMessages(interaction.client, result.tournament);
-      return interaction.reply({
+      return interaction.editReply({
         content: `✅ You have withdrawn from **${tournament.title}**.`,
         ephemeral: true,
       });
@@ -29,7 +31,7 @@ module.exports = {
       const result = await removeTeam(tournamentId, interaction.user.id);
 
       if (!result.success) {
-        return interaction.reply({ content: `❌ ${result.error}`, ephemeral: true });
+        return interaction.editReply({ content: `❌ ${result.error}`, ephemeral: true });
       }
 
       await updateTournamentMessages(interaction.client, result.tournament);
@@ -48,7 +50,7 @@ module.exports = {
         }
       }
 
-      return interaction.reply({
+      return interaction.editReply({
         content: `✅ Team **${result.team.name}** has been withdrawn from **${tournament.title}**.`,
         ephemeral: true,
       });

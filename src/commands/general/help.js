@@ -7,7 +7,7 @@ module.exports = {
     .setDescription('Learn how to use the Tournament Bot'),
 
   async execute(interaction) {
-    const tier = getEffectiveTier(interaction.guildId);
+    const tier = await getEffectiveTier(interaction.guildId);
 
     const embed = new EmbedBuilder()
       .setTitle('Tournament Bot — Help')
@@ -41,7 +41,6 @@ module.exports = {
         value: [
           '`/match list` — View your active matches',
           '`/match bracket` — View the tournament bracket or standings',
-          '`/match games` — List pending Battle Royale games',
         ].join('\n'),
         inline: false,
       },
@@ -52,7 +51,6 @@ module.exports = {
           '**Double Elimination** — Lose twice to be eliminated',
           '**Swiss** — Fixed rounds, matched by record',
           '**Round Robin** — Everyone plays everyone',
-          '**Battle Royale** — Multi-team lobby format',
         ].join('\n'),
         inline: false,
       },

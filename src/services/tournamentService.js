@@ -231,181 +231,215 @@ async function deleteTournament(id) {
 }
 
 async function addParticipant(tournamentId, user) {
-  const row = await db('tournaments').where('id', tournamentId).first();
-  if (!row) return { success: false, error: 'Tournament not found' };
+  // Run the read-check-write inside a transaction with a row lock so two people
+  // signing up at the same instant can't both pass the capacity/duplicate checks
+  // against a stale snapshot (which previously overfilled brackets / lost signups).
+  let result;
+  try {
+    result = await db.transaction(async (trx) => {
+      const row = await trx('tournaments').where('id', tournamentId).forUpdate().first();
+      if (!row) return { success: false, error: 'Tournament not found' };
 
-  const tournament = rowToTournament(row);
+      const tournament = rowToTournament(row);
 
-  if (tournament.status !== 'registration') {
-    return { success: false, error: 'Registration is closed' };
+      if (tournament.status !== 'registration') {
+        return { success: false, error: 'Registration is closed' };
+      }
+
+      if (tournament.participants.length >= tournament.settings.maxParticipants) {
+        return { success: false, error: 'Tournament is full' };
+      }
+
+      if (tournament.participants.find(p => p.id === user.id)) {
+        return { success: false, error: "You're already signed up!" };
+      }
+
+      const participant = {
+        id: user.id,
+        username: user.username,
+        displayName: user.displayName || user.username,
+        gameNick: user.gameNick || null,
+        seed: null,
+        checkedIn: false,
+        joinedAt: new Date(),
+      };
+
+      tournament.participants.push(participant);
+
+      await trx('tournaments')
+        .where('id', tournamentId)
+        .update({ participants: JSON.stringify(tournament.participants) });
+
+      return { success: true, tournament, participant };
+    });
+  } catch (err) {
+    console.error('addParticipant transaction failed:', err);
+    return { success: false, error: 'Could not sign you up, please try again.' };
   }
 
-  if (tournament.participants.length >= tournament.settings.maxParticipants) {
-    return { success: false, error: 'Tournament is full' };
+  if (result.success) {
+    tournaments.set(tournamentId, result.tournament);
+    webhooks.onParticipantRegistered(result.tournament, result.participant);
   }
 
-  const existing = tournament.participants.find(p => p.id === user.id);
-  if (existing) {
-    return { success: false, error: "You're already signed up!" };
-  }
-
-  const participant = {
-    id: user.id,
-    username: user.username,
-    displayName: user.displayName || user.username,
-    gameNick: user.gameNick || null,
-    seed: null,
-    checkedIn: false,
-    joinedAt: new Date(),
-  };
-
-  tournament.participants.push(participant);
-
-  // Persist updated participants to database
-  await db('tournaments')
-    .where('id', tournamentId)
-    .update({ participants: JSON.stringify(tournament.participants) });
-
-  // Update in-memory cache
-  tournaments.set(tournamentId, tournament);
-
-  // Trigger webhook
-  webhooks.onParticipantRegistered(tournament, participant);
-
-  return { success: true, tournament };
+  return result;
 }
 
 async function removeParticipant(tournamentId, userId) {
-  const row = await db('tournaments').where('id', tournamentId).first();
-  if (!row) return { success: false, error: 'Tournament not found' };
+  let result;
+  try {
+    result = await db.transaction(async (trx) => {
+      const row = await trx('tournaments').where('id', tournamentId).forUpdate().first();
+      if (!row) return { success: false, error: 'Tournament not found' };
 
-  const tournament = rowToTournament(row);
+      const tournament = rowToTournament(row);
 
-  if (tournament.status !== 'registration') {
-    return { success: false, error: 'Cannot withdraw after registration closes' };
+      if (tournament.status !== 'registration') {
+        return { success: false, error: 'Cannot withdraw after registration closes' };
+      }
+
+      const index = tournament.participants.findIndex(p => p.id === userId);
+      if (index === -1) {
+        return { success: false, error: "You're not signed up" };
+      }
+
+      const participant = tournament.participants[index];
+      tournament.participants.splice(index, 1);
+
+      await trx('tournaments')
+        .where('id', tournamentId)
+        .update({ participants: JSON.stringify(tournament.participants) });
+
+      return { success: true, tournament, participant };
+    });
+  } catch (err) {
+    console.error('removeParticipant transaction failed:', err);
+    return { success: false, error: 'Could not withdraw, please try again.' };
   }
 
-  const index = tournament.participants.findIndex(p => p.id === userId);
-  if (index === -1) {
-    return { success: false, error: "You're not signed up" };
+  if (result.success) {
+    tournaments.set(tournamentId, result.tournament);
+    webhooks.onParticipantWithdrawn(result.tournament, result.participant);
   }
 
-  const participant = tournament.participants[index];
-  tournament.participants.splice(index, 1);
-
-  // Persist updated participants to database
-  await db('tournaments')
-    .where('id', tournamentId)
-    .update({ participants: JSON.stringify(tournament.participants) });
-
-  // Update in-memory cache
-  tournaments.set(tournamentId, tournament);
-
-  // Trigger webhook
-  webhooks.onParticipantWithdrawn(tournament, participant);
-
-  return { success: true, tournament };
+  return result;
 }
 
 async function addTeam(tournamentId, teamData) {
-  const row = await db('tournaments').where('id', tournamentId).first();
-  if (!row) return { success: false, error: 'Tournament not found' };
+  let result;
+  try {
+    result = await db.transaction(async (trx) => {
+      const row = await trx('tournaments').where('id', tournamentId).forUpdate().first();
+      if (!row) return { success: false, error: 'Tournament not found' };
 
-  const tournament = rowToTournament(row);
+      const tournament = rowToTournament(row);
 
-  if (tournament.status !== 'registration') {
-    return { success: false, error: 'Registration is closed' };
-  }
+      if (tournament.status !== 'registration') {
+        return { success: false, error: 'Registration is closed' };
+      }
 
-  if (tournament.teams.length >= tournament.settings.maxParticipants) {
-    return { success: false, error: 'Tournament is full' };
-  }
+      if (tournament.teams.length >= tournament.settings.maxParticipants) {
+        return { success: false, error: 'Tournament is full' };
+      }
 
-  // Check for duplicate team name
-  const duplicateName = tournament.teams.find(
-    t => t.name.toLowerCase() === teamData.name.toLowerCase()
-  );
-  if (duplicateName) {
-    return { success: false, error: 'Team name is already taken' };
-  }
+      // Check for duplicate team name
+      const duplicateName = tournament.teams.find(
+        t => t.name.toLowerCase() === teamData.name.toLowerCase()
+      );
+      if (duplicateName) {
+        return { success: false, error: 'Team name is already taken' };
+      }
 
-  // Check if any member is already on a team
-  const newMembers = teamData.members.concat(teamData.captain);
+      // Check if any member is already on a team
+      const newMembers = teamData.members.concat(teamData.captain);
 
-  for (const team of tournament.teams) {
-    const existingMembers = team.members.concat(team.captain);
+      for (const team of tournament.teams) {
+        const existingMembers = team.members.concat(team.captain);
 
-    for (const newMember of newMembers) {
-      for (const existing of existingMembers) {
-        // Compare by ID for resolved members, by username for pending ones
-        if (newMember.id && existing.id && newMember.id === existing.id) {
-          return { success: false, error: `A player is already on another team` };
-        }
-        if (newMember.pending && existing.pending &&
-            newMember.username.toLowerCase() === existing.username.toLowerCase()) {
-          return { success: false, error: `A player is already on another team` };
+        for (const newMember of newMembers) {
+          for (const existing of existingMembers) {
+            // Compare by ID for resolved members, by username for pending ones
+            if (newMember.id && existing.id && newMember.id === existing.id) {
+              return { success: false, error: `A player is already on another team` };
+            }
+            if (newMember.pending && existing.pending &&
+                newMember.username.toLowerCase() === existing.username.toLowerCase()) {
+              return { success: false, error: `A player is already on another team` };
+            }
+          }
         }
       }
-    }
+
+      const team = {
+        id: uuidv4(),
+        name: teamData.name,
+        captain: teamData.captain,
+        members: teamData.members,
+        seed: null,
+        checkedIn: false,
+        memberCheckins: {},
+        joinedAt: new Date(),
+      };
+
+      tournament.teams.push(team);
+
+      await trx('tournaments')
+        .where('id', tournamentId)
+        .update({ teams: JSON.stringify(tournament.teams) });
+
+      return { success: true, tournament, team };
+    });
+  } catch (err) {
+    console.error('addTeam transaction failed:', err);
+    return { success: false, error: 'Could not register the team, please try again.' };
   }
 
-  const team = {
-    id: uuidv4(),
-    name: teamData.name,
-    captain: teamData.captain,
-    members: teamData.members,
-    seed: null,
-    checkedIn: false,
-    memberCheckins: {},
-    joinedAt: new Date(),
-  };
+  if (result.success) {
+    tournaments.set(tournamentId, result.tournament);
+    webhooks.onParticipantRegistered(result.tournament, result.team);
+  }
 
-  tournament.teams.push(team);
-
-  // Persist updated teams to database
-  await db('tournaments')
-    .where('id', tournamentId)
-    .update({ teams: JSON.stringify(tournament.teams) });
-
-  // Update in-memory cache
-  tournaments.set(tournamentId, tournament);
-
-  // Trigger webhook
-  webhooks.onParticipantRegistered(tournament, team);
-
-  return { success: true, tournament, team };
+  return result;
 }
 
 async function removeTeam(tournamentId, captainId) {
-  const row = await db('tournaments').where('id', tournamentId).first();
-  if (!row) return { success: false, error: 'Tournament not found' };
+  let result;
+  try {
+    result = await db.transaction(async (trx) => {
+      const row = await trx('tournaments').where('id', tournamentId).forUpdate().first();
+      if (!row) return { success: false, error: 'Tournament not found' };
 
-  const tournament = rowToTournament(row);
+      const tournament = rowToTournament(row);
 
-  if (tournament.status !== 'registration') {
-    return { success: false, error: 'Cannot withdraw after registration closes' };
+      if (tournament.status !== 'registration') {
+        return { success: false, error: 'Cannot withdraw after registration closes' };
+      }
+
+      const index = tournament.teams.findIndex(t => t.captain.id === captainId);
+      if (index === -1) {
+        return { success: false, error: 'You are not a team captain in this tournament' };
+      }
+
+      const team = tournament.teams[index];
+      tournament.teams.splice(index, 1);
+
+      await trx('tournaments')
+        .where('id', tournamentId)
+        .update({ teams: JSON.stringify(tournament.teams) });
+
+      return { success: true, tournament, team };
+    });
+  } catch (err) {
+    console.error('removeTeam transaction failed:', err);
+    return { success: false, error: 'Could not withdraw the team, please try again.' };
   }
 
-  const index = tournament.teams.findIndex(t => t.captain.id === captainId);
-  if (index === -1) {
-    return { success: false, error: 'You are not a team captain in this tournament' };
+  if (result.success) {
+    tournaments.set(tournamentId, result.tournament);
+    webhooks.onParticipantWithdrawn(result.tournament, result.team);
   }
 
-  const team = tournament.teams[index];
-  tournament.teams.splice(index, 1);
-
-  // Persist updated teams to database
-  await db('tournaments')
-    .where('id', tournamentId)
-    .update({ teams: JSON.stringify(tournament.teams) });
-
-  // Update in-memory cache
-  tournaments.set(tournamentId, tournament);
-
-  // Trigger webhook
-  webhooks.onParticipantWithdrawn(tournament, team);
-
-  return { success: true, tournament, team };
+  return result;
 }
 
 async function findTournamentByMessage(messageId) {

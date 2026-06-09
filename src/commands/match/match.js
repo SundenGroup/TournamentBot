@@ -31,17 +31,6 @@ module.exports = {
             .setRequired(true)
             .setAutocomplete(true)
         )
-    )
-    .addSubcommand(subcommand =>
-      subcommand
-        .setName('games')
-        .setDescription('List pending Battle Royale games')
-        .addStringOption(option =>
-          option.setName('tournament')
-            .setDescription('Tournament')
-            .setRequired(true)
-            .setAutocomplete(true)
-        )
     ),
 
   async execute(interaction) {
@@ -54,9 +43,6 @@ module.exports = {
       case 'bracket':
         await handleBracket(interaction);
         break;
-      case 'games':
-        await handleGames(interaction);
-        break;
     }
   },
 
@@ -64,7 +50,7 @@ module.exports = {
     const focused = interaction.options.getFocused(true);
 
     if (focused.name === 'tournament') {
-      const tournaments = getActiveTournaments(interaction.guildId);
+      const tournaments = await getActiveTournaments(interaction.guildId);
       const choices = tournaments.map(t => ({
         name: `${t.game.icon} ${t.title}`,
         value: t.id,
@@ -95,7 +81,7 @@ function getServiceForBracket(bracket) {
 
 async function handleList(interaction) {
   const tournamentId = interaction.options.getString('tournament');
-  const tournament = getTournament(tournamentId);
+  const tournament = await getTournament(tournamentId);
 
   if (!tournament) {
     return interaction.reply({ content: '❌ Tournament not found.', ephemeral: true });
@@ -141,7 +127,7 @@ async function handleList(interaction) {
 
 async function handleBracket(interaction) {
   const tournamentId = interaction.options.getString('tournament');
-  const tournament = getTournament(tournamentId);
+  const tournament = await getTournament(tournamentId);
 
   if (!tournament) {
     return interaction.reply({ content: '❌ Tournament not found.', ephemeral: true });
@@ -156,9 +142,11 @@ async function handleBracket(interaction) {
   return interaction.reply({ embeds, ephemeral: true });
 }
 
+// NOTE: Battle Royale is parked (see docs/PARKED-FEATURES.md). The `games`
+// subcommand is unregistered; this handler is retained for when BR returns.
 async function handleGames(interaction) {
   const tournamentId = interaction.options.getString('tournament');
-  const tournament = getTournament(tournamentId);
+  const tournament = await getTournament(tournamentId);
 
   if (!tournament) {
     return interaction.reply({ content: '❌ Tournament not found.', ephemeral: true });

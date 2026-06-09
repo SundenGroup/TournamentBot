@@ -2,12 +2,11 @@ const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 const {
   grantTier,
   revokeTier,
-  grantTokens,
   getActiveGrants,
   getEffectiveTier,
   capitalize,
 } = require('../../services/subscriptionService');
-const { getSubscription, addParticipantBoost } = require('../../data/subscriptions');
+const { getSubscription } = require('../../data/subscriptions');
 
 const BOT_OWNER_ID = process.env.BOT_OWNER_ID;
 
@@ -61,47 +60,8 @@ module.exports = {
             .setRequired(true)
         )
     )
-    .addSubcommand(sub =>
-      sub
-        .setName('grant-tokens')
-        .setDescription('Grant free tournament tokens to a server')
-        .addStringOption(opt =>
-          opt
-            .setName('guild_id')
-            .setDescription('Server ID')
-            .setRequired(true)
-        )
-        .addIntegerOption(opt =>
-          opt
-            .setName('amount')
-            .setDescription('Number of tokens')
-            .setRequired(true)
-            .setMinValue(1)
-            .setMaxValue(100)
-        )
-    )
-    .addSubcommand(sub =>
-      sub
-        .setName('grant-boost')
-        .setDescription('Grant a participant boost to a server')
-        .addStringOption(opt =>
-          opt
-            .setName('guild_id')
-            .setDescription('Server ID')
-            .setRequired(true)
-        )
-        .addIntegerOption(opt =>
-          opt
-            .setName('amount')
-            .setDescription('Boost size')
-            .setRequired(true)
-            .addChoices(
-              { name: '+64 participants', value: 64 },
-              { name: '+128 participants', value: 128 },
-              { name: '+256 participants', value: 256 }
-            )
-        )
-    )
+    // NOTE: `grant-tokens` and `grant-boost` are parked along with the token
+    // system (see docs/PARKED-FEATURES.md). Re-add them when tokens return.
     .addSubcommand(sub =>
       sub
         .setName('list-grants')
@@ -191,44 +151,6 @@ module.exports = {
       });
     }
 
-    // Handle grant-tokens
-    if (subcommand === 'grant-tokens') {
-      const guildId = interaction.options.getString('guild_id');
-      const amount = interaction.options.getInteger('amount');
-
-      await grantTokens(guildId, amount);
-
-      const guild = interaction.client.guilds.cache.get(guildId);
-      const guildName = guild?.name || 'Unknown Server';
-
-      const sub = await getSubscription(guildId);
-      const totalTokens = sub?.tokens?.tournament || amount;
-
-      return interaction.reply({
-        content: `✅ Granted **${amount} tournament tokens** to **${guildName}** (\`${guildId}\`)\nTotal balance: **${totalTokens}** tokens`,
-        ephemeral: true,
-      });
-    }
-
-    // Handle grant-boost
-    if (subcommand === 'grant-boost') {
-      const guildId = interaction.options.getString('guild_id');
-      const amount = interaction.options.getInteger('amount');
-
-      await addParticipantBoost(guildId, amount);
-
-      const guild = interaction.client.guilds.cache.get(guildId);
-      const guildName = guild?.name || 'Unknown Server';
-
-      const sub = await getSubscription(guildId);
-      const boosts = sub?.tokens?.participantBoosts?.filter(b => !b.used) || [];
-
-      return interaction.reply({
-        content: `✅ Granted **+${amount} participant boost** to **${guildName}** (\`${guildId}\`)\nAvailable boosts: ${boosts.map(b => `+${b.amount}`).join(', ') || 'None'}`,
-        ephemeral: true,
-      });
-    }
-
     // Handle list-grants
     if (subcommand === 'list-grants') {
       const grants = await getActiveGrants();
@@ -276,8 +198,6 @@ module.exports = {
         `**Tier:** ${capitalize(tier)}`,
         `**Tournaments this month:** ${sub.usage?.tournamentsThisMonth || 0}`,
         `**Concurrent active:** ${sub.usage?.concurrentActive || 0}`,
-        `**Tournament tokens:** ${sub.tokens?.tournament || 0}`,
-        `**Participant boosts:** ${sub.tokens?.participantBoosts?.filter(b => !b.used).map(b => `+${b.amount}`).join(', ') || 'None'}`,
       ];
 
       if (sub.manualGrant) {

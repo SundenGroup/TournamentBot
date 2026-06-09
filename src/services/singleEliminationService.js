@@ -199,18 +199,19 @@ function getResults(bracket) {
     ? finalMatch.participant2
     : finalMatch.participant1;
 
-  // Third place is from semi-finals losers (if applicable)
+  // Third place: the losers of the semi-finals (no 3rd-place playoff, so they
+  // tie for 3rd). Identify each semi-final's loser directly — the previous code
+  // filtered on the semi-final WINNER, which is always a finalist, so it never
+  // matched and thirdPlace was always null.
   let thirdPlace = null;
   if (bracket.rounds.length >= 2) {
     const semiFinals = bracket.rounds[bracket.rounds.length - 2];
     for (const match of semiFinals.matches) {
-      if (match.winner && match.winner.id !== winner.id && match.winner.id !== runnerUp.id) {
-        // This is a semi-final loser
-        const loser = match.participant1?.id === match.winner.id
-          ? match.participant2
-          : match.participant1;
-        if (!thirdPlace) thirdPlace = loser;
-      }
+      if (!match.winner) continue;
+      const loser = match.participant1?.id === match.winner.id
+        ? match.participant2
+        : match.participant1;
+      if (loser && !thirdPlace) thirdPlace = loser;
     }
   }
 
