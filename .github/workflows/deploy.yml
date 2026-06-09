@@ -18,5 +18,6 @@ jobs:
             cd /root/tournament-bot
             git pull origin main
             npm install --production
+            npm run deploy-commands
             pm2 restart tournament-bot
             pm2 save
