@@ -665,10 +665,6 @@ const FORMAT_INFO = {
     name: 'Round Robin',
     description: 'Everyone plays everyone once.',
   },
-  battle_royale: {
-    name: 'Battle Royale',
-    description: 'Multi-team lobby format for BR games (Apex, PUBG, Fortnite).',
-  },
 };
 
 async function handleHelp(interaction) {
@@ -691,7 +687,6 @@ async function handleHelp(interaction) {
         '`start` — Start tournament & generate brackets',
         '`cancel` — Cancel a tournament',
         '`report` — Report match result',
-        '`br-report` — Report BR game result',
         '`bracket` — View bracket/standings',
         '`seed set|list|randomize|clear` — Manage seeding',
       ].join('\n'),
@@ -761,7 +756,7 @@ async function handleHelp(interaction) {
   embed.addFields(
     {
       name: 'Player Commands',
-      value: '`/help` — Player help\n`/match list|bracket|games` — View matches\n`/team add|remove|transfer` — Team management',
+      value: '`/help` — Player help\n`/match list|bracket` — View matches\n`/team add|remove|transfer` — Team management',
       inline: false,
     },
     {

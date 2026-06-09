@@ -531,7 +531,6 @@
     <div class="sidebar-section-title">Running Tournaments</div>
     <a href="#reporting">Reporting Results</a>
     <a href="#teams">Team Tournaments</a>
-    <a href="#battle-royale">Battle Royale</a>
     <a href="#seeding">Seeding</a>
   </div>
   <div class="sidebar-section">
@@ -542,7 +541,6 @@
   </div>
   <div class="sidebar-section">
     <div class="sidebar-section-title">Billing</div>
-    <a href="#tokens">Tokens &amp; Boosts</a>
     <a href="#subscription">Subscription</a>
   </div>
   <div class="sidebar-section">
@@ -596,7 +594,7 @@
     <h3>Simple Mode</h3>
     <pre><code><span class="cmd">/tournament create</span></code></pre>
     <ol class="steps">
-      <li>A dropdown appears with popular games (CS2, League of Legends, Fortnite, etc.). Pick one, or choose <strong>"Other Game"</strong> for anything custom.</li>
+      <li>A dropdown appears with the supported games (CS2, VALORANT, League of Legends, Rocket League, etc.). Pick one, or choose <strong>"Other Game"</strong> for anything custom.</li>
       <li>A form pops up asking for <strong>Tournament Title</strong>, <strong>Date &amp; Time</strong> (natural language works: <code>March 10 8pm EST</code>, <code>tomorrow 7pm UTC</code>), and <strong>Max Players/Teams</strong> (2–128).</li>
       <li>Hit submit and the tournament is live with a signup embed in your announcement channel.</li>
     </ol>
@@ -610,7 +608,7 @@
       <table>
         <thead><tr><th>Setting</th><th>Options</th></tr></thead>
         <tbody>
-          <tr><td><strong>Format</strong></td><td>Single Elimination, Double Elimination, Swiss, Round Robin, Battle Royale</td></tr>
+          <tr><td><strong>Format</strong></td><td>Single Elimination, Double Elimination, Swiss, Round Robin</td></tr>
           <tr><td><strong>Team Size</strong></td><td>Solo, 2v2, 3v3, up to 10v10 (varies by game)</td></tr>
           <tr><td><strong>Best Of</strong></td><td>Bo1, Bo3, Bo5, Bo7</td></tr>
           <tr><td><strong>Check-in</strong></td><td>On / Off <span class="tag tag-premium">Premium</span></td></tr>
@@ -621,7 +619,7 @@
       </table>
     </div>
 
-    <p>Click <strong>More Options</strong> for check-in window (5–120 min), required roles, and Battle Royale lobby settings.</p>
+    <p>Click <strong>More Options</strong> for check-in window (5–120 min) and required roles.</p>
   </section>
 
   <!-- ================================================================
@@ -724,40 +722,10 @@
   </section>
 
   <!-- ================================================================
-       6. Battle Royale
-       ================================================================ -->
-  <section id="battle-royale">
-    <h2>6. Battle Royale Tournaments</h2>
-    <p>Battle Royale format works differently from bracket-based formats.</p>
-
-    <h3>Structure</h3>
-    <p><strong>Group Stage:</strong> Participants are split into lobbies (configurable size: 10–100). Each group plays multiple games.<br>
-    <strong>Finals:</strong> Top teams from each group advance to a Grand Finals lobby.</p>
-
-    <h3>Reporting BR results</h3>
-    <pre><code><span class="cmd">/tournament br-report</span> <span class="param">tournament:</span><span class="value">PUBG Weekly</span> <span class="param">group:</span><span class="value">A</span> <span class="param">game_number:</span><span class="value">1</span>
-  <span class="param">placements:</span><span class="value">5,12,3,8,1,15,7,20,10,2</span></code></pre>
-    <p>The <code>placements</code> field is a comma-separated list of lobby numbers in finish order (1st place first). Teams not listed are auto-filled to last place.</p>
-    <p>The bot tracks points across games. When all group stage games are reported, it automatically creates the finals lobby.</p>
-
-    <h3>BR-specific settings (Advanced Mode)</h3>
-    <div class="table-wrap">
-      <table>
-        <thead><tr><th>Setting</th><th>Options</th></tr></thead>
-        <tbody>
-          <tr><td><strong>Lobby Size</strong></td><td>10, 20, 30, 50, 100</td></tr>
-          <tr><td><strong>Games per Stage</strong></td><td>1 – 10</td></tr>
-          <tr><td><strong>Advancing per Group</strong></td><td>Auto, 2, 4, 6, 8</td></tr>
-        </tbody>
-      </table>
-    </div>
-  </section>
-
-  <!-- ================================================================
        7. Seeding
        ================================================================ -->
   <section id="seeding">
-    <h2>7. Seeding <span class="tag tag-premium">Premium</span></h2>
+    <h2>6. Seeding <span class="tag tag-premium">Premium</span></h2>
     <p>Seeding must be enabled when creating the tournament (toggle it on in Advanced Mode).</p>
 
     <pre><code><span class="cmd">/tournament seed set</span> <span class="param">tournament:</span><span class="value">Friday Night Fights</span> <span class="param">participant:</span><span class="value">PlayerA</span> <span class="param">seed:</span><span class="value">1</span></code></pre>
@@ -780,7 +748,7 @@
        8. Server Settings
        ================================================================ -->
   <section id="settings">
-    <h2>8. Server Settings</h2>
+    <h2>7. Server Settings</h2>
 
     <div class="table-wrap">
       <table>
@@ -803,7 +771,7 @@
        9. Debug & Testing
        ================================================================ -->
   <section id="debug">
-    <h2>9. Debug &amp; Testing Tools</h2>
+    <h2>8. Debug &amp; Testing Tools</h2>
     <p>These add fake participants so you can test the full tournament flow without needing real players.</p>
 
     <div class="table-wrap">
@@ -834,7 +802,7 @@
        10. Templates
        ================================================================ -->
   <section id="templates">
-    <h2>10. Templates <span class="tag tag-pro">Pro</span></h2>
+    <h2>9. Templates <span class="tag tag-pro">Pro</span></h2>
     <p>Save tournament configurations for reuse. Handy for weekly recurring events.</p>
 
     <h3>Save from an existing tournament</h3>
@@ -856,51 +824,10 @@
   </section>
 
   <!-- ================================================================
-       11. Tokens & Boosts
-       ================================================================ -->
-  <section id="tokens">
-    <h2>11. Tokens &amp; Boosts</h2>
-
-    <h3>Tournament Tokens</h3>
-    <p>Every tier has a monthly tournament limit. If you need more, buy token packs. Tokens are consumed automatically when you exceed your monthly limit. They expire 12 months after purchase.</p>
-
-    <div class="table-wrap">
-      <table>
-        <thead><tr><th>Pack</th><th>Tokens</th></tr></thead>
-        <tbody>
-          <tr><td>Small</td><td>30</td></tr>
-          <tr><td>Medium</td><td>50</td></tr>
-          <tr><td>Large</td><td>100</td></tr>
-        </tbody>
-      </table>
-    </div>
-
-    <pre><code><span class="cmd">/tokens buy-tournaments</span> <span class="param">pack:</span><span class="value">30 Tokens</span></code></pre>
-
-    <h3>Participant Boosts</h3>
-    <p>Each tier has a max participant cap. Boosts raise the cap for a single tournament. They never expire and are consumed automatically at tournament creation. Maximum is 512 participants regardless of boosts.</p>
-
-    <div class="table-wrap">
-      <table>
-        <thead><tr><th>Boost</th><th>Extra Capacity</th></tr></thead>
-        <tbody>
-          <tr><td>Standard</td><td>+128 participants</td></tr>
-          <tr><td>Large</td><td>+256 participants</td></tr>
-        </tbody>
-      </table>
-    </div>
-
-    <pre><code><span class="cmd">/tokens buy-boost</span> <span class="param">size:</span><span class="value">+128 Participants</span></code></pre>
-
-    <h3>Check your balance</h3>
-    <pre><code><span class="cmd">/tokens balance</span></code></pre>
-  </section>
-
-  <!-- ================================================================
        12. Subscription Management
        ================================================================ -->
   <section id="subscription">
-    <h2>12. Subscription Management</h2>
+    <h2>10. Subscription Management</h2>
 
     <div class="table-wrap">
       <table>
@@ -920,7 +847,7 @@
        13. Command Reference
        ================================================================ -->
   <section id="commands">
-    <h2>13. Command Reference</h2>
+    <h2>11. Command Reference</h2>
 
     <h3>Tournament Management</h3>
     <div class="table-wrap">
@@ -934,7 +861,6 @@
           <tr><td><code>/tournament start</code></td><td>Start a tournament (generates bracket)</td></tr>
           <tr><td><code>/tournament cancel</code></td><td>Cancel a tournament</td></tr>
           <tr><td><code>/tournament report</code></td><td>Report a match result</td></tr>
-          <tr><td><code>/tournament br-report</code></td><td>Report Battle Royale game results</td></tr>
           <tr><td><code>/tournament bracket</code></td><td>View bracket / standings</td></tr>
           <tr><td><code>/tournament seed set</code></td><td>Set a participant's seed <span class="tag tag-premium">Premium</span></td></tr>
           <tr><td><code>/tournament seed list</code></td><td>View current seeding <span class="tag tag-premium">Premium</span></td></tr>
@@ -980,7 +906,6 @@
         <tbody>
           <tr><td><code>/match list</code></td><td>View active matches</td></tr>
           <tr><td><code>/match bracket</code></td><td>View bracket / standings</td></tr>
-          <tr><td><code>/match games</code></td><td>View BR games</td></tr>
           <tr><td><code>/team add</code></td><td>Add a team member (captain)</td></tr>
           <tr><td><code>/team remove</code></td><td>Remove a team member (captain)</td></tr>
           <tr><td><code>/team transfer</code></td><td>Transfer captain role (captain)</td></tr>
@@ -989,7 +914,7 @@
       </table>
     </div>
 
-    <h3>Subscription &amp; Tokens</h3>
+    <h3>Subscription</h3>
     <div class="table-wrap">
       <table>
         <thead><tr><th>Command</th><th>Description</th></tr></thead>
@@ -999,9 +924,6 @@
           <tr><td><code>/subscribe upgrade</code></td><td>Upgrade tier</td></tr>
           <tr><td><code>/subscribe manage</code></td><td>Manage billing</td></tr>
           <tr><td><code>/subscribe trial</code></td><td>Start free trial</td></tr>
-          <tr><td><code>/tokens balance</code></td><td>View token/boost balance</td></tr>
-          <tr><td><code>/tokens buy-tournaments</code></td><td>Buy tournament tokens</td></tr>
-          <tr><td><code>/tokens buy-boost</code></td><td>Buy participant boosts</td></tr>
         </tbody>
       </table>
     </div>
@@ -1025,13 +947,20 @@
        ================================================================ -->
   <section id="games">
     <h2>Supported Games</h2>
-    <p>The bot includes presets with optimized defaults for 21+ games:</p>
-    <p>
-      <strong>Featured:</strong> CS2, League of Legends, PUBG, Rocket League, Fortnite, Street Fighter 6, GeoGuessr
-    </p>
-    <p>
-      <strong>All games:</strong> VALORANT, Dota 2, Marvel Rivals, GOALS, 2XKO, PUBG Mobile, Overwatch, Call of Duty, Mobile Legends, EA Sports FC, StarCraft, Rainbow Six Siege, Tekken 8, Apex Legends, Deadlock
-    </p>
+    <p>The bot includes presets with optimized defaults for 15 games, organized by category:</p>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Category</th><th>Games</th></tr></thead>
+        <tbody>
+          <tr><td><strong>FPS</strong></td><td>Counter-Strike 2, VALORANT</td></tr>
+          <tr><td><strong>Hero Shooter</strong></td><td>Deadlock, Marvel Rivals, Overwatch</td></tr>
+          <tr><td><strong>MOBA</strong></td><td>League of Legends, Dota 2, Mobile Legends</td></tr>
+          <tr><td><strong>Fighting</strong></td><td>Street Fighter 6, Tekken 8, 2XKO</td></tr>
+          <tr><td><strong>Sports</strong></td><td>Rocket League, GOALS, EA Sports FC</td></tr>
+          <tr><td><strong>Casual</strong></td><td>GeoGuessr</td></tr>
+        </tbody>
+      </table>
+    </div>
     <p>Choose <strong>Custom</strong> to run a tournament for any game not on the list.</p>
   </section>
 
