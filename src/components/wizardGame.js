@@ -1,5 +1,5 @@
 const { ModalBuilder, TextInputBuilder, TextInputStyle, ActionRowBuilder, StringSelectMenuBuilder } = require('discord.js');
-const { GAME_PRESETS, getPresetKeys } = require('../config/gamePresets');
+const { GAME_PRESETS, getPresetKeys, getMenuEmoji } = require('../config/gamePresets');
 const { getSession, updateSession } = require('../data/wizardSessions');
 
 module.exports = {
@@ -30,7 +30,7 @@ module.exports = {
       const options = allKeys.map(key => ({
         label: GAME_PRESETS[key].displayName,
         value: key,
-        emoji: GAME_PRESETS[key].icon,
+        emoji: getMenuEmoji(GAME_PRESETS[key]),
         description: `${GAME_PRESETS[key].defaultTeamSize}v${GAME_PRESETS[key].defaultTeamSize} ${GAME_PRESETS[key].defaultFormat.replace('_', ' ')}`,
       }));
 

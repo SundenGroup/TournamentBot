@@ -1,5 +1,5 @@
 const { SlashCommandBuilder, ActionRowBuilder, StringSelectMenuBuilder, EmbedBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
-const { getPresetKeys, getFeaturedPresetKeys, GAME_PRESETS } = require('../../config/gamePresets');
+const { getPresetKeys, getFeaturedPresetKeys, getMenuEmoji, GAME_PRESETS } = require('../../config/gamePresets');
 const { getTournament, getActiveTournaments, updateTournament } = require('../../services/tournamentService');
 const { createBRGroupRoom, collectTournamentChannels, bulkCleanupChannels, clearBracketChannelIds } = require('../../services/channelService');
 const { getServerSettings } = require('../../data/serverSettings');
@@ -347,7 +347,7 @@ async function handleSimpleCreate(interaction) {
   const options = featuredKeys.map(key => ({
     label: GAME_PRESETS[key].displayName,
     value: key,
-    emoji: GAME_PRESETS[key].icon,
+    emoji: getMenuEmoji(GAME_PRESETS[key]),
     description: `${GAME_PRESETS[key].category ? GAME_PRESETS[key].category + ' • ' : ''}${GAME_PRESETS[key].defaultTeamSize > 1 ? `${GAME_PRESETS[key].defaultTeamSize}v${GAME_PRESETS[key].defaultTeamSize}` : 'Solo'}`,
   }));
 
@@ -394,7 +394,7 @@ async function handleAdvancedCreate(interaction) {
   const options = featuredKeys.map(key => ({
     label: GAME_PRESETS[key].displayName,
     value: key,
-    emoji: GAME_PRESETS[key].icon,
+    emoji: getMenuEmoji(GAME_PRESETS[key]),
     description: `${GAME_PRESETS[key].category ? GAME_PRESETS[key].category + ' • ' : ''}${GAME_PRESETS[key].defaultTeamSize > 1 ? `${GAME_PRESETS[key].defaultTeamSize}v${GAME_PRESETS[key].defaultTeamSize}` : 'Solo'}`,
   }));
 

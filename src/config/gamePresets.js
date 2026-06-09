@@ -41,11 +41,22 @@ function reloadPresets() {
   loadPresets();
 }
 
+/**
+ * Emoji for select-menu options: the game's uploaded application emoji
+ * (official logo, see scripts/upload-game-emojis.js) when available,
+ * falling back to the unicode icon. Returns the raw API component-emoji shape.
+ */
+function getMenuEmoji(preset) {
+  if (preset?.menuEmoji) return { id: preset.menuEmoji };
+  return preset?.icon ? { name: preset.icon } : undefined;
+}
+
 module.exports = {
   GAME_PRESETS,
   getPreset,
   getAllPresets,
   getPresetKeys,
   getFeaturedPresetKeys,
+  getMenuEmoji,
   reloadPresets,
 };
