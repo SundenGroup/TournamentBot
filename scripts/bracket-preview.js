@@ -121,9 +121,9 @@ const server = http.createServer((req, res) => {
     res.writeHead(200, { 'Content-Type': 'application/json' });
     return res.end(JSON.stringify(fx));
   }
-  if (urlPath === '/clutch-icon.png') {
+  if (urlPath === '/clutch-icon.png' || urlPath === '/clutch-wordmark.png') {
     res.writeHead(200, { 'Content-Type': 'image/png' });
-    return res.end(fs.readFileSync(path.join(__dirname, '../public/clutch-icon.png')));
+    return res.end(fs.readFileSync(path.join(__dirname, '../public', urlPath)));
   }
   if (urlPath === '/') {
     res.writeHead(200, { 'Content-Type': 'text/html' });

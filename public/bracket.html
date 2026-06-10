@@ -11,28 +11,34 @@
 <meta property="og:image" content="{{BASE}}/clutch-icon.png">
 <meta name="theme-color" content="#ff154d">
 <link rel="icon" type="image/png" href="/clutch-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
   :root {
-    --bg: #0a0a0c;
-    --bg-card: #141418;
-    --bg-card-hover: #1a1a20;
-    --border: #26262e;
-    --accent: #ff154d;
+    --bg: #0A0D12;
+    --bg-card: #121620;
+    --bg-card-hover: #1A2030;
+    --border: #222938;
+    --accent: #FF154D;
     --accent-dim: rgba(255, 21, 77, 0.12);
-    --text: #ebeff4;
-    --text-dim: #8b8f9c;
-    --text-faint: #565a66;
-    --line: #33343e;
+    --text: #F5F7FA;
+    --text-dim: #9BA3AF;
+    --text-faint: #6B7280;
+    --line: #313B4E;
     --gold: #ffc940;
     --silver: #b9c2cf;
     --bronze: #d08a4e;
-    --green: #2ecc71;
+    --green: #34D399;
+    --sans: 'DM Sans', system-ui, sans-serif;
+    --mono: 'JetBrains Mono', ui-monospace, monospace;
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body {
     background: var(--bg);
     color: var(--text);
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    font-family: var(--sans);
+    font-feature-settings: "ss01", "cv11";
     min-height: 100vh;
     display: flex;
     flex-direction: column;
@@ -46,11 +52,14 @@
   }
   .brand {
     display: flex; align-items: center; gap: 10px;
-    font-weight: 800; font-size: 15px; letter-spacing: 3px;
-    color: var(--text);
+    color: var(--text); text-decoration: none;
   }
-  .brand img { width: 26px; height: 26px; }
-  .brand .x { color: var(--accent); }
+  .brand img.mark { width: 24px; height: 24px; }
+  .brand img.word { height: 14px; display: block; }
+  .brand .sub {
+    font-family: var(--mono); font-size: 10px; font-weight: 600; letter-spacing: .14em;
+    color: var(--text-faint); border-left: 1px solid var(--line); padding-left: 10px; text-transform: uppercase;
+  }
   .title-row {
     display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
     margin-top: 14px;
@@ -59,8 +68,8 @@
   h1 { font-size: 26px; font-weight: 800; letter-spacing: -0.3px; }
   .meta-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 10px; }
   .pill {
-    font-size: 11px; font-weight: 700; letter-spacing: 1.2px; text-transform: uppercase;
-    padding: 4px 11px; border-radius: 99px; border: 1px solid var(--border); color: var(--text-dim);
+    font-family: var(--mono); font-size: 10px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase;
+    padding: 4px 11px; border-radius: 999px; border: 1px solid var(--border); background: rgba(5,9,14,.5); color: var(--text-dim);
   }
   .pill.live { color: #fff; background: var(--accent); border-color: var(--accent); animation: pulse 2s infinite; }
   .pill.final { color: var(--gold); border-color: var(--gold); }
@@ -72,7 +81,7 @@
   main { flex: 1; padding: 26px 28px 50px; }
   .section { margin-bottom: 36px; }
   .section-title {
-    font-size: 13px; font-weight: 800; letter-spacing: 2.5px; text-transform: uppercase;
+    font-family: var(--mono); font-size: 11px; font-weight: 600; letter-spacing: .14em; text-transform: uppercase;
     color: var(--text-dim); margin-bottom: 14px;
     display: flex; align-items: center; gap: 10px;
   }
@@ -98,7 +107,7 @@
   .tree { display: flex; align-items: stretch; min-width: min-content; }
   .round-col { display: flex; flex-direction: column; width: 232px; flex-shrink: 0; }
   .round-head {
-    text-align: center; font-size: 11px; font-weight: 700; letter-spacing: 1.5px;
+    text-align: center; font-family: var(--mono); font-size: 10px; font-weight: 600; letter-spacing: .12em;
     text-transform: uppercase; color: var(--text-faint); padding: 0 14px 12px;
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   }
@@ -210,7 +219,7 @@
 </head>
 <body>
 <header>
-  <div class="brand"><img src="/clutch-icon.png" alt=""> CLUTCH <span class="x">//</span> <span style="letter-spacing:1.5px; font-weight:600; color:var(--text-dim)">TOURNAMENTS</span></div>
+  <a class="brand" href="/"><img class="mark" src="/clutch-icon.png" alt=""><img class="word" src="/clutch-wordmark.png" alt="CLUTCH"><span class="sub">Tournaments</span></a>
   <div class="title-row" id="titleRow" style="display:none">
     <img class="game-logo" id="gameLogo" alt="" style="display:none">
     <div>
@@ -226,7 +235,7 @@
 </main>
 
 <footer>
-  <img src="/clutch-icon.png" alt=""> Powered by <a href="https://clutch.game">CLUTCH</a> · auto-updates every 15s
+  <img src="/clutch-icon.png" alt=""> Powered by <a href="https://clutch.game">CLUTCH</a> · <a href="/">tournaments.clutch.game</a> · auto-updates every 15s
 </footer>
 
 <script>

@@ -6,63 +6,81 @@
 <title>Contact — CLUTCH Tournaments</title>
 <meta name="description" content="Get in touch with the CLUTCH Tournaments team — Discord, email, or the contact form.">
 <link rel="icon" type="image/png" href="/clutch-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
   :root {
-    --bg: #0a0a0c; --bg2: #140a22; --card: #141418; --border: #26262e;
-    --purple: #4a108c; --purple-soft: #7a3bd6; --amber: #ffb94f;
-    --text: #ebeff4; --dim: #9a93ad; --faint: #565a66;
+    --bg: #0A0D12; --bg-elev: #121620; --bg-sunken: #05090E; --bg-hover: #1A2030;
+    --fg: #F5F7FA; --fg-muted: #9BA3AF; --fg-subtle: #6B7280;
+    --border: #222938; --border-strong: #313B4E;
+    --accent: #FF154D; --accent-soft: #FF4D7A; --accent-wash: rgba(255,21,77,.12);
+    --r-sm: 6px; --r-md: 10px; --r-lg: 14px;
+    --sans: 'DM Sans', system-ui, sans-serif;
+    --mono: 'JetBrains Mono', ui-monospace, monospace;
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif; line-height: 1.7; }
-  a { color: var(--amber); text-decoration: none; }
-  .wrap { max-width: 860px; margin: 0 auto; padding: 0 24px; }
-  nav { border-bottom: 1px solid var(--border); padding: 16px 0; position: sticky; top: 0; background: rgba(10,10,12,.85); backdrop-filter: blur(12px); z-index: 10; }
-  nav .wrap { display: flex; align-items: center; gap: 10px; max-width: 1060px; }
-  .brand { display: flex; align-items: center; gap: 10px; font-weight: 800; letter-spacing: 3px; color: var(--text); font-size: 14px; }
-  .brand img { width: 26px; height: 26px; }
-  .brand .x { color: var(--amber); }
-  nav .links { margin-left: auto; display: flex; gap: 22px; font-size: 14px; }
-  nav .links a { color: var(--dim); }
-  nav .links a:hover { color: var(--text); }
-  header { background: linear-gradient(135deg, var(--bg2), var(--bg)); border-bottom: 1px solid var(--border); padding: 48px 0 40px; }
-  h1 { font-size: 34px; font-weight: 800; }
-  header p { color: var(--dim); margin-top: 8px; }
-  main { padding: 40px 0 70px; }
+  body { background: var(--bg); color: var(--fg); font-family: var(--sans); font-feature-settings: "ss01","cv11"; line-height: 1.7; }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { color: var(--accent-soft); }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .wrap { max-width: 840px; margin: 0 auto; padding: 0 28px; }
+  .eyebrow { font-family: var(--mono); font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: .14em; color: var(--fg-subtle); }
 
-  .channels { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px; margin-bottom: 40px; }
-  .chan { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 24px; display: block; color: var(--text); transition: all .15s; }
-  .chan:hover { border-color: var(--amber); transform: translateY(-2px); }
-  .chan .ico { font-size: 28px; }
-  .chan h3 { margin: 10px 0 4px; font-size: 18px; }
-  .chan p { color: var(--dim); font-size: 14px; }
-  .chan .go { color: var(--amber); font-weight: 700; font-size: 13.5px; display: inline-block; margin-top: 10px; }
+  nav { border-bottom: 1px solid var(--border); background: rgba(10,13,18,.85); backdrop-filter: blur(12px); position: sticky; top: 0; z-index: 40; height: 52px; display: flex; align-items: center; }
+  nav .wrap { display: flex; align-items: center; gap: 12px; width: 100%; max-width: 1060px; }
+  .brand { display: flex; align-items: center; gap: 10px; color: var(--fg); }
+  .brand img.mark { width: 24px; height: 24px; }
+  .brand img.word { height: 14px; display: block; }
+  .brand .sub { font-family: var(--mono); font-size: 10px; font-weight: 600; letter-spacing: .14em; color: var(--fg-subtle); border-left: 1px solid var(--border-strong); padding-left: 10px; text-transform: uppercase; }
+  nav .links { margin-left: auto; display: flex; gap: 20px; font-size: 13px; font-weight: 500; }
+  nav .links a { color: var(--fg-muted); }
+  nav .links a:hover { color: var(--fg); }
 
-  h2 { font-size: 14px; font-weight: 800; letter-spacing: 2.5px; text-transform: uppercase; color: var(--dim); margin: 0 0 16px; display: flex; align-items: center; gap: 12px; }
+  header { background: radial-gradient(ellipse 60% 100% at 20% 0%, var(--accent-wash), transparent), linear-gradient(180deg, #0D1018, var(--bg)); border-bottom: 1px solid var(--border); padding: 46px 0 38px; }
+  header .eyebrow { display: block; margin-bottom: 10px; color: var(--accent); }
+  h1 { font-size: 30px; font-weight: 700; letter-spacing: -0.02em; }
+  header p { color: var(--fg-muted); margin-top: 8px; font-size: 15px; }
+  main { padding: 38px 0 70px; }
+
+  .channels { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px; margin-bottom: 38px; }
+  .chan { background: var(--bg-elev); border: 1px solid var(--border); border-radius: var(--r-lg); padding: 22px; display: block; color: var(--fg); transition: border-color .15s, background .15s; }
+  .chan:hover { border-color: var(--border-strong); background: var(--bg-hover); }
+  .chan .ico { font-size: 26px; }
+  .chan h3 { margin: 10px 0 4px; font-size: 16.5px; font-weight: 600; }
+  .chan p { color: var(--fg-muted); font-size: 13.5px; }
+  .chan .go { font-family: var(--mono); color: var(--accent); font-weight: 600; font-size: 11.5px; display: inline-block; margin-top: 10px; letter-spacing: .04em; }
+
+  h2 { margin: 0 0 16px; display: flex; align-items: center; gap: 12px; }
+  h2 .eyebrow { font-size: 11px; }
   h2::after { content: ''; flex: 1; height: 1px; background: var(--border); }
-  form { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 26px; }
-  label { display: block; font-size: 13px; font-weight: 700; letter-spacing: .5px; color: var(--dim); margin: 16px 0 6px; text-transform: uppercase; }
+  form { background: var(--bg-elev); border: 1px solid var(--border); border-radius: var(--r-lg); padding: 26px; }
+  label { display: block; font-family: var(--mono); font-size: 10px; font-weight: 600; letter-spacing: .12em; color: var(--fg-subtle); margin: 16px 0 6px; text-transform: uppercase; }
   label:first-child { margin-top: 0; }
   input, select, textarea {
-    width: 100%; background: #0e0e12; border: 1px solid var(--border); border-radius: 8px;
-    color: var(--text); padding: 11px 14px; font-size: 15px; font-family: inherit;
+    width: 100%; background: var(--bg-sunken); border: 1px solid var(--border); border-radius: var(--r-sm);
+    color: var(--fg); padding: 10px 13px; font-size: 14px; font-family: var(--sans);
+    transition: border-color .1s, box-shadow .1s;
   }
-  input:focus, select:focus, textarea:focus { outline: none; border-color: var(--purple-soft); }
+  input:focus, select:focus, textarea:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-wash); }
   textarea { min-height: 140px; resize: vertical; }
   button {
-    margin-top: 20px; background: linear-gradient(135deg, var(--purple), var(--purple-soft)); color: #fff;
-    border: none; border-radius: 10px; padding: 13px 26px; font-size: 15px; font-weight: 700; cursor: pointer;
+    margin-top: 20px; background: var(--accent); color: #fff;
+    border: none; border-radius: var(--r-sm); padding: 11px 22px; font-size: 14px; font-weight: 600; font-family: var(--sans); cursor: pointer;
+    transition: background .15s;
   }
-  button:hover { filter: brightness(1.15); }
-  .note { color: var(--faint); font-size: 13px; margin-top: 12px; }
-  footer { border-top: 1px solid var(--border); padding: 26px 0; color: var(--faint); font-size: 13px; }
+  button:hover { background: var(--accent-soft); }
+  .note { color: var(--fg-subtle); font-size: 13px; margin-top: 12px; }
+  footer { border-top: 1px solid var(--border); padding: 24px 0; color: var(--fg-subtle); font-size: 13px; }
   footer .wrap { display: flex; gap: 18px; max-width: 1060px; }
-  footer a { color: var(--dim); }
+  footer a { color: var(--fg-muted); }
+  @media (max-width: 640px) { .wrap { padding: 0 16px; } .brand .sub { display: none; } }
 </style>
 </head>
 <body>
 
 <nav><div class="wrap">
-  <a class="brand" href="/"><img src="/clutch-icon.png" alt=""> CLUTCH <span class="x">//</span> TOURNAMENTS</a>
+  <a class="brand" href="/"><img class="mark" src="/clutch-icon.png" alt=""><img class="word" src="/clutch-wordmark.png" alt="CLUTCH"><span class="sub">Tournaments</span></a>
   <div class="links">
     <a href="/admin-manual.html">Admin Guide</a>
     <a href="/user-guide">User Guide</a>
@@ -72,7 +90,8 @@
 </div></nav>
 
 <header><div class="wrap">
-  <h1>✉️ Contact us</h1>
+  <span class="eyebrow">Support</span>
+  <h1>Contact us</h1>
   <p>Questions, feedback, or something broken mid-tournament? We're quickest on Discord.</p>
 </div></header>
 
@@ -83,17 +102,17 @@
       <div class="ico">💬</div>
       <h3>CLUTCH Discord</h3>
       <p>The fastest way to reach us — ask in the support channel and the team or community will help.</p>
-      <span class="go">discord.gg/jVDC39J6mN →</span>
+      <span class="go">DISCORD.GG/JVDC39J6MN →</span>
     </a>
     <a class="chan" href="mailto:support@clutch.game">
       <div class="ico">📧</div>
       <h3>Email support</h3>
       <p>For anything that needs a paper trail — billing, partnerships, or detailed bug reports.</p>
-      <span class="go">support@clutch.game →</span>
+      <span class="go">SUPPORT@CLUTCH.GAME →</span>
     </a>
   </div>
 
-  <h2>Send us a message</h2>
+  <h2><span class="eyebrow">Send us a message</span></h2>
   <form id="contactForm">
     <label for="name">Your name / Discord tag</label>
     <input id="name" type="text" placeholder="e.g. silverfox" required>
