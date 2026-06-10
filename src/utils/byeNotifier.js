@@ -23,6 +23,7 @@ function collectAllMatches(bracket) {
       matches.push(...(round.matches || []));
     }
   }
+  if (bracket.thirdPlaceMatch) matches.push(bracket.thirdPlaceMatch);
   return matches;
 }
 

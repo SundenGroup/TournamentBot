@@ -52,13 +52,40 @@ module.exports = {
       const cleanInput = input.replace(/^@/, '');
 
       if (captainModeEnabled) {
-        // Captain mode: store as pending text, resolve later
-        members.push({
-          id: null,
-          username: cleanInput,
-          displayName: cleanInput,
-          pending: true,
-        });
+        // Captain mode: members don't HAVE to be in the server yet, but try to
+        // resolve them right away — resolved members get the team DM and never
+        // show as "(pending)". Only unmatched names stay pending (re-resolved
+        // when the tournament starts).
+        let member = guild.members.cache.find(m =>
+          m.user.username.toLowerCase() === cleanInput.toLowerCase() ||
+          m.displayName.toLowerCase() === cleanInput.toLowerCase()
+        );
+        if (!member) {
+          try {
+            const fetched = await guild.members.fetch({ query: cleanInput, limit: 5 });
+            member = fetched.find(m =>
+              m.user.username.toLowerCase() === cleanInput.toLowerCase() ||
+              m.displayName.toLowerCase() === cleanInput.toLowerCase()
+            );
+          } catch {
+            // Fetch failed — keep as pending
+          }
+        }
+
+        if (member) {
+          members.push({
+            id: member.id,
+            username: member.user.username,
+            displayName: member.displayName,
+          });
+        } else {
+          members.push({
+            id: null,
+            username: cleanInput,
+            displayName: cleanInput,
+            pending: true,
+          });
+        }
       } else {
         // Default: resolve member immediately
         let member = null;

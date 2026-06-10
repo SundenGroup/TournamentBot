@@ -19,12 +19,17 @@ module.exports = {
     .addSubcommand(subcommand =>
       subcommand
         .setName('set-announcement-channel')
-        .setDescription('Set the tournament announcement channel')
+        .setDescription('Set the tournament announcement channel (optionally per game)')
         .addChannelOption(option =>
           option.setName('channel')
             .setDescription('Channel for tournament announcements')
             .setRequired(true)
             .addChannelTypes(ChannelType.GuildText)
+        )
+        .addStringOption(option =>
+          option.setName('game')
+            .setDescription('Only use this channel for one game (leave empty for the server default)')
+            .setAutocomplete(true)
         )
     )
     .addSubcommand(subcommand =>
@@ -213,6 +218,16 @@ module.exports = {
   async autocomplete(interaction) {
     const focused = interaction.options.getFocused(true);
 
+    if (focused.name === 'game') {
+      const { getPresetKeys, GAME_PRESETS } = require('../../config/gamePresets');
+      const choices = getPresetKeys().map(key => ({
+        name: `${GAME_PRESETS[key].icon} ${GAME_PRESETS[key].displayName}`,
+        value: key,
+      }));
+      const filtered = choices.filter(c => c.name.toLowerCase().includes(focused.value.toLowerCase()));
+      return interaction.respond(filtered.slice(0, 25));
+    }
+
     if (focused.name === 'tournament') {
       const subcommand = interaction.options.getSubcommand();
 
@@ -260,6 +275,18 @@ async function handleViewSettings(interaction) {
     announcementChannel = `<#${settings.announcementChannelId}>`;
   }
 
+  // Per-game announcement overrides
+  const gameChannels = settings.gameAnnouncementChannels || {};
+  const gameOverrides = Object.entries(gameChannels);
+  if (gameOverrides.length > 0) {
+    const { GAME_PRESETS } = require('../../config/gamePresets');
+    const lines = gameOverrides.map(([key, chId]) => {
+      const preset = GAME_PRESETS[key];
+      return `${preset?.icon || '🎮'} ${preset?.displayName || key} → <#${chId}>`;
+    });
+    announcementChannel += `\n**Per game:**\n${lines.join('\n')}`;
+  }
+
   let matchCategory = 'Not set (will create automatically)';
   if (settings.matchRoomCategory) {
     matchCategory = `<#${settings.matchRoomCategory}>`;
@@ -292,6 +319,24 @@ async function handleViewSettings(interaction) {
 
 async function handleSetAnnouncementChannel(interaction) {
   const channel = interaction.options.getChannel('channel');
+  const gameKey = interaction.options.getString('game');
+
+  // Per-game override: announcements for this game go to their own channel
+  if (gameKey) {
+    const { getPreset } = require('../../config/gamePresets');
+    const preset = getPreset(gameKey);
+    if (!preset) {
+      return interaction.reply({ content: `❌ Unknown game: \`${gameKey}\``, ephemeral: true });
+    }
+
+    const { setGameAnnouncementChannel } = require('../../data/serverSettings');
+    await setGameAnnouncementChannel(interaction.guildId, gameKey, channel.id);
+
+    return interaction.reply({
+      content: `✅ **${preset.icon} ${preset.displayName}** tournaments will now be announced in ${channel}.\nOther games keep using the server default channel.`,
+      ephemeral: true,
+    });
+  }
 
   await setAnnouncementChannel(interaction.guildId, channel.id, channel.name);
 
@@ -697,7 +742,7 @@ async function handleHelp(interaction) {
       name: '/admin (Administrator)',
       value: [
         '`settings` — View server settings',
-        '`set-announcement-channel` — Set announcement channel',
+        '`set-announcement-channel` — Set announcement channel (add `game:` for per-game)',
         '`set-match-category` — Set match room category',
         '`set-role` — Add/remove tournament admin roles',
         '`cleanup` — Clean up match rooms',

@@ -30,11 +30,7 @@ function findBracketMatch(bracket, matchId) {
   if (bracket.type === 'double_elimination') return doubleElim.findMatch(bracket, matchId);
   if (bracket.type === 'swiss') return swiss.findMatch(bracket, matchId);
   if (bracket.type === 'round_robin') return roundRobin.findMatch(bracket, matchId);
-  for (const round of bracket.rounds) {
-    const match = round.matches.find(m => m.id === matchId);
-    if (match) return match;
-  }
-  return null;
+  return singleElim.findMatch(bracket, matchId);
 }
 
 /**

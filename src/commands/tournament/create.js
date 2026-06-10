@@ -823,6 +823,9 @@ async function handleReport(interaction) {
       match = round.matches.find(m => m.matchNumber === matchNumber);
       if (match) break;
     }
+    if (!match && bracket.thirdPlaceMatch?.matchNumber === matchNumber) {
+      match = bracket.thirdPlaceMatch;
+    }
   }
 
   if (!match) {
@@ -1506,7 +1509,15 @@ function buildBracketEmbeds(tournament) {
       description += '\n';
     }
 
-    embed.setDescription(description.substring(0, 4000));
+    const tp = bracket.thirdPlaceMatch;
+      if (tp) {
+        const p1 = getName(tp.participant1) || 'TBD';
+        const p2 = getName(tp.participant2) || 'TBD';
+        const winner = tp.winner ? `✓ ${getName(tp.winner)}${tp.score ? ` (${tp.score})` : ''}` : '';
+        description += `**Third Place Match**\n#${tp.matchNumber}: ${p1} vs ${p2} ${winner}\n\n`;
+      }
+
+      embed.setDescription(description.substring(0, 4000));
     embeds.push(embed);
 
   } else if (bracket.type === 'double_elimination') {

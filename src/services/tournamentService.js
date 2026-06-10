@@ -94,6 +94,10 @@ async function createTournament(data) {
       // Live web bracket page at <publicBaseUrl>/b/<id> (Pro/Business feature,
       // toggled at creation). The page is public to anyone with the link.
       publicBracket: data.publicBracket ?? false,
+
+      // Single elimination only: semifinal losers play a third-place match
+      // instead of sharing 3rd. Advanced-mode toggle (More Options).
+      thirdPlaceMatch: data.thirdPlaceMatch ?? false,
     },
 
     setupMode: data.setupMode || 'simple',
@@ -492,6 +496,17 @@ async function resolveTeamMembers(guild, tournament) {
         member.displayName = guildMember.displayName;
         delete member.pending;
         resolved++;
+
+        // The member never got the registration DM (they were pending) —
+        // tell them they're on the team now that we know who they are.
+        try {
+          await guildMember.send(
+            `👥 You're on team **${team.name}** for **${tournament.title}**!\n` +
+            `Captain: ${team.captain.displayName || team.captain.username}`
+          );
+        } catch {
+          // DMs closed — ignore
+        }
       } else {
         failed++;
       }

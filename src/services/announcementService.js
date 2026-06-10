@@ -1,8 +1,27 @@
 const { ChannelType, PermissionFlagsBits } = require('discord.js');
-const { getAnnouncementChannelId, getAnnouncementChannelName, setAnnouncementChannel } = require('../data/serverSettings');
+const { getServerSettings, getAnnouncementChannelId, getAnnouncementChannelName, setAnnouncementChannel } = require('../data/serverSettings');
 
-async function getOrCreateAnnouncementChannel(guild) {
+/**
+ * Resolve the announcement channel for a tournament. A per-game override
+ * (/admin set-announcement-channel game:<game>) wins over the server-wide
+ * channel; the server-wide channel is found-or-created as before.
+ */
+async function getOrCreateAnnouncementChannel(guild, gamePreset = null) {
   const guildId = guild.id;
+
+  // Per-game override first
+  if (gamePreset) {
+    const settings = await getServerSettings(guildId);
+    const gameChannelId = settings.gameAnnouncementChannels?.[gamePreset];
+    if (gameChannelId) {
+      try {
+        const channel = await guild.channels.fetch(gameChannelId);
+        if (channel) return channel;
+      } catch {
+        // Channel was deleted — fall through to the server-wide channel
+      }
+    }
+  }
 
   // Check if we have a saved channel ID
   let channelId = await getAnnouncementChannelId(guildId);

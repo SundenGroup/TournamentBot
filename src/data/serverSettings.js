@@ -14,6 +14,7 @@ const DEFAULT_SETTINGS = {
   autoCleanupMode: 'delete',
   tournamentAdminRoles: [],
   captainMode: false,
+  gameAnnouncementChannels: {},
 };
 
 // ============================================================================
@@ -33,6 +34,7 @@ function settingsToRow(guildId, settings) {
     auto_cleanup_mode: settings.autoCleanupMode,
     tournament_admin_roles: JSON.stringify(settings.tournamentAdminRoles || []),
     captain_mode: settings.captainMode,
+    game_announcement_channels: JSON.stringify(settings.gameAnnouncementChannels || {}),
   };
 }
 
@@ -48,6 +50,7 @@ function rowToSettings(row) {
     autoCleanupMode: row.auto_cleanup_mode,
     tournamentAdminRoles: row.tournament_admin_roles || [],
     captainMode: row.captain_mode,
+    gameAnnouncementChannels: row.game_announcement_channels || {},
   };
 }
 
@@ -113,11 +116,21 @@ async function getTournamentAdminRoles(guildId) {
   return settings.tournamentAdminRoles || [];
 }
 
+/** Set (or clear with channelId=null) the announcement channel for one game. */
+async function setGameAnnouncementChannel(guildId, gameKey, channelId) {
+  const settings = await getServerSettings(guildId);
+  const map = { ...(settings.gameAnnouncementChannels || {}) };
+  if (channelId) map[gameKey] = channelId;
+  else delete map[gameKey];
+  return updateServerSettings(guildId, { gameAnnouncementChannels: map });
+}
+
 module.exports = {
   serverSettings,
   getServerSettings,
   updateServerSettings,
   setAnnouncementChannel,
+  setGameAnnouncementChannel,
   getAnnouncementChannelId,
   getAnnouncementChannelName,
   getTournamentAdminRoles,

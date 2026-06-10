@@ -147,6 +147,14 @@ module.exports = {
         description += '\n';
       }
 
+      const tp = bracket.thirdPlaceMatch;
+      if (tp) {
+        const p1 = getName(tp.participant1) || 'TBD';
+        const p2 = getName(tp.participant2) || 'TBD';
+        const winner = tp.winner ? `✓ ${getName(tp.winner)}${tp.score ? ` (${tp.score})` : ''}` : '';
+        description += `**Third Place Match**\n#${tp.matchNumber}: ${p1} vs ${p2} ${winner}\n\n`;
+      }
+
       embed.setDescription(description.substring(0, 4000));
       embeds.push(embed);
 

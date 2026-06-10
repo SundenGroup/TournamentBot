@@ -101,22 +101,73 @@ function generateBracket(participants, settings) {
     previousMatches = roundMatches;
   }
 
-  return {
+  const bracket = {
     type: 'single_elimination',
     bracketSize,
     totalRounds,
     rounds,
     currentRound: 1,
   };
+
+  // Optional third-place match (settings.thirdPlaceMatch): the two semifinal
+  // losers play it out instead of sharing 3rd. Kept OUTSIDE rounds[] so the
+  // binary-tree renderers/connectors stay untouched; every consumer handles it
+  // explicitly. Needs at least 2 rounds (4+ bracket) to have semifinals.
+  if (settings?.thirdPlaceMatch && totalRounds >= 2) {
+    const semis = rounds[rounds.length - 2].matches;
+    bracket.thirdPlaceMatch = {
+      id: uuidv4(),
+      matchNumber: matchNumber++,
+      round: totalRounds,
+      roundName: 'Third Place Match',
+      isThirdPlace: true,
+      participant1: null, // loser of semi 1
+      participant2: null, // loser of semi 2
+      winner: null,
+      score: null,
+      isBye: false,
+      sourceSemi1Id: semis[0].id,
+      sourceSemi2Id: semis[1].id,
+      channelId: null,
+    };
+  }
+
+  return bracket;
 }
 
-function advanceWinner(bracket, matchId, winnerId) {
-  // Find the match
-  let match = null;
-  for (const round of bracket.rounds) {
-    match = round.matches.find(m => m.id === matchId);
-    if (match) break;
+/**
+ * A semifinal that was a bye never produces a loser, so its third-place slot
+ * can never fill — when the other slot has a real player, they win 3rd by
+ * walkover (picked up by the bye notifier via isWalkover).
+ */
+function resolveThirdPlaceWalkover(bracket) {
+  const tp = bracket.thirdPlaceMatch;
+  if (!tp || tp.winner) return;
+
+  const semis = bracket.rounds[bracket.rounds.length - 2].matches;
+  const semi1 = semis.find(m => m.id === tp.sourceSemi1Id);
+  const semi2 = semis.find(m => m.id === tp.sourceSemi2Id);
+
+  if (tp.participant1 && !tp.participant2 && semi2?.isBye) {
+    tp.winner = tp.participant1;
+    tp.isWalkover = true;
+  } else if (tp.participant2 && !tp.participant1 && semi1?.isBye) {
+    tp.winner = tp.participant2;
+    tp.isWalkover = true;
   }
+}
+
+function findMatch(bracket, matchId) {
+  for (const round of bracket.rounds) {
+    const match = round.matches.find(m => m.id === matchId);
+    if (match) return match;
+  }
+  if (bracket.thirdPlaceMatch?.id === matchId) return bracket.thirdPlaceMatch;
+  return null;
+}
+
+function advanceWinner(bracket, matchId, winnerId, score = null) {
+  const match = findMatch(bracket, matchId);
 
   if (!match) {
     throw new Error('Match not found');
@@ -135,6 +186,7 @@ function advanceWinner(bracket, matchId, winnerId) {
 
   // Set winner
   match.winner = winnerId === p1Id ? match.participant1 : match.participant2;
+  if (score) match.score = score;
 
   // Advance to next match if exists
   if (match.nextMatchId) {
@@ -150,6 +202,15 @@ function advanceWinner(bracket, matchId, winnerId) {
         break;
       }
     }
+  }
+
+  // Semifinal losers drop into the third-place match (when enabled)
+  const tp = bracket.thirdPlaceMatch;
+  if (tp && !match.isThirdPlace) {
+    const loser = winnerId === p1Id ? match.participant2 : match.participant1;
+    if (tp.sourceSemi1Id === matchId) tp.participant1 = loser;
+    else if (tp.sourceSemi2Id === matchId) tp.participant2 = loser;
+    resolveThirdPlaceWalkover(bracket);
   }
 
   // Update current round
@@ -179,13 +240,21 @@ function getActiveMatches(bracket) {
       }
     }
   }
+  const tp = bracket.thirdPlaceMatch;
+  if (tp && !tp.winner && tp.participant1 && tp.participant2) {
+    matches.push(tp);
+  }
   return matches;
 }
 
 function isComplete(bracket) {
   const finalRound = bracket.rounds[bracket.rounds.length - 1];
   const finalMatch = finalRound.matches[0];
-  return finalMatch.winner !== null;
+  if (finalMatch.winner === null) return false;
+  // With a third-place match, the tournament isn't done until it's played
+  // (a walkover resolves it automatically when a semifinal was a bye).
+  if (bracket.thirdPlaceMatch && !bracket.thirdPlaceMatch.winner) return false;
+  return true;
 }
 
 function getResults(bracket) {
@@ -198,6 +267,12 @@ function getResults(bracket) {
   const runnerUp = finalMatch.participant1?.id === winner.id
     ? finalMatch.participant2
     : finalMatch.participant1;
+
+  // With a third-place match, 3rd is decided on the server. Otherwise the
+  // semifinal losers share it and we surface the first one.
+  if (bracket.thirdPlaceMatch?.winner) {
+    return { winner, runnerUp, thirdPlace: bracket.thirdPlaceMatch.winner };
+  }
 
   // Third place: the losers of the semi-finals (no 3rd-place playoff, so they
   // tie for 3rd). Identify each semi-final's loser directly — the previous code
@@ -221,6 +296,7 @@ function getResults(bracket) {
 module.exports = {
   generateBracket,
   advanceWinner,
+  findMatch,
   getActiveMatches,
   isComplete,
   getResults,

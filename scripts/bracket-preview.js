@@ -85,6 +85,9 @@ const FIXTURES = {};
 { const b = playSome(singleElim, singleElim.generateBracket(players(13), {}), 7);
   FIXTURES.se = basePayload({ id: 'se', title: 'Friday Night Cup', format: 'single_elimination', count: 13, bracket: b }); }
 
+{ const b = playSome(singleElim, singleElim.generateBracket(players(8), { thirdPlaceMatch: true }), 6);
+  FIXTURES.tp = basePayload({ id: 'tp', title: 'Cup with 3rd Place Match', format: 'single_elimination', count: 8, bracket: b }); }
+
 { const b = playSome(doubleElim, doubleElim.generateBracket(players(13), {}), 11);
   FIXTURES.de = basePayload({ id: 'de', title: 'Clutch Major — Double Elim', format: 'double_elimination', count: 13, bracket: b }); }
 

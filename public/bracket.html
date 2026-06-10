@@ -368,7 +368,12 @@ function renderTree(rounds, { sectionClassFor } = {}) {
 }
 
 function renderSingleElim(d) {
-  return `<div class="section"><div class="section-title">Bracket</div>${renderTree(d.bracket.rounds)}</div>`;
+  let html = `<div class="section"><div class="section-title">Bracket</div>${renderTree(d.bracket.rounds)}</div>`;
+  const tp = d.bracket.thirdPlaceMatch;
+  if (tp) {
+    html += `<div class="section"><div class="section-title">Third Place Match</div>${renderTree([{ name: 'Third Place', matches: [tp] }])}</div>`;
+  }
+  return html;
 }
 
 function renderDoubleElim(d) {

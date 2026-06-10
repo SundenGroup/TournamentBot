@@ -98,7 +98,7 @@ async function createTournamentFromWizard(interaction, session) {
     console.log(`[Subscription] Guild ${guildId} using tournament token`);
   }
 
-  const announcementChannel = await getOrCreateAnnouncementChannel(interaction.guild);
+  const announcementChannel = await getOrCreateAnnouncementChannel(interaction.guild, data.gamePreset);
   const targetChannel = announcementChannel || interaction.channel;
 
   let gameDisplayName = data.gameName || preset?.displayName;
@@ -131,6 +131,7 @@ async function createTournamentFromWizard(interaction, session) {
     advancingPerGroup: data.advancingPerGroup,
     requiredRoles: data.requiredRoles || [],
     publicBracket: data.publicBracket ?? false,
+    thirdPlaceMatch: (data.format === 'single_elimination' && data.thirdPlaceMatch) || false,
     startTime: new Date(data.datetime),
     setupMode: 'advanced',
     createdBy: session.userId,

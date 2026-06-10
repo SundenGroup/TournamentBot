@@ -47,6 +47,36 @@ for (const n of [2, 3, 4, 5, 6, 7, 8, 11, 13, 16, 23, 32]) {
   console.log(`  n=${n}: complete=${done} winner=${res?.winner?.id} 3rd=${res?.thirdPlace?.id ?? '—'}`);
 }
 
+console.log('=== SINGLE ELIM + THIRD PLACE MATCH ===');
+for (const n of [3, 4, 5, 8, 13]) {
+  const b = single.generateBracket(makePlayers(n), { thirdPlaceMatch: true });
+  check(b.thirdPlaceMatch, `TP n=${n}: third place match missing`);
+  const r = playOut(single, b);
+  check(!r.deadlock, `TP n=${n} deadlocked`);
+  check(single.isComplete(b), `TP n=${n} did not complete`);
+  const res = single.getResults(b);
+  check(res.thirdPlace && res.thirdPlace.id === b.thirdPlaceMatch.winner.id, `TP n=${n}: results.thirdPlace should be the TP match winner`);
+  console.log(`  n=${n}: complete=true 3rd=${res.thirdPlace?.id} (played: ${b.thirdPlaceMatch.isWalkover ? 'walkover' : 'match'})`);
+}
+{
+  // n=3: one semifinal is a bye → third place resolves by walkover and the
+  // bye notifier should DM it
+  const b = single.generateBracket(makePlayers(3), { thirdPlaceMatch: true });
+  playOut(single, b);
+  check(b.thirdPlaceMatch.isWalkover === true, 'TP n=3 should resolve by walkover');
+  const { notifyByesAndWalkovers } = require('./src/utils/byeNotifier');
+  const dms = [];
+  const mockClient = { users: { fetch: async (id) => ({ send: async (m) => dms.push({ id, m }) }) } };
+  notifyByesAndWalkovers(mockClient, { id: 'x', title: 'T', settings: { teamSize: 1 }, bracket: b }).then(() => {
+    check(dms.some(d => d.m.includes('Walkover')), 'TP walkover should DM the third-place winner');
+  });
+}
+{
+  // n=2: too small for semis → no TP match even when requested
+  const b = single.generateBracket(makePlayers(2), { thirdPlaceMatch: true });
+  check(!b.thirdPlaceMatch, 'TP n=2 should not create a third place match');
+}
+
 console.log('=== DOUBLE ELIMINATION (the deadlock case) ===');
 for (const n of [2, 3, 4, 5, 6, 7, 8, 11, 13, 16, 23, 32]) {
   const b = double.generateBracket(makePlayers(n), {});

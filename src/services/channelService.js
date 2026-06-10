@@ -180,7 +180,24 @@ async function _createMatchRoom(guild, match, tournament) {
       .setStyle(ButtonStyle.Primary)
   );
 
-  await channel.send({ embeds: [embed], components: [buttons] });
+  // Ping the players so they know where their match is played
+  const mentionIds = [];
+  if (isSolo) {
+    for (const p of [match.participant1, match.participant2]) {
+      if (p?.id && !String(p.id).startsWith('fake_')) mentionIds.push(p.id);
+    }
+  } else {
+    for (const team of [match.participant1, match.participant2]) {
+      for (const member of team?.members || []) {
+        if (member.id && !String(member.id).startsWith('fake_')) mentionIds.push(member.id);
+      }
+    }
+  }
+  const content = mentionIds.length
+    ? `⚔️ ${mentionIds.map(id => `<@${id}>`).join(' ')} — your match is ready, play it out here!`
+    : undefined;
+
+  await channel.send({ content, embeds: [embed], components: [buttons] });
 
   return channel;
 }

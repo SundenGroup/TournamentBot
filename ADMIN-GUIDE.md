@@ -33,7 +33,10 @@ posts an announcement with **Sign Up** / **Register Team** buttons.
 **Advanced mode — `/tournament create-advanced`**
 A guided wizard. Same basics, plus you can change **Format**, **Team Size**,
 **Best-Of**, and toggle **Check-in**, **Seeding**, **Captain Mode**, **Game Nick**,
-**Web Bracket**, and **Required Roles** before creating.
+**Web Bracket**, and **Required Roles** before creating. Under **More Options**:
+check-in window, required roles, and — for single elimination — a **3rd Place
+Match** toggle (semifinal losers play it out instead of sharing third; if a
+semifinal was a bye, third place resolves automatically by walkover).
 
 **Live web bracket** *(Pro/Business)* — when enabled, the tournament gets a
 public, auto-updating bracket page at `tournaments.clutch.game/b/<id>`,
@@ -84,6 +87,11 @@ Pick **Other Game…** in the dropdown for anything custom.
 - **Withdraw** to drop out
 - **Check In** (only if check-in is enabled)
 
+When a captain registers a team, every teammate is **DMed** that they've been
+added. With Captain Mode, names that can't be matched to a server member yet
+show as *(pending)* on the signup list — they're resolved (and DMed) when the
+tournament starts.
+
 You can fill a test event quickly with `/admin add-players` or `/admin add-teams`.
 
 **2. Start.** Click **Start** on the post, or run `/tournament start`. The bot
@@ -95,7 +103,8 @@ them, and every player/team that advances on a bye or walkover is **notified by
 DM automatically** (including mid-tournament walkovers in double elimination).
 
 **3. Match rooms.** Each room is visible only to the two competitors (all members,
-for teams) plus tournament admins. Players coordinate and play there.
+for teams) plus tournament admins. The bot **pings the players** in the room when
+it's created so everyone knows where their match is played.
 
 **4. Report results (admins).** Two ways:
 - Click **👑 [name] Wins** in the match room, or
@@ -114,7 +123,7 @@ bracket/standings and the final podium (champion, runner-up, 3rd). Use
 
 | Command | What it does |
 |---|---|
-| `/admin set-announcement-channel channel:#…` | Where new tournaments are posted |
+| `/admin set-announcement-channel channel:#…` | Where new tournaments are posted. Add `game:` to give one game its own channel (e.g. CS2 cups → #cs2-tournaments); other games keep the default |
 | `/admin set-match-category category:…` | Category that match rooms are created under |
 | `/admin set-role role:@…` | Add/remove a **tournament-admin role** (lets non-admins manage tournaments) |
 | `/admin settings` | View current server settings |

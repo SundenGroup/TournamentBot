@@ -92,6 +92,18 @@ function buildOptionsMessage(session) {
     );
   }
 
+  // Third-place match toggle — single elimination only
+  if (data.format === 'single_elimination') {
+    rows.push(
+      new ActionRowBuilder().addComponents(
+        new ButtonBuilder()
+          .setCustomId(`wizardOptions:${session.id}:toggleThirdPlace`)
+          .setLabel(`${data.thirdPlaceMatch ? '✅' : '❌'} 3rd Place Match`)
+          .setStyle(data.thirdPlaceMatch ? ButtonStyle.Success : ButtonStyle.Secondary)
+      )
+    );
+  }
+
   // Required Roles (always available)
   rows.push(
     new ActionRowBuilder().addComponents(
@@ -183,6 +195,11 @@ module.exports = {
     // Handle button interactions
     if (interaction.isButton()) {
       switch (subAction) {
+        case 'toggleThirdPlace': {
+          const updated = await updateSession(sessionId, { thirdPlaceMatch: !session.data.thirdPlaceMatch });
+          return interaction.update(buildOptionsMessage(updated || session));
+        }
+
         case 'back': {
           const { buildSettingsMessage } = require('./wizardSettings');
           const message = buildSettingsMessage(session);

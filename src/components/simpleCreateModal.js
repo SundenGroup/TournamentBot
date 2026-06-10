@@ -108,8 +108,8 @@ module.exports = {
     // when the tier allows it — advanced mode exposes an explicit toggle.
     const publicBracket = (await checkFeature(guildId, 'public_bracket')).allowed;
 
-    // Get or create announcement channel
-    const announcementChannel = await getOrCreateAnnouncementChannel(interaction.guild);
+    // Get or create announcement channel (per-game override aware)
+    const announcementChannel = await getOrCreateAnnouncementChannel(interaction.guild, gamePreset);
     const targetChannel = announcementChannel || interaction.channel;
 
     const tournament = await createTournament({
