@@ -101,6 +101,7 @@ function buildPayload(tournament) {
       name: isSolo ? (e.displayName || e.username) : e.name,
       seed: e.seed ?? null,
       checkedIn: !!e.checkedIn,
+      disqualified: !!e.disqualified,
     })),
     bracket: tournament.bracket ? sanitize(tournament.bracket) : null,
     results,

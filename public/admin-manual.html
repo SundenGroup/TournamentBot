@@ -784,8 +784,8 @@
       <table>
         <thead><tr><th>Command</th><th>Description</th></tr></thead>
         <tbody>
-          <tr><td><code>/admin add-players</code></td><td>Add fake players to a solo tournament (1–64)</td></tr>
-          <tr><td><code>/admin add-teams</code></td><td>Add fake teams to a team tournament (1–32)</td></tr>
+          <tr><td><code>/admin add-test-players</code></td><td>Add fake players to a solo tournament (1–64)</td></tr>
+          <tr><td><code>/admin add-test-teams</code></td><td>Add fake teams to a team tournament (1–32)</td></tr>
           <tr><td><code>/admin clear-participants</code></td><td>Remove all participants (real and fake)</td></tr>
         </tbody>
       </table>
@@ -795,7 +795,7 @@
       <div class="card-title">Recommended testing flow</div>
       <ol class="steps">
         <li><code>/tournament create-advanced</code> — Create a test tournament (set the time to a few minutes from now)</li>
-        <li><code>/admin add-players count:8</code> — Add fake players</li>
+        <li><code>/admin add-test-players count:8</code> — Add fake players</li>
         <li><code>/tournament start</code> — Start immediately (no need to wait)</li>
         <li>Report results by clicking the winner buttons in match room channels</li>
         <li>Watch the bracket advance and the tournament complete</li>
@@ -867,7 +867,11 @@
           <tr><td><code>/tournament start</code></td><td>Start a tournament (generates bracket)</td></tr>
           <tr><td><code>/tournament cancel</code></td><td>Cancel a tournament</td></tr>
           <tr><td><code>/tournament edit</code></td><td>Edit title, date, size, best-of, description (before start)</td></tr>
-          <tr><td><code>/tournament report</code></td><td>Report a match result</td></tr>
+          <tr><td><code>/tournament report</code></td><td>Report a match result (Bo3+ requires the series score)</td></tr>
+          <tr><td><code>/tournament correct</code></td><td>Correct a wrongly reported result (while nothing downstream is played)</td></tr>
+          <tr><td><code>/tournament disqualify</code></td><td>DQ a player/team — remaining matches forfeit with the best score, shown as DQ</td></tr>
+          <tr><td><code>/tournament add-player</code></td><td>Manually register a real player (solo)</td></tr>
+          <tr><td><code>/tournament add-team</code></td><td>Manually register a real team (captain + members)</td></tr>
           <tr><td><code>/tournament bracket</code></td><td>View bracket / standings</td></tr>
           <tr><td><code>/tournament seed set</code></td><td>Set a participant's seed <span class="tag tag-premium">Premium</span></td></tr>
           <tr><td><code>/tournament seed list</code></td><td>View current seeding <span class="tag tag-premium">Premium</span></td></tr>
@@ -899,8 +903,8 @@
       <table>
         <thead><tr><th>Command</th><th>Description</th></tr></thead>
         <tbody>
-          <tr><td><code>/admin add-players</code></td><td>Add fake players for testing</td></tr>
-          <tr><td><code>/admin add-teams</code></td><td>Add fake teams for testing</td></tr>
+          <tr><td><code>/admin add-test-players</code></td><td>Add FAKE players for testing (use <code>/tournament add-player</code> for real ones)</td></tr>
+          <tr><td><code>/admin add-test-teams</code></td><td>Add FAKE teams for testing (use <code>/tournament add-team</code> for real ones)</td></tr>
           <tr><td><code>/admin clear-participants</code></td><td>Remove all participants</td></tr>
         </tbody>
       </table>

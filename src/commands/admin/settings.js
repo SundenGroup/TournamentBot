@@ -83,7 +83,7 @@ module.exports = {
     )
     .addSubcommand(subcommand =>
       subcommand
-        .setName('add-players')
+        .setName('add-test-players')
         .setDescription('Debug: Add fake players to a tournament for testing')
         .addStringOption(option =>
           option.setName('tournament')
@@ -101,7 +101,7 @@ module.exports = {
     )
     .addSubcommand(subcommand =>
       subcommand
-        .setName('add-teams')
+        .setName('add-test-teams')
         .setDescription('Debug: Add fake teams to a tournament for testing')
         .addStringOption(option =>
           option.setName('tournament')
@@ -188,10 +188,10 @@ module.exports = {
         await handleSetAutoCleanup(interaction);
         break;
       }
-      case 'add-players':
+      case 'add-test-players':
         await handleAddPlayers(interaction);
         break;
-      case 'add-teams':
+      case 'add-test-teams':
         await handleAddTeams(interaction);
         break;
       case 'clear-participants':
@@ -541,7 +541,7 @@ async function handleAddPlayers(interaction) {
   }
 
   if (tournament.settings.teamSize > 1) {
-    return interaction.editReply({ content: '❌ This is a team tournament. Use `/admin add-teams` instead.' });
+    return interaction.editReply({ content: '❌ This is a team tournament. Use `/admin add-test-teams` instead (or `/tournament add-team` for real teams).' });
   }
 
   const available = tournament.settings.maxParticipants - tournament.participants.length;
@@ -597,7 +597,7 @@ async function handleAddTeams(interaction) {
   }
 
   if (tournament.settings.teamSize === 1) {
-    return interaction.editReply({ content: '❌ This is a solo tournament. Use `/admin add-players` instead.' });
+    return interaction.editReply({ content: '❌ This is a solo tournament. Use `/admin add-test-players` instead (or `/tournament add-player` for real players).' });
   }
 
   const available = tournament.settings.maxParticipants - tournament.teams.length;
@@ -733,6 +733,9 @@ async function handleHelp(interaction) {
         '`cancel` — Cancel a tournament',
         '`edit` — Edit title/date/size/best-of before start',
         '`report` — Report match result',
+        '`correct` — Correct a wrongly reported result',
+        '`disqualify` — DQ a player/team (forfeits remaining matches)',
+        '`add-player`/`add-team` — Manually register real entrants',
         '`bracket` — View bracket/standings',
         '`seed set|list|randomize|clear` — Manage seeding',
       ].join('\n'),
@@ -748,7 +751,7 @@ async function handleHelp(interaction) {
         '`cleanup` — Clean up match rooms',
         '`set-auto-cleanup` — Auto-cleanup on completion *(Premium)*',
         '`set-captain-mode` — Deferred member resolution *(Premium)*',
-        '`add-players/add-teams` — Debug: add test participants',
+        '`add-test-players/add-test-teams` — Debug: add FAKE test entrants',
         '`clear-participants` — Debug: clear all participants',
       ].join('\n'),
       inline: false,

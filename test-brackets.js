@@ -134,5 +134,125 @@ for (const n of [3, 4, 5, 6]) {
   console.log(`  n=${n}: complete=${done} matches=${b.totalMatches} winner=${standings[0]?.participant.id}`);
 }
 
+console.log('=== DISQUALIFICATION ===');
+{
+  const { disqualify, resolvePendingDQs } = require('./src/services/disqualifyService');
+
+  // SE: DQ player with an open match → opponent advances with best score
+  const t = { settings: { teamSize: 1, bestOf: 3 }, participants: makePlayers(8), teams: [], bracket: single.generateBracket(makePlayers(8), { bestOf: 3 }) };
+  const m1 = single.getActiveMatches(t.bracket)[0];
+  const dqTarget = m1.participant1;
+  const r = disqualify(t, dqTarget.id, 'no-show');
+  check(r.forfeited === 1, `SE DQ should forfeit 1 match, got ${r.forfeited}`);
+  check(m1.winner.id === m1.participant2.id && m1.isDQ && m1.score === '2-0', 'SE DQ: opponent should win 2-0 with isDQ');
+  check(t.participants.find(p => p.id === dqTarget.id).disqualified, 'entrant should be flagged');
+  playOut(single, t.bracket);
+  check(single.isComplete(t.bracket), 'SE completes after DQ');
+  console.log('  SE: forfeit 2-0 + flag + completes ✓');
+
+  // SE pendingDQ: DQ player already advanced to a slot whose opponent is TBD
+  const t2 = { settings: { teamSize: 1, bestOf: 3 }, participants: makePlayers(4), teams: [], bracket: single.generateBracket(makePlayers(4), { bestOf: 3 }) };
+  const semi1 = t2.bracket.rounds[0].matches[0];
+  single.advanceWinner(t2.bracket, semi1.id, semi1.participant1.id, '2-0'); // p in final, opponent TBD
+  const advanced = semi1.participant1;
+  const r2 = disqualify(t2, advanced.id);
+  check(r2.pending === 1 && r2.forfeited === 0, `pendingDQ expected, got f=${r2.forfeited} p=${r2.pending}`);
+  const semi2 = t2.bracket.rounds[0].matches[1];
+  single.advanceWinner(t2.bracket, semi2.id, semi2.participant1.id, '2-1');
+  const n = resolvePendingDQs(t2);
+  check(n === 1, `resolvePendingDQs should forfeit 1, got ${n}`);
+  check(single.isComplete(t2.bracket), 'final decided by DQ forfeit');
+  console.log('  SE pendingDQ: forfeits when opponent arrives ✓');
+
+  // DE: DQ removes player from winners AND losers bracket
+  const t3 = { settings: { teamSize: 1, bestOf: 3 }, participants: makePlayers(8), teams: [], bracket: double.generateBracket(makePlayers(8), { bestOf: 3 }) };
+  const wb1 = double.getActiveMatches(t3.bracket)[0];
+  const dq3 = wb1.participant1;
+  disqualify(t3, dq3.id);
+  // play everything out; the DQ'd player must never win anything further
+  let guard = 0;
+  while (!double.isComplete(t3.bracket) && guard++ < 200) {
+    const act = double.getActiveMatches(t3.bracket);
+    if (!act.length) break;
+    for (const m of act) double.advanceWinner(t3.bracket, m.id, m.participant1.id, '2-0');
+    resolvePendingDQs(t3);
+  }
+  check(double.isComplete(t3.bracket), 'DE completes after DQ');
+  const res3 = double.getResults(t3.bracket);
+  check(res3.winner.id !== dq3.id && res3.runnerUp.id !== dq3.id, 'DQ player cannot podium');
+  console.log('  DE: DQ propagates through losers bracket, completes ✓');
+
+  // Swiss: DQ'd player excluded from future rounds
+  const t4 = { settings: { teamSize: 1, bestOf: 1 }, participants: makePlayers(8), teams: [], bracket: swiss.generateBracket(makePlayers(8), { bestOf: 1 }) };
+  const sm = swiss.getActiveMatches(t4.bracket)[0];
+  const dq4 = sm.participant1;
+  disqualify(t4, dq4.id);
+  for (const m of swiss.getActiveMatches(t4.bracket)) swiss.advanceWinner(t4.bracket, m.id, m.participant1.id);
+  swiss.generateNextRound(t4.bracket);
+  const nextRound = t4.bracket.rounds[1];
+  const paired = nextRound.matches.some(m => m.participant1?.id === dq4.id || m.participant2?.id === dq4.id);
+  check(!paired, 'Swiss: DQ player must not be paired in next round');
+  console.log('  Swiss: excluded from future pairings ✓');
+
+  // RR: all remaining matches forfeited
+  const t5 = { settings: { teamSize: 1, bestOf: 3 }, participants: makePlayers(4), teams: [], bracket: rr.generateBracket(makePlayers(4), { bestOf: 3 }) };
+  const dq5 = t5.bracket.standings[0].participant;
+  const r5 = disqualify(t5, dq5.id);
+  check(r5.forfeited === 3, `RR: expected 3 forfeits (plays everyone), got ${r5.forfeited}`);
+  console.log('  RR: all remaining matches forfeited ✓');
+}
+
+console.log('=== RESULT CORRECTION ===');
+{
+  // SE: correct before next match played
+  const b = single.generateBracket(makePlayers(4), { bestOf: 3 });
+  const m = b.rounds[0].matches[0];
+  single.advanceWinner(b, m.id, m.participant1.id, '2-0'); // wrong winner
+  single.correctResult(b, m.id, m.participant2.id, '2-1');
+  check(m.winner.id === m.participant2.id && m.score === '2-1', 'SE corrected winner+score');
+  const final = b.rounds[1].matches[0];
+  check(final.participant1.id === m.participant2.id, 'SE: corrected winner re-propagated to final');
+  // block when downstream played
+  const m2 = b.rounds[0].matches[1];
+  single.advanceWinner(b, m2.id, m2.participant1.id, '2-0');
+  single.advanceWinner(b, final.id, final.participant1.id, '2-0');
+  let blocked = false;
+  try { single.correctResult(b, m2.id, m2.participant2.id, '2-1'); } catch { blocked = true; }
+  check(blocked, 'SE: correction blocked when final already played');
+  console.log('  SE: swap + re-propagate + downstream block ✓');
+
+  // Swiss: current round correction swaps standings
+  const sb = swiss.generateBracket(makePlayers(4), { bestOf: 1 });
+  const sm = sb.rounds[0].matches[0];
+  swiss.advanceWinner(sb, sm.id, sm.participant1.id);
+  swiss.correctResult(sb, sm.id, sm.participant2.id);
+  const w = sb.standings.find(s => s.participant.id === sm.participant2.id);
+  const l = sb.standings.find(s => s.participant.id === sm.participant1.id);
+  check(w.wins === 1 && w.losses === 0 && l.wins === 0 && l.losses === 1, 'Swiss standings swapped');
+  console.log('  Swiss: standings recomputed ✓');
+
+  // RR: correction swaps headToHead
+  const rb = rr.generateBracket(makePlayers(4), { bestOf: 1 });
+  const rm = rb.rounds[0].matches[0];
+  rr.advanceWinner(rb, rm.id, rm.participant1.id);
+  rr.correctResult(rb, rm.id, rm.participant2.id);
+  const rw = rb.standings.find(s => s.participant.id === rm.participant2.id);
+  check(rw.wins === 1 && rw.headToHead[rm.participant1.id] === 'win', 'RR standings + h2h swapped');
+  console.log('  RR: standings + head-to-head swapped ✓');
+
+  // DE: basic correction with unplayed downstream
+  const db = double.generateBracket(makePlayers(4), { bestOf: 3 });
+  const dm = db.winnersRounds[0].matches[0];
+  double.advanceWinner(db, dm.id, dm.participant1.id, '2-0');
+  double.correctResult(db, dm.id, dm.participant2.id, '2-1');
+  check(dm.winner.id === dm.participant2.id, 'DE winner corrected');
+  const wbFinal = db.winnersRounds[1].matches[0];
+  check(wbFinal.participant1.id === dm.participant2.id, 'DE corrected winner in WB final slot');
+  const lbMatch = db.losersRounds[0].matches[0];
+  const lbHasOldLoser = lbMatch.participant1?.id === dm.participant1.id || lbMatch.participant2?.id === dm.participant1.id;
+  check(lbHasOldLoser, 'DE corrected loser placed into losers bracket');
+  console.log('  DE: winner/loser re-propagated ✓');
+}
+
 console.log('\n' + (failures === 0 ? '✅ ALL CHECKS PASSED' : `❌ ${failures} CHECK(S) FAILED`));
 process.exit(failures === 0 ? 0 : 1);

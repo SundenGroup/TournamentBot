@@ -1,5 +1,5 @@
 const { v4: uuidv4 } = require('uuid');
-const { getNextPowerOfTwo, getRoundName } = require('../utils/bracketUtils');
+const { getNextPowerOfTwo, getRoundName, bestScore } = require('../utils/bracketUtils');
 const { generateSeedOrder } = require('../utils/seedingUtils');
 
 function generateBracket(participants, settings) {
@@ -60,6 +60,7 @@ function generateBracket(participants, settings) {
 
     if (match.isBye) {
       match.winner = participant1 || participant2;
+      match.score = bestScore(settings?.bestOf);
     }
 
     wbRound1Matches.push(match);
@@ -292,6 +293,7 @@ function generateBracket(participants, settings) {
   const bracket = {
     type: 'double_elimination',
     bracketSize,
+    bestOf: settings?.bestOf || 1,
     winnersRounds,
     losersRounds,
     grandFinalsRounds,
@@ -548,6 +550,7 @@ function resolveWalkovers(bracket) {
         m.winner = soleWinner;
         m.loser = null; // a walkover has no loser to drop
         m.isWalkover = true; // lets the Discord layer DM the advanced player
+        m.score = bestScore(bracket.bestOf);
         placeWinnerForward(bracket, m, soleWinner);
         changed = true;
       }
@@ -647,9 +650,135 @@ function getResults(bracket) {
   return { winner, runnerUp, thirdPlace };
 }
 
+/**
+ * Rewind an automatically resolved (walkover) match so a corrected result can
+ * re-propagate through it. Played results downstream block the correction.
+ */
+function rewindAutoMatch(bracket, match) {
+  if (!match.winner) return;
+  if (!match.isWalkover) {
+    throw new Error(`Match #${match.matchNumber} already has a played result that depends on this one — correct it first.`);
+  }
+  const advanced = match.winner;
+  if (match.nextWinMatchId) {
+    const next = findMatch(bracket, match.nextWinMatchId);
+    if (next) {
+      if (next.winner) rewindAutoMatch(bracket, next);
+      if (next.participant1?.id === advanced.id) next.participant1 = null;
+      else if (next.participant2?.id === advanced.id) next.participant2 = null;
+    }
+  }
+  match.winner = null;
+  match.isWalkover = false;
+  match.score = null;
+  match.byeNotified = false;
+}
+
+/** Remove `participant` from the slot it occupies in `match` (if any). */
+function clearSlot(match, participantId) {
+  if (!match) return;
+  if (match.participant1?.id === participantId) match.participant1 = null;
+  else if (match.participant2?.id === participantId) match.participant2 = null;
+}
+
+/**
+ * Correct a wrongly reported result. Downstream matches must be unplayed;
+ * automatic walkovers in the way are rewound and re-resolved after the swap.
+ */
+function correctResult(bracket, matchId, newWinnerId, newScore = null) {
+  const match = findMatch(bracket, matchId);
+  if (!match) throw new Error('Match not found');
+  if (!match.winner) throw new Error('This match has no result yet — use the normal report instead');
+  if (match.isBye) throw new Error('Bye results cannot be corrected');
+
+  const p1 = match.participant1;
+  const p2 = match.participant2;
+  if (newWinnerId !== p1?.id && newWinnerId !== p2?.id) {
+    throw new Error('That winner is not a participant in this match');
+  }
+
+  const newWinner = newWinnerId === p1.id ? p1 : p2;
+  const newLoser = newWinnerId === p1.id ? p2 : p1;
+  const oldWinner = match.winner;
+  const oldLoser = match.loser;
+  const winnerChanged = oldWinner.id !== newWinnerId;
+
+  if (!winnerChanged) {
+    match.score = newScore;
+    return bracket;
+  }
+
+  if (match.bracket === 'grand_finals') {
+    if (match.isReset) {
+      // Reset match is terminal — just swap.
+      match.winner = newWinner;
+      match.loser = newLoser;
+      match.score = newScore;
+      return bracket;
+    }
+    // First grand finals game: flipping the winner flips the bracket reset.
+    const reset = findMatch(bracket, match.resetMatchId);
+    if (reset?.winner) {
+      throw new Error('The bracket-reset match has already been played — correct that result instead.');
+    }
+    match.winner = newWinner;
+    match.loser = newLoser;
+    match.score = newScore;
+    const wbFinals = findMatch(bracket, match.sourceWbFinalsId);
+    bracket.needsReset = newWinner.id !== wbFinals?.winner?.id;
+    if (reset) {
+      reset.participant1 = bracket.needsReset ? match.participant1 : null;
+      reset.participant2 = bracket.needsReset ? match.participant2 : null;
+    }
+    return bracket;
+  }
+
+  // Downstream guards (rewinding walkovers where needed)
+  const nextWin = match.nextWinMatchId ? findMatch(bracket, match.nextWinMatchId) : null;
+  const nextLose = match.nextLoseMatchId ? findMatch(bracket, match.nextLoseMatchId) : null;
+  if (nextWin?.winner) rewindAutoMatch(bracket, nextWin);
+  if (nextLose?.winner) rewindAutoMatch(bracket, nextLose);
+
+  // Pull the old placements out, apply the swap, re-place
+  clearSlot(nextWin, oldWinner.id);
+  clearSlot(nextLose, oldLoser?.id);
+
+  match.winner = newWinner;
+  match.loser = newLoser;
+  match.score = newScore;
+  delete match.isDQ;
+  delete match.dqId;
+
+  if (nextWin) {
+    if (nextWin.bracket === 'grand_finals') {
+      if (match.bracket === 'winners') nextWin.participant1 = newWinner;
+      else nextWin.participant2 = newWinner;
+    } else if (
+      nextWin.sourceMatch1Id === matchId ||
+      nextWin.sourceLbMatchId === matchId ||
+      nextWin.sourceLbMatch1Id === matchId
+    ) {
+      nextWin.participant1 = newWinner;
+    } else {
+      nextWin.participant2 = newWinner;
+    }
+  }
+  if (nextLose && match.bracket === 'winners') {
+    if (nextLose.sourceFromWb1Id === matchId || nextLose.sourceFromWbId === matchId) {
+      nextLose.participant2 = newLoser;
+    } else if (nextLose.sourceFromWb2Id === matchId) {
+      nextLose.participant1 = newLoser;
+    }
+  }
+
+  resolveWalkovers(bracket);
+  return bracket;
+}
+
 module.exports = {
   generateBracket,
   advanceWinner,
+  correctResult,
   findMatch,
   getActiveMatches,
   isComplete,

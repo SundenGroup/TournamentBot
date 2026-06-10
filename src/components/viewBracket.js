@@ -67,7 +67,7 @@ module.exports = {
         for (const match of currentRound.matches) {
           const p1 = getName(match.participant1) || 'BYE';
           const p2 = getName(match.participant2) || 'BYE';
-          const status = match.winner ? `✓ ${getName(match.winner)}${match.score ? ` (${match.score})` : ''}` : (match.isBye ? '(bye)' : '');
+          const status = match.winner ? `✓ ${getName(match.winner)}${match.score ? ` (${match.score})` : ''}${match.isDQ ? ' · DQ' : ''}` : (match.isBye ? '(bye)' : '');
           matchesText += `**#${match.matchNumber}:** ${p1} vs ${p2} ${status}\n`;
         }
 
@@ -117,7 +117,7 @@ module.exports = {
         for (const match of currentRound.matches) {
           const p1 = getName(match.participant1) || 'TBD';
           const p2 = getName(match.participant2) || 'TBD';
-          const status = match.winner ? `✓ ${getName(match.winner)}${match.score ? ` (${match.score})` : ''}` : '';
+          const status = match.winner ? `✓ ${getName(match.winner)}${match.score ? ` (${match.score})` : ''}${match.isDQ ? ' · DQ' : ''}` : '';
           matchesText += `**#${match.matchNumber}:** ${p1} vs ${p2} ${status}\n`;
         }
 
@@ -136,7 +136,7 @@ module.exports = {
         for (const match of round.matches) {
           const p1 = getName(match.participant1) || 'TBD';
           const p2 = getName(match.participant2) || 'TBD';
-          const winner = match.winner ? `✓ ${getName(match.winner)}${match.score ? ` (${match.score})` : ''}` : '';
+          const winner = match.winner ? `✓ ${getName(match.winner)}${match.score ? ` (${match.score})` : ''}${match.isDQ ? ' · DQ' : ''}` : '';
 
           if (match.isBye) {
             description += `#${match.matchNumber}: ${p1} (bye)\n`;
@@ -151,7 +151,7 @@ module.exports = {
       if (tp) {
         const p1 = getName(tp.participant1) || 'TBD';
         const p2 = getName(tp.participant2) || 'TBD';
-        const winner = tp.winner ? `✓ ${getName(tp.winner)}${tp.score ? ` (${tp.score})` : ''}` : '';
+        const winner = tp.winner ? `✓ ${getName(tp.winner)}${tp.score ? ` (${tp.score})` : ''}${tp.isDQ ? ' · DQ' : ''}` : '';
         description += `**Third Place Match**\n#${tp.matchNumber}: ${p1} vs ${p2} ${winner}\n\n`;
       }
 
@@ -264,7 +264,7 @@ module.exports = {
         for (const match of round.matches) {
           const p1 = getName(match.participant1) || 'TBD';
           const p2 = getName(match.participant2) || 'TBD';
-          const winner = match.winner ? `✓ ${getName(match.winner)}${match.score ? ` (${match.score})` : ''}` : '';
+          const winner = match.winner ? `✓ ${getName(match.winner)}${match.score ? ` (${match.score})` : ''}${match.isDQ ? ' · DQ' : ''}` : '';
 
           if (match.isBye) {
             wbDesc += `#${match.matchNumber}: ${p1} (bye)\n`;
@@ -288,7 +288,7 @@ module.exports = {
         for (const match of round.matches) {
           const p1 = getName(match.participant1) || 'TBD';
           const p2 = getName(match.participant2) || 'TBD';
-          const winner = match.winner ? `✓ ${getName(match.winner)}${match.score ? ` (${match.score})` : ''}` : '';
+          const winner = match.winner ? `✓ ${getName(match.winner)}${match.score ? ` (${match.score})` : ''}${match.isDQ ? ' · DQ' : ''}` : '';
           lbDesc += `#${match.matchNumber}: ${p1} vs ${p2} ${winner}\n`;
         }
         lbDesc += '\n';
@@ -308,7 +308,7 @@ module.exports = {
 
         const p1 = getName(match.participant1) || 'TBD';
         const p2 = getName(match.participant2) || 'TBD';
-        const winner = match.winner ? `✓ ${getName(match.winner)}${match.score ? ` (${match.score})` : ''}` : '';
+        const winner = match.winner ? `✓ ${getName(match.winner)}${match.score ? ` (${match.score})` : ''}${match.isDQ ? ' · DQ' : ''}` : '';
         gfDesc += `**${round.name}**\n`;
         gfDesc += `#${match.matchNumber}: ${p1} vs ${p2} ${winner}\n\n`;
       }

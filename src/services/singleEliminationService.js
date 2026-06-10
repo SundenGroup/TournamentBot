@@ -1,5 +1,5 @@
 const { v4: uuidv4 } = require('uuid');
-const { getNextPowerOfTwo, getRoundName } = require('../utils/bracketUtils');
+const { getNextPowerOfTwo, getRoundName, bestScore } = require('../utils/bracketUtils');
 const { generateSeedOrder } = require('../utils/seedingUtils');
 
 function generateBracket(participants, settings) {
@@ -55,9 +55,10 @@ function generateBracket(participants, settings) {
       channelId: null,
     };
 
-    // Auto-advance byes
+    // Auto-advance byes (recorded with the best possible series score)
     if (match.isBye) {
       match.winner = participant1 || participant2;
+      match.score = bestScore(settings?.bestOf);
     }
 
     round1Matches.push(match);
@@ -105,6 +106,7 @@ function generateBracket(participants, settings) {
     type: 'single_elimination',
     bracketSize,
     totalRounds,
+    bestOf: settings?.bestOf || 1,
     rounds,
     currentRound: 1,
   };
@@ -151,9 +153,11 @@ function resolveThirdPlaceWalkover(bracket) {
   if (tp.participant1 && !tp.participant2 && semi2?.isBye) {
     tp.winner = tp.participant1;
     tp.isWalkover = true;
+    tp.score = bestScore(bracket.bestOf);
   } else if (tp.participant2 && !tp.participant1 && semi1?.isBye) {
     tp.winner = tp.participant2;
     tp.isWalkover = true;
+    tp.score = bestScore(bracket.bestOf);
   }
 }
 
@@ -293,9 +297,82 @@ function getResults(bracket) {
   return { winner, runnerUp, thirdPlace };
 }
 
+/**
+ * Correct a wrongly reported result. Safe only while nothing downstream
+ * depends on it: the next match (and the third-place match, for semifinals)
+ * must be unplayed — automatic third-place walkovers are rewound.
+ */
+function correctResult(bracket, matchId, newWinnerId, newScore = null) {
+  const match = findMatch(bracket, matchId);
+  if (!match) throw new Error('Match not found');
+  if (!match.winner) throw new Error('This match has no result yet — use the normal report instead');
+  if (match.isBye) throw new Error('Bye results cannot be corrected');
+
+  const p1 = match.participant1;
+  const p2 = match.participant2;
+  if (newWinnerId !== p1?.id && newWinnerId !== p2?.id) {
+    throw new Error('That winner is not a participant in this match');
+  }
+
+  const newWinner = newWinnerId === p1.id ? p1 : p2;
+  const newLoser = newWinnerId === p1.id ? p2 : p1;
+  const winnerChanged = match.winner.id !== newWinnerId;
+
+  // Score-only correction needs no structural checks
+  if (!winnerChanged) {
+    match.score = newScore;
+    return bracket;
+  }
+
+  // Downstream guards
+  if (match.nextMatchId) {
+    const next = findMatch(bracket, match.nextMatchId);
+    if (next?.winner) {
+      throw new Error(`Match #${next.matchNumber} already has a result that depends on this one — correct it first.`);
+    }
+  }
+  const tp = bracket.thirdPlaceMatch;
+  const feedsTp = tp && (tp.sourceSemi1Id === matchId || tp.sourceSemi2Id === matchId);
+  if (feedsTp && tp.winner && !tp.isWalkover) {
+    throw new Error('The Third Place Match already has a result that depends on this one — correct it first.');
+  }
+
+  // Apply
+  match.winner = newWinner;
+  match.score = newScore;
+  delete match.isDQ;
+  delete match.dqId;
+
+  // Re-propagate the winner
+  if (match.nextMatchId) {
+    const next = findMatch(bracket, match.nextMatchId);
+    if (next) {
+      if (next.sourceMatch1Id === matchId) next.participant1 = newWinner;
+      else next.participant2 = newWinner;
+    }
+  }
+
+  // Re-propagate the loser into the third-place match
+  if (feedsTp) {
+    if (tp.winner && tp.isWalkover) {
+      tp.winner = null;
+      tp.isWalkover = false;
+      tp.score = null;
+      tp.byeNotified = false;
+    }
+    if (tp.sourceSemi1Id === matchId) tp.participant1 = newLoser;
+    else tp.participant2 = newLoser;
+    resolveThirdPlaceWalkover(bracket);
+  }
+
+  updateCurrentRound(bracket);
+  return bracket;
+}
+
 module.exports = {
   generateBracket,
   advanceWinner,
+  correctResult,
   findMatch,
   getActiveMatches,
   isComplete,

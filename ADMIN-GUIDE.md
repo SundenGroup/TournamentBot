@@ -107,11 +107,28 @@ for teams) plus tournament admins. The bot **pings the players** in the room whe
 it's created so everyone knows where their match is played.
 
 **4. Report results (admins).** Two ways:
-- Click **👑 [name] Wins** in the match room, or
+- Click **👑 [name] Wins** in the match room — in Bo3+ a score picker follows (2-0 / 2-1 …), or
 - `/tournament report tournament:<name> match_number:<#> winner:<name> score:<e.g. 2-1>`
 
 The bracket advances automatically and the next round's rooms are created. Repeat
 until a champion is decided.
+
+**Reported the wrong result?** `/tournament correct match_number: winner: score:`
+fixes it — as long as nothing downstream has been played yet (later results that
+depend on the wrong one must be corrected first).
+
+**Disqualifying someone:** `/tournament disqualify participant: [reason:]` —
+their remaining matches are forfeited (opponents win with the best possible
+score, e.g. 2-0 in a Bo3, shown as **DQ** on the brackets), upcoming matches
+forfeit automatically when the opponent is decided, and past results stand.
+
+**Manually registering real entrants:** `/tournament add-player user:@…` (solo)
+and `/tournament add-team name: captain:@… members:@… @…` register actual server
+members — they get a DM. For *fake* test entrants use
+`/admin add-test-players` / `add-test-teams` instead.
+
+**Byes, walkovers and DQ forfeits** are recorded with the best possible series
+score (2-0 in a Bo3); Bo1 records no series score.
 
 **5. View & finish.** `/match bracket` or `/tournament bracket` shows the live
 bracket/standings and the final podium (champion, runner-up, 3rd). Use
@@ -147,7 +164,8 @@ unresolved members aren't added.
 
 **Tournaments — `/tournament`** (admin)
 `create` · `create-advanced` · `edit` · `list` · `info` · `start` · `cancel` ·
-`report` · `bracket` · `seed set|list|randomize|clear`
+`report` · `correct` · `disqualify` · `add-player` · `add-team` · `bracket` ·
+`seed set|list|randomize|clear`
 
 > **Editing:** `/tournament edit` opens a pre-filled form to change the title,
 > date/time, max players/teams, best-of, and description of a posted tournament
@@ -164,7 +182,8 @@ unresolved members aren't added.
 **Admin — `/admin`**
 `settings` · `set-announcement-channel` · `set-match-category` · `set-role` ·
 `cleanup` · `set-auto-cleanup` *(Premium)* · `set-captain-mode` *(Premium)* ·
-`add-players` / `add-teams` *(debug)* · `clear-participants` *(debug)* · `help`
+`add-test-players` / `add-test-teams` *(debug, fake entrants)* ·
+`clear-participants` *(debug)* · `help`
 
 **Other**
 `/help` — player help · `/subscribe` — plan & billing · `/analytics` *(Pro)* ·
@@ -174,12 +193,13 @@ unresolved members aren't added.
 
 ## Tips & troubleshooting
 
-- **Test a full run fast:** create a tournament, `/admin add-players count:6` (or
-  `add-teams`), `/tournament start`, then report matches. Try 6 entrants to see byes.
+- **Test a full run fast:** create a tournament, `/admin add-test-players count:6`
+  (or `add-test-teams`), `/tournament start`, then report matches. Try 6 entrants
+  to see byes.
 - **"Only tournament admins can report":** the user isn't an admin and doesn't have a
   tournament-admin role — add one with `/admin set-role`.
-- **Stuck or mis-reported?** Cancel with `/tournament cancel` and recreate (there's
-  no per-match undo yet).
+- **Mis-reported a result?** `/tournament correct` fixes it while nothing
+  downstream has been played.
 - **Match rooms piling up:** `/admin cleanup`, or enable `/admin set-auto-cleanup`.
 
 For the full web manual, open `/admin-manual` on the bot's host.

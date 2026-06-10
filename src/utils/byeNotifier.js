@@ -27,9 +27,9 @@ function collectAllMatches(bracket) {
   return matches;
 }
 
-/** Matches where someone advanced without playing: generation byes + DE walkovers. */
+/** Matches where someone advanced without playing: byes, walkovers, DQ forfeits. */
 function getByeMatches(bracket) {
-  return collectAllMatches(bracket).filter(m => (m.isBye || m.isWalkover) && m.winner);
+  return collectAllMatches(bracket).filter(m => (m.isBye || m.isWalkover || m.isDQ) && m.winner);
 }
 
 /**
@@ -78,8 +78,12 @@ async function notifyByesAndWalkovers(client, tournament) {
 
     const advanced = match.winner;
     const name = (isSolo ? advanced.username : advanced.name) || 'You';
-    const kind = match.isWalkover ? 'walkover' : 'bye';
-    let message = `🎟️ **${kind === 'bye' ? 'Bye' : 'Walkover'}!** ${isSolo ? 'You' : `Your team **${name}**`} advanced in **${tournament.title}** without playing ${match.roundName ? `(${match.roundName})` : 'this round'} — no opponent in your bracket slot.`;
+    let message;
+    if (match.isDQ) {
+      message = `🎟️ **Walkover!** ${isSolo ? 'You' : `Your team **${name}**`} advanced in **${tournament.title}** ${match.roundName ? `(${match.roundName})` : ''} — your opponent was disqualified.`;
+    } else {
+      message = `🎟️ **${match.isWalkover ? 'Walkover' : 'Bye'}!** ${isSolo ? 'You' : `Your team **${name}**`} advanced in **${tournament.title}** without playing ${match.roundName ? `(${match.roundName})` : 'this round'} — no opponent in your bracket slot.`;
+    }
     if (bracketUrl) message += `\n🌐 Bracket: ${bracketUrl}`;
 
     // Resolve who to DM: the participant, or every resolved team member.

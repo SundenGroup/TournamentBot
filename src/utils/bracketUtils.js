@@ -6,6 +6,16 @@ function getNextPowerOfTwo(n) {
   return power;
 }
 
+/**
+ * The best possible series score for a best-of: what a bye, walkover or
+ * DQ forfeit is recorded as (Bo3 → "2-0", Bo5 → "3-0"). Bo1 has no series
+ * score, so null.
+ */
+function bestScore(bestOf) {
+  if (!bestOf || bestOf <= 1) return null;
+  return `${Math.ceil(bestOf / 2)}-0`;
+}
+
 function calculateByes(participantCount, bracketSize) {
   return bracketSize - participantCount;
 }
@@ -30,4 +40,5 @@ module.exports = {
   getNextPowerOfTwo,
   calculateByes,
   getRoundName,
+  bestScore,
 };

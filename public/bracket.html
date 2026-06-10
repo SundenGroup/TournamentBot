@@ -151,6 +151,7 @@
   .prow.win .nm { font-weight: 700; }
   .prow.win .sc { color: var(--accent); }
   .prow.lose .nm, .prow.lose .sc { color: var(--text-dim); }
+  .prow .sc.dq { font-family: var(--mono); font-size: 10px; font-weight: 700; letter-spacing: .06em; color: var(--accent); }
   .prow.tbd .nm { color: var(--text-faint); font-style: italic; }
   .prow.bye .nm { color: var(--text-faint); font-style: italic; letter-spacing: 1px; }
 
@@ -317,10 +318,13 @@ setInterval(() => {
 function participantRow(p, match, slotScore) {
   const isWinner = match.winner && p && match.winner.id === p.id;
   const isLoser = match.winner && p && match.winner.id !== p.id;
+  const isDQd = isLoser && match.isDQ;
   const cls = !p ? (match.isBye ? 'bye' : 'tbd') : isWinner ? 'win' : isLoser ? 'lose' : '';
   const name = p ? esc(p.name) : (match.isBye ? 'BYE' : 'TBD');
   const seed = p && p.seed ? `<span class="seed">${p.seed}</span>` : '<span class="seed"></span>';
-  const score = slotScore != null ? `<span class="sc">${esc(slotScore)}</span>` : (isWinner ? '<span class="sc">✓</span>' : '<span class="sc"></span>');
+  const score = isDQd
+    ? '<span class="sc dq">DQ</span>'
+    : slotScore != null ? `<span class="sc">${esc(slotScore)}</span>` : (isWinner ? '<span class="sc">✓</span>' : '<span class="sc"></span>');
   return `<div class="prow ${cls}">${seed}<span class="nm">${name}</span>${score}</div>`;
 }
 
@@ -466,7 +470,7 @@ function renderRegistration(d) {
   if (d.participants.length) {
     html += '<div class="section"><div class="section-title">Entrants</div><div class="entrants">';
     for (const p of d.participants) {
-      html += `<div class="entrant"><span class="seed">${p.seed ?? ''}</span>${esc(p.name)}${p.checkedIn ? '<span class="ck">✅</span>' : ''}</div>`;
+      html += `<div class="entrant"><span class="seed">${p.seed ?? ''}</span>${esc(p.name)}${p.disqualified ? '<span class="ck">🚫</span>' : p.checkedIn ? '<span class="ck">✅</span>' : ''}</div>`;
     }
     html += '</div></div>';
   }

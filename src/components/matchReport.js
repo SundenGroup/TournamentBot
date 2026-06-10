@@ -58,6 +58,10 @@ async function finalizeMatchReport(interaction, tournament, match, winner, score
 
   service.advanceWinner(bracket, match.id, winner.id, score);
 
+  // Forfeit any matches a disqualified player just arrived in
+  const { resolvePendingDQs } = require('../services/disqualifyService');
+  resolvePendingDQs(tournament);
+
   // A reported result can cascade walkovers (double-elim losers bracket) —
   // DM anyone who just advanced without playing, then persist the flags.
   const { notifyByesAndWalkovers } = require('../utils/byeNotifier');

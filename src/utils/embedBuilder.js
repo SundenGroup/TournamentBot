@@ -234,6 +234,7 @@ async function createParticipantListEmbed(tournament) {
         let entry = `${i + 1}. ${p.username}`;
         if (p.gameNick) entry += ` (${p.gameNick})`;
         if (p.seed) entry += ` [#${p.seed}]`;
+        if (p.disqualified) entry += ' 🚫DQ';
         if (status === 'checkin') {
           entry += p.checkedIn ? ' ✓' : ' ⏳';
         }
@@ -250,6 +251,7 @@ async function createParticipantListEmbed(tournament) {
         const members = t.members.map(m => m.pending ? `${m.username} (pending)` : m.username).join(', ');
         let entry = `**${i + 1}. ${t.name}** (Captain: ${t.captain.username})`;
         if (t.seed) entry += ` [#${t.seed}]`;
+        if (t.disqualified) entry += ' 🚫DQ';
         if (status === 'checkin') {
           const checkedIn = Object.keys(t.memberCheckins || {}).length;
           entry += ` (${checkedIn}/${settings.teamSize} checked in)`;

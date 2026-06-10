@@ -329,9 +329,50 @@ function isRoundComplete(bracket, roundNumber = bracket.currentRound) {
   return round.matches.every(m => m.winner !== null);
 }
 
+/**
+ * Correct a wrongly reported result. Round robin has no structural
+ * dependencies between matches, so any played match can be corrected.
+ */
+function correctResult(bracket, matchId, newWinnerId, newScore = null) {
+  const match = findMatch(bracket, matchId);
+  if (!match) throw new Error('Match not found');
+  if (!match.winner) throw new Error('This match has no result yet — use the normal report instead');
+
+  const p1 = match.participant1;
+  const p2 = match.participant2;
+  if (newWinnerId !== p1?.id && newWinnerId !== p2?.id) {
+    throw new Error('That winner is not a participant in this match');
+  }
+
+  const newWinner = newWinnerId === p1.id ? p1 : p2;
+  const newLoser = newWinnerId === p1.id ? p2 : p1;
+
+  if (match.winner.id !== newWinnerId) {
+    const oldWinnerStanding = bracket.standings.find(s => s.participant.id === match.winner.id);
+    const oldLoserStanding = bracket.standings.find(s => s.participant.id === match.loser.id);
+    if (oldWinnerStanding) {
+      oldWinnerStanding.wins--;
+      oldWinnerStanding.losses++;
+      oldWinnerStanding.headToHead[match.loser.id] = 'loss';
+    }
+    if (oldLoserStanding) {
+      oldLoserStanding.losses--;
+      oldLoserStanding.wins++;
+      oldLoserStanding.headToHead[match.winner.id] = 'win';
+    }
+    match.winner = newWinner;
+    match.loser = newLoser;
+  }
+  match.score = newScore;
+  delete match.isDQ;
+  delete match.dqId;
+  return bracket;
+}
+
 module.exports = {
   generateBracket,
   advanceWinner,
+  correctResult,
   getActiveMatches,
   isComplete,
   isRoundComplete,

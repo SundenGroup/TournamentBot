@@ -112,6 +112,99 @@ module.exports = {
             .setAutocomplete(true)
         )
     )
+    .addSubcommand(subcommand =>
+      subcommand
+        .setName('disqualify')
+        .setDescription('Disqualify a player/team — remaining matches are forfeited')
+        .addStringOption(option =>
+          option.setName('tournament')
+            .setDescription('Tournament')
+            .setRequired(true)
+            .setAutocomplete(true)
+        )
+        .addStringOption(option =>
+          option.setName('participant')
+            .setDescription('Player or team to disqualify')
+            .setRequired(true)
+            .setAutocomplete(true)
+        )
+        .addStringOption(option =>
+          option.setName('reason')
+            .setDescription('Reason (shown to admins)')
+        )
+    )
+    .addSubcommand(subcommand =>
+      subcommand
+        .setName('correct')
+        .setDescription('Correct a wrongly reported match result')
+        .addStringOption(option =>
+          option.setName('tournament')
+            .setDescription('Tournament')
+            .setRequired(true)
+            .setAutocomplete(true)
+        )
+        .addIntegerOption(option =>
+          option.setName('match_number')
+            .setDescription('Match number to correct')
+            .setRequired(true)
+        )
+        .addStringOption(option =>
+          option.setName('winner')
+            .setDescription('The actual winner')
+            .setRequired(true)
+            .setAutocomplete(true)
+        )
+        .addStringOption(option =>
+          option.setName('score')
+            .setDescription('Corrected score (e.g., "2-1")')
+        )
+    )
+    .addSubcommand(subcommand =>
+      subcommand
+        .setName('add-player')
+        .setDescription('Manually register a real player (solo tournaments)')
+        .addStringOption(option =>
+          option.setName('tournament')
+            .setDescription('Tournament')
+            .setRequired(true)
+            .setAutocomplete(true)
+        )
+        .addUserOption(option =>
+          option.setName('user')
+            .setDescription('The Discord user to register')
+            .setRequired(true)
+        )
+        .addStringOption(option =>
+          option.setName('game_nick')
+            .setDescription('In-game nickname (if the tournament requires one)')
+        )
+    )
+    .addSubcommand(subcommand =>
+      subcommand
+        .setName('add-team')
+        .setDescription('Manually register a real team')
+        .addStringOption(option =>
+          option.setName('tournament')
+            .setDescription('Tournament')
+            .setRequired(true)
+            .setAutocomplete(true)
+        )
+        .addStringOption(option =>
+          option.setName('name')
+            .setDescription('Team name')
+            .setRequired(true)
+        )
+        .addUserOption(option =>
+          option.setName('captain')
+            .setDescription('Team captain')
+            .setRequired(true)
+        )
+        .addStringOption(option =>
+          option.setName('members')
+            .setDescription('Other members: @mentions or usernames, separated by spaces/commas')
+            .setRequired(true)
+        )
+    )
     .addSubcommandGroup(group =>
       group
         .setName('seed')
@@ -179,7 +272,7 @@ module.exports = {
     const subcommand = interaction.options.getSubcommand();
 
     // Admin subcommands require tournament management permissions
-    const adminSubcommands = ['create', 'create-advanced', 'start', 'cancel', 'edit', 'report', 'br-report'];
+    const adminSubcommands = ['create', 'create-advanced', 'start', 'cancel', 'edit', 'report', 'br-report', 'disqualify', 'correct', 'add-player', 'add-team'];
     const adminSeedSubcommands = ['set', 'randomize', 'clear'];
 
     const needsPermCheck = adminSubcommands.includes(subcommand) ||
@@ -240,6 +333,18 @@ module.exports = {
         break;
       case 'bracket':
         await handleBracket(interaction);
+        break;
+      case 'disqualify':
+        await handleDisqualify(interaction);
+        break;
+      case 'correct':
+        await handleCorrect(interaction);
+        break;
+      case 'add-player':
+        await handleAddPlayer(interaction);
+        break;
+      case 'add-team':
+        await handleAddTeam(interaction);
         break;
     }
   },
@@ -774,6 +879,249 @@ async function handleEdit(interaction) {
   return interaction.showModal(modal);
 }
 
+// ─── Disqualification / Correction / Manual registration ────────────────────
+
+async function handleDisqualify(interaction) {
+  await interaction.deferReply({ ephemeral: true });
+
+  const tournamentId = interaction.options.getString('tournament');
+  const participantId = interaction.options.getString('participant');
+  const reason = interaction.options.getString('reason');
+
+  const tournament = await getTournament(tournamentId);
+  if (!tournament) return interaction.editReply({ content: '❌ Tournament not found.' });
+  if (!tournament.bracket || tournament.status !== 'active') {
+    return interaction.editReply({ content: '❌ Disqualification only works on a running tournament. During registration, remove the entrant instead.' });
+  }
+
+  const isSolo = tournament.settings.teamSize === 1;
+  const entrant = (isSolo ? tournament.participants : tournament.teams).find(e => e.id === participantId);
+  if (!entrant) return interaction.editReply({ content: '❌ Participant not found in this tournament.' });
+  if (entrant.disqualified) return interaction.editReply({ content: '❌ Already disqualified.' });
+
+  const { disqualify } = require('../../services/disqualifyService');
+  let result;
+  try {
+    result = disqualify(tournament, participantId, reason);
+  } catch (error) {
+    return interaction.editReply({ content: `❌ ${error.message}` });
+  }
+
+  // DM opponents who advanced off the forfeits, persist everything
+  const { notifyByesAndWalkovers } = require('../../utils/byeNotifier');
+  await notifyByesAndWalkovers(interaction.client, tournament);
+  await updateTournament(tournamentId, {
+    bracket: tournament.bracket,
+    participants: tournament.participants,
+    teams: tournament.teams,
+  });
+  const { updateTournamentMessages } = require('../../utils/tournamentUpdater');
+  await updateTournamentMessages(interaction.client, tournament);
+
+  const name = isSolo ? entrant.username : entrant.name;
+  let response = `🚫 **${name}** has been disqualified from **${tournament.title}**` + (reason ? ` — ${reason}` : '') + '.';
+  if (result.forfeited > 0) response += `\n${result.forfeited} match${result.forfeited > 1 ? 'es' : ''} forfeited (opponent wins ${tournament.settings.bestOf > 1 ? `${Math.ceil(tournament.settings.bestOf / 2)}-0` : 'by walkover'}).`;
+  if (result.pending > 0) response += `\n${result.pending} upcoming match will forfeit automatically when the opponent is decided.`;
+
+  // Tell the channel too — a DQ is tournament-relevant news
+  try {
+    const channel = await interaction.client.channels.fetch(tournament.channelId);
+    await channel.send(`🚫 **${name}** has been disqualified from **${tournament.title}**.`);
+  } catch {}
+
+  return interaction.editReply({ content: response });
+}
+
+async function handleCorrect(interaction) {
+  await interaction.deferReply({ ephemeral: true });
+
+  const tournamentId = interaction.options.getString('tournament');
+  const matchNumber = interaction.options.getInteger('match_number');
+  const winnerId = interaction.options.getString('winner');
+  const score = interaction.options.getString('score');
+
+  const tournament = await getTournament(tournamentId);
+  if (!tournament) return interaction.editReply({ content: '❌ Tournament not found.' });
+  if (!tournament.bracket) return interaction.editReply({ content: '❌ Tournament has not started yet.' });
+
+  const bracket = tournament.bracket;
+  const service = getServiceForBracket(bracket);
+
+  // Locate by match number (same lookup as report, incl. third-place match)
+  let match = null;
+  if (bracket.type === 'double_elimination') {
+    for (const round of [...bracket.winnersRounds, ...bracket.losersRounds, ...bracket.grandFinalsRounds]) {
+      match = round.matches.find(m => m.matchNumber === matchNumber);
+      if (match) break;
+    }
+  } else {
+    for (const round of bracket.rounds) {
+      match = round.matches.find(m => m.matchNumber === matchNumber);
+      if (match) break;
+    }
+    if (!match && bracket.thirdPlaceMatch?.matchNumber === matchNumber) {
+      match = bracket.thirdPlaceMatch;
+    }
+  }
+  if (!match) return interaction.editReply({ content: '❌ Match not found.' });
+
+  // Series-score validation, mirroring report
+  let normalizedScore = score ? score.trim() : null;
+  const bestOfSetting = tournament.settings.bestOf || 1;
+  if (normalizedScore && !/^\d{1,3}-\d{1,3}$/.test(normalizedScore)) {
+    return interaction.editReply({ content: '❌ Invalid score format. Use format like `2-1`.' });
+  }
+  if (bestOfSetting > 1) {
+    const { validSeriesScores } = require('../../components/matchReport');
+    const valid = validSeriesScores(bestOfSetting);
+    if (!normalizedScore) {
+      return interaction.editReply({ content: `❌ This is a **Best of ${bestOfSetting}** — include the corrected series score: ${valid.map(s => `\`${s}\``).join(' or ')}` });
+    }
+    const [a, b] = normalizedScore.split('-').map(Number);
+    normalizedScore = `${Math.max(a, b)}-${Math.min(a, b)}`;
+    if (!valid.includes(normalizedScore)) {
+      return interaction.editReply({ content: `❌ \`${score}\` isn't a valid Best of ${bestOfSetting} result. Valid: ${valid.map(s => `\`${s}\``).join(', ')}` });
+    }
+  }
+
+  const isSolo = tournament.settings.teamSize === 1;
+  const getName = (p) => isSolo ? p?.username : p?.name;
+  const oldWinnerName = getName(match.winner);
+  const oldScore = match.score;
+
+  try {
+    service.correctResult(bracket, match.id, winnerId, normalizedScore);
+  } catch (error) {
+    return interaction.editReply({ content: `❌ ${error.message}` });
+  }
+
+  await updateTournament(tournamentId, { bracket });
+  const { updateTournamentMessages } = require('../../utils/tournamentUpdater');
+  await updateTournamentMessages(interaction.client, tournament);
+
+  const newWinnerName = getName(match.winner);
+  let response = `✏️ **Match #${matchNumber}** corrected: **${newWinnerName}** wins`;
+  if (normalizedScore) response += ` (${normalizedScore})`;
+  if (oldWinnerName !== newWinnerName) response += `\nPrevious result: ${oldWinnerName}${oldScore ? ` (${oldScore})` : ''}`;
+  if (tournament.status === 'completed') {
+    response += '\n⚠️ The tournament was already completed — the original completion announcement is not reposted.';
+  }
+  return interaction.editReply({ content: response });
+}
+
+async function handleAddPlayer(interaction) {
+  await interaction.deferReply({ ephemeral: true });
+
+  const tournamentId = interaction.options.getString('tournament');
+  const user = interaction.options.getUser('user');
+  const gameNick = interaction.options.getString('game_nick');
+
+  const tournament = await getTournament(tournamentId);
+  if (!tournament) return interaction.editReply({ content: '❌ Tournament not found.' });
+  if (tournament.settings.teamSize > 1) {
+    return interaction.editReply({ content: '❌ This is a team tournament — use `/tournament add-team`.' });
+  }
+  if (tournament.settings.requireGameNick && !gameNick) {
+    return interaction.editReply({ content: '❌ This tournament requires an in-game nickname — pass `game_nick:`.' });
+  }
+
+  const { addParticipant } = require('../../services/tournamentService');
+  const member = await interaction.guild.members.fetch(user.id).catch(() => null);
+  const result = await addParticipant(tournamentId, {
+    id: user.id,
+    username: user.username,
+    displayName: member?.displayName || user.username,
+    gameNick: gameNick || null,
+  });
+  if (!result.success) return interaction.editReply({ content: `❌ ${result.error}` });
+
+  const { updateTournamentMessages } = require('../../utils/tournamentUpdater');
+  await updateTournamentMessages(interaction.client, result.tournament);
+
+  try {
+    await user.send(`✅ You've been registered for **${tournament.title}** by a tournament admin.`);
+  } catch {}
+
+  return interaction.editReply({ content: `✅ Registered **${user.username}** for **${tournament.title}**. (${result.tournament.participants.length}/${tournament.settings.maxParticipants})` });
+}
+
+async function handleAddTeam(interaction) {
+  await interaction.deferReply({ ephemeral: true });
+
+  const tournamentId = interaction.options.getString('tournament');
+  const teamName = interaction.options.getString('name');
+  const captainUser = interaction.options.getUser('captain');
+  const membersInput = interaction.options.getString('members');
+
+  const tournament = await getTournament(tournamentId);
+  if (!tournament) return interaction.editReply({ content: '❌ Tournament not found.' });
+  if (tournament.settings.teamSize === 1) {
+    return interaction.editReply({ content: '❌ This is a solo tournament — use `/tournament add-player`.' });
+  }
+
+  // Resolve every member to a REAL server member (mentions or usernames)
+  const tokens = membersInput.split(/[\s,]+/).map(t => t.trim()).filter(Boolean);
+  const resolved = [];
+  const notFound = [];
+  for (const token of tokens) {
+    const mention = token.match(/^<@!?(\d+)>$/);
+    let member = null;
+    if (mention) {
+      member = await interaction.guild.members.fetch(mention[1]).catch(() => null);
+    } else {
+      const clean = token.replace(/^@/, '');
+      member = interaction.guild.members.cache.find(m =>
+        m.user.username.toLowerCase() === clean.toLowerCase() ||
+        m.displayName.toLowerCase() === clean.toLowerCase()
+      );
+      if (!member) {
+        try {
+          const fetched = await interaction.guild.members.fetch({ query: clean, limit: 5 });
+          member = fetched.find(m =>
+            m.user.username.toLowerCase() === clean.toLowerCase() ||
+            m.displayName.toLowerCase() === clean.toLowerCase()
+          );
+        } catch {}
+      }
+    }
+    if (member) resolved.push({ id: member.id, username: member.user.username, displayName: member.displayName });
+    else notFound.push(token);
+  }
+
+  if (notFound.length > 0) {
+    return interaction.editReply({ content: `❌ Could not find these members in the server: **${notFound.join(', ')}**. Manual adds require real server members — use @mentions to be safe.` });
+  }
+
+  const captainMember = await interaction.guild.members.fetch(captainUser.id).catch(() => null);
+  const captain = {
+    id: captainUser.id,
+    username: captainUser.username,
+    displayName: captainMember?.displayName || captainUser.username,
+    gameNick: null,
+  };
+
+  const allMembers = [captain, ...resolved.filter(m => m.id !== captain.id)];
+  if (allMembers.length !== tournament.settings.teamSize) {
+    return interaction.editReply({ content: `❌ Teams need exactly ${tournament.settings.teamSize} players — you provided ${allMembers.length} (captain + members).` });
+  }
+
+  const { addTeam } = require('../../services/tournamentService');
+  const result = await addTeam(tournamentId, { name: teamName, captain, members: allMembers });
+  if (!result.success) return interaction.editReply({ content: `❌ ${result.error}` });
+
+  const { updateTournamentMessages } = require('../../utils/tournamentUpdater');
+  await updateTournamentMessages(interaction.client, result.tournament);
+
+  for (const m of allMembers) {
+    try {
+      const u = await interaction.client.users.fetch(m.id);
+      await u.send(`✅ You've been registered on team **${teamName}** for **${tournament.title}** by a tournament admin.`);
+    } catch {}
+  }
+
+  return interaction.editReply({ content: `✅ Team **${teamName}** registered for **${tournament.title}**. (${result.tournament.teams.length}/${tournament.settings.maxParticipants})` });
+}
+
 // ─── Match Reporting (moved from /match) ────────────────────────────────────
 
 function getServiceForBracket(bracket) {
@@ -898,6 +1246,10 @@ async function handleReport(interaction) {
         response += `\n\n📋 **Round ${bracket.currentRound} started!** Use \`/match list\` to see new matches.`;
       }
     }
+
+    // Forfeit any matches a disqualified player just arrived in
+    const { resolvePendingDQs } = require('../../services/disqualifyService');
+    resolvePendingDQs(tournament);
 
     // DM anyone who advanced without playing — double-elim walkovers cascaded
     // by this report, or a bye in a freshly generated Swiss round. The flags it
@@ -1342,7 +1694,7 @@ function buildBracketEmbeds(tournament) {
       for (const match of currentRound.matches) {
         const p1 = getName(match.participant1) || 'BYE';
         const p2 = getName(match.participant2) || 'BYE';
-        const status = match.winner ? `✓ ${getName(match.winner)}${match.score ? ` (${match.score})` : ''}` : (match.isBye ? '(bye)' : '');
+        const status = match.winner ? `✓ ${getName(match.winner)}${match.score ? ` (${match.score})` : ''}${match.isDQ ? ' · DQ' : ''}` : (match.isBye ? '(bye)' : '');
         matchesText += `**#${match.matchNumber}:** ${p1} vs ${p2} ${status}\n`;
       }
 
@@ -1389,7 +1741,7 @@ function buildBracketEmbeds(tournament) {
       for (const match of currentRound.matches) {
         const p1 = getName(match.participant1) || 'TBD';
         const p2 = getName(match.participant2) || 'TBD';
-        const status = match.winner ? `✓ ${getName(match.winner)}${match.score ? ` (${match.score})` : ''}` : '';
+        const status = match.winner ? `✓ ${getName(match.winner)}${match.score ? ` (${match.score})` : ''}${match.isDQ ? ' · DQ' : ''}` : '';
         matchesText += `**#${match.matchNumber}:** ${p1} vs ${p2} ${status}\n`;
       }
 
@@ -1498,7 +1850,7 @@ function buildBracketEmbeds(tournament) {
       for (const match of round.matches) {
         const p1 = getName(match.participant1) || 'TBD';
         const p2 = getName(match.participant2) || 'TBD';
-        const winner = match.winner ? `✓ ${getName(match.winner)}${match.score ? ` (${match.score})` : ''}` : '';
+        const winner = match.winner ? `✓ ${getName(match.winner)}${match.score ? ` (${match.score})` : ''}${match.isDQ ? ' · DQ' : ''}` : '';
 
         if (match.isBye) {
           description += `#${match.matchNumber}: ${p1} (bye)\n`;
@@ -1513,7 +1865,7 @@ function buildBracketEmbeds(tournament) {
       if (tp) {
         const p1 = getName(tp.participant1) || 'TBD';
         const p2 = getName(tp.participant2) || 'TBD';
-        const winner = tp.winner ? `✓ ${getName(tp.winner)}${tp.score ? ` (${tp.score})` : ''}` : '';
+        const winner = tp.winner ? `✓ ${getName(tp.winner)}${tp.score ? ` (${tp.score})` : ''}${tp.isDQ ? ' · DQ' : ''}` : '';
         description += `**Third Place Match**\n#${tp.matchNumber}: ${p1} vs ${p2} ${winner}\n\n`;
       }
 
@@ -1531,7 +1883,7 @@ function buildBracketEmbeds(tournament) {
       for (const match of round.matches) {
         const p1 = getName(match.participant1) || 'TBD';
         const p2 = getName(match.participant2) || 'TBD';
-        const winner = match.winner ? `✓ ${getName(match.winner)}${match.score ? ` (${match.score})` : ''}` : '';
+        const winner = match.winner ? `✓ ${getName(match.winner)}${match.score ? ` (${match.score})` : ''}${match.isDQ ? ' · DQ' : ''}` : '';
 
         if (match.isBye) {
           wbDesc += `#${match.matchNumber}: ${p1} (bye)\n`;
@@ -1554,7 +1906,7 @@ function buildBracketEmbeds(tournament) {
       for (const match of round.matches) {
         const p1 = getName(match.participant1) || 'TBD';
         const p2 = getName(match.participant2) || 'TBD';
-        const winner = match.winner ? `✓ ${getName(match.winner)}${match.score ? ` (${match.score})` : ''}` : '';
+        const winner = match.winner ? `✓ ${getName(match.winner)}${match.score ? ` (${match.score})` : ''}${match.isDQ ? ' · DQ' : ''}` : '';
         lbDesc += `#${match.matchNumber}: ${p1} vs ${p2} ${winner}\n`;
       }
       lbDesc += '\n';
@@ -1573,7 +1925,7 @@ function buildBracketEmbeds(tournament) {
 
       const p1 = getName(match.participant1) || 'TBD';
       const p2 = getName(match.participant2) || 'TBD';
-      const winner = match.winner ? `✓ ${getName(match.winner)}${match.score ? ` (${match.score})` : ''}` : '';
+      const winner = match.winner ? `✓ ${getName(match.winner)}${match.score ? ` (${match.score})` : ''}${match.isDQ ? ' · DQ' : ''}` : '';
       gfDesc += `**${round.name}**\n`;
       gfDesc += `#${match.matchNumber}: ${p1} vs ${p2} ${winner}\n\n`;
     }

@@ -1,4 +1,5 @@
 const { v4: uuidv4 } = require('uuid');
+const { bestScore } = require('../utils/bracketUtils');
 
 /**
  * Generate initial Swiss bracket
@@ -42,11 +43,12 @@ function generateBracket(participants, settings) {
   }
 
   // Generate first round
-  const round1 = generateRound(standings, 1);
+  const round1 = generateRound(standings, 1, settings?.bestOf || 1);
 
   return {
     type: 'swiss',
     totalRounds,
+    bestOf: settings?.bestOf || 1,
     currentRound: 1,
     rounds: [round1],
     standings,
@@ -59,12 +61,15 @@ function generateBracket(participants, settings) {
  * @param {number} roundNumber - Round number to generate
  * @returns {Object} Round object with matches
  */
-function generateRound(standings, roundNumber) {
-  // Sort standings by points (desc), then by buchholz (desc)
-  const sorted = [...standings].sort((a, b) => {
-    if (b.points !== a.points) return b.points - a.points;
-    return b.buchholz - a.buchholz;
-  });
+function generateRound(standings, roundNumber, bestOf = 1) {
+  // Sort standings by points (desc), then by buchholz (desc).
+  // Disqualified players are never paired into new rounds.
+  const sorted = [...standings]
+    .filter(s => !s.disqualified)
+    .sort((a, b) => {
+      if (b.points !== a.points) return b.points - a.points;
+      return b.buchholz - a.buchholz;
+    });
 
   const matches = [];
   const paired = new Set();
@@ -104,7 +109,7 @@ function generateRound(standings, roundNumber) {
       participant2: null,
       winner: byeStanding.participant,
       loser: null,
-      score: null,
+      score: bestScore(bestOf),
       isBye: true,
       channelId: null,
     });
@@ -185,7 +190,7 @@ function generateNextRound(bracket) {
 
   // Generate next round
   const nextRoundNumber = bracket.currentRound + 1;
-  const nextRound = generateRound(bracket.standings, nextRoundNumber);
+  const nextRound = generateRound(bracket.standings, nextRoundNumber, bracket.bestOf || 1);
 
   bracket.rounds.push(nextRound);
   bracket.currentRound = nextRoundNumber;
@@ -367,10 +372,54 @@ function shuffleArray(array) {
   }
 }
 
+/**
+ * Correct a wrongly reported result. Only the latest round can be corrected —
+ * earlier rounds already drove the pairings of later ones.
+ */
+function correctResult(bracket, matchId, newWinnerId, newScore = null) {
+  let match = null;
+  let roundIndex = -1;
+  bracket.rounds.forEach((round, i) => {
+    const m = round.matches.find(x => x.id === matchId);
+    if (m) { match = m; roundIndex = i; }
+  });
+  if (!match) throw new Error('Match not found');
+  if (!match.winner) throw new Error('This match has no result yet — use the normal report instead');
+  if (match.isBye) throw new Error('Bye results cannot be corrected');
+  if (roundIndex < bracket.rounds.length - 1) {
+    throw new Error('Only the current round can be corrected — later pairings already depend on this result.');
+  }
+
+  const p1 = match.participant1;
+  const p2 = match.participant2;
+  if (newWinnerId !== p1?.id && newWinnerId !== p2?.id) {
+    throw new Error('That winner is not a participant in this match');
+  }
+
+  const newWinner = newWinnerId === p1.id ? p1 : p2;
+  const newLoser = newWinnerId === p1.id ? p2 : p1;
+
+  if (match.winner.id !== newWinnerId) {
+    // Swap the standings impact of the old result
+    const oldWinnerStanding = bracket.standings.find(s => s.participant.id === match.winner.id);
+    const oldLoserStanding = bracket.standings.find(s => s.participant.id === match.loser.id);
+    if (oldWinnerStanding) { oldWinnerStanding.wins--; oldWinnerStanding.points--; oldWinnerStanding.losses++; }
+    if (oldLoserStanding) { oldLoserStanding.losses--; oldLoserStanding.wins++; oldLoserStanding.points++; }
+    match.winner = newWinner;
+    match.loser = newLoser;
+    calculateBuchholz(bracket);
+  }
+  match.score = newScore;
+  delete match.isDQ;
+  delete match.dqId;
+  return bracket;
+}
+
 module.exports = {
   generateBracket,
   generateNextRound,
   advanceWinner,
+  correctResult,
   getActiveMatches,
   isComplete,
   isRoundComplete,
