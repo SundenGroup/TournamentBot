@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CLUTCH Tournaments — Discord tournaments that run themselves</title>
+<meta name="description" content="Host Discord tournaments with automatic brackets, private match rooms, and live web results. 15 games, 4 formats, powered by CLUTCH.">
+<meta property="og:title" content="CLUTCH Tournaments">
+<meta property="og:description" content="Discord tournaments that run themselves — brackets, match rooms & live results.">
+<meta property="og:image" content="https://tournaments.clutch.game/banner-2x.png">
+<meta name="theme-color" content="#4a108c">
+<link rel="icon" type="image/png" href="/clutch-icon.png">
+<style>
+  :root {
+    --bg: #0a0a0c; --bg2: #140a22; --card: #141418; --border: #26262e;
+    --purple: #4a108c; --purple-soft: #7a3bd6; --amber: #ffb94f;
+    --text: #ebeff4; --dim: #9a93ad; --faint: #565a66;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif; line-height: 1.65; }
+  a { color: var(--amber); text-decoration: none; }
+  .wrap { max-width: 1060px; margin: 0 auto; padding: 0 24px; }
+
+  nav { border-bottom: 1px solid var(--border); padding: 16px 0; background: rgba(10,10,12,.85); backdrop-filter: blur(12px); position: sticky; top: 0; z-index: 10; }
+  nav .wrap { display: flex; align-items: center; gap: 10px; }
+  .brand { display: flex; align-items: center; gap: 10px; font-weight: 800; letter-spacing: 3px; color: var(--text); font-size: 14px; }
+  .brand img { width: 26px; height: 26px; }
+  .brand .x { color: var(--amber); }
+  nav .links { margin-left: auto; display: flex; gap: 22px; font-size: 14px; }
+  nav .links a { color: var(--dim); }
+  nav .links a:hover { color: var(--text); }
+
+  header.hero { background: radial-gradient(ellipse 70% 90% at 25% 40%, rgba(74,16,140,.45), transparent), linear-gradient(135deg, var(--bg2), var(--bg)); padding: 84px 0 70px; border-bottom: 1px solid var(--border); }
+  .hero .wrap { display: flex; align-items: center; gap: 44px; flex-wrap: wrap; }
+  .hero img.trophy { width: 150px; height: 150px; }
+  .hero h1 { font-size: 52px; font-weight: 800; letter-spacing: 4px; line-height: 1.1; }
+  .hero h1 small { display: block; font-size: 22px; letter-spacing: 10px; color: var(--amber); margin-top: 8px; }
+  .hero p.tag { color: var(--dim); font-size: 18px; margin-top: 16px; max-width: 560px; }
+  .hero .cta { margin-top: 26px; display: flex; gap: 12px; flex-wrap: wrap; }
+  .btn { display: inline-block; padding: 12px 22px; border-radius: 10px; font-weight: 700; font-size: 15px; border: 1px solid var(--border); color: var(--text); transition: all .15s; }
+  .btn.primary { background: linear-gradient(135deg, var(--purple), var(--purple-soft)); border-color: transparent; }
+  .btn.primary:hover { filter: brightness(1.15); }
+  .btn:hover { border-color: var(--amber); }
+
+  section { padding: 56px 0; }
+  h2.sec { font-size: 13px; font-weight: 800; letter-spacing: 3px; text-transform: uppercase; color: var(--dim); margin-bottom: 22px; display: flex; align-items: center; gap: 12px; }
+  h2.sec::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+
+  .feature-strip { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; }
+  .feat { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 20px; }
+  .feat .ico { font-size: 26px; }
+  .feat h3 { font-size: 16px; margin: 10px 0 6px; }
+  .feat p { color: var(--dim); font-size: 14px; }
+
+  .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 14px; }
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 24px; color: var(--text); display: block; transition: all .15s; }
+  .card:hover { border-color: var(--amber); transform: translateY(-2px); }
+  .card .ico { font-size: 30px; }
+  .card h3 { margin: 12px 0 6px; font-size: 18px; }
+  .card p { color: var(--dim); font-size: 14px; }
+  .card .go { color: var(--amber); font-size: 13px; font-weight: 700; margin-top: 12px; display: inline-block; }
+
+  footer { border-top: 1px solid var(--border); padding: 28px 0; color: var(--faint); font-size: 13px; }
+  footer .wrap { display: flex; align-items: center; gap: 18px; flex-wrap: wrap; }
+  footer img { width: 18px; height: 18px; vertical-align: -4px; }
+  footer a { color: var(--dim); }
+
+  @media (max-width: 640px) { .hero h1 { font-size: 36px; } .hero img.trophy { width: 100px; height: 100px; } }
+</style>
+</head>
+<body>
+
+<nav><div class="wrap">
+  <a class="brand" href="/"><img src="/clutch-icon.png" alt=""> CLUTCH <span class="x">//</span> TOURNAMENTS</a>
+  <div class="links">
+    <a href="/admin-manual.html">Admin Guide</a>
+    <a href="/user-guide">User Guide</a>
+    <a href="/faq">FAQ</a>
+    <a href="/contact">Contact</a>
+  </div>
+</div></nav>
+
+<header class="hero"><div class="wrap">
+  <img class="trophy" src="/clutch-icon.png" alt="CLUTCH Tournaments">
+  <div>
+    <h1>CLUTCH<small>TOURNAMENTS</small></h1>
+    <p class="tag">Discord tournaments that run themselves — automatic brackets, private match rooms, and live web results for your community.</p>
+    <div class="cta">
+      <a class="btn primary" href="https://discord.gg/jVDC39J6mN">Join our Discord</a>
+      <a class="btn" href="/admin-manual.html">Read the Admin Guide</a>
+    </div>
+  </div>
+</div></header>
+
+<section><div class="wrap">
+  <h2 class="sec">What it does</h2>
+  <div class="feature-strip">
+    <div class="feat"><div class="ico">🎮</div><h3>15 games + custom</h3><p>CS2, VALORANT, League, Rocket League, GOALS and more — each with tuned defaults. Or run any game you like.</p></div>
+    <div class="feat"><div class="ico">🏆</div><h3>4 formats</h3><p>Single & double elimination, Swiss, and round robin — byes, seeding and walkovers handled automatically.</p></div>
+    <div class="feat"><div class="ico">💬</div><h3>Private match rooms</h3><p>Every match gets its own channel for the two sides plus admins. Coordinate, play, report.</p></div>
+    <div class="feat"><div class="ico">🌐</div><h3>Live web brackets</h3><p>A shareable, auto-updating bracket page for every tournament — right here on tournaments.clutch.game.</p></div>
+  </div>
+</div></section>
+
+<section style="padding-top: 0"><div class="wrap">
+  <h2 class="sec">Help & resources</h2>
+  <div class="cards">
+    <a class="card" href="/admin-manual.html"><div class="ico">🛠️</div><h3>Admin Guide</h3><p>Set up the bot, create and run tournaments, report results, manage your server.</p><span class="go">Open guide →</span></a>
+    <a class="card" href="/user-guide"><div class="ico">🎮</div><h3>User Guide</h3><p>For players: signing up, check-in, match rooms, byes, and following the bracket.</p><span class="go">Open guide →</span></a>
+    <a class="card" href="/faq"><div class="ico">❓</div><h3>FAQ</h3><p>Quick answers on formats, byes, seeding, web brackets, plans and common hiccups.</p><span class="go">Browse FAQ →</span></a>
+    <a class="card" href="/contact"><div class="ico">✉️</div><h3>Contact</h3><p>Reach the team on Discord or by email — questions, feedback and support.</p><span class="go">Get in touch →</span></a>
+  </div>
+</div></section>
+
+<footer><div class="wrap">
+  <span><img src="/clutch-icon.png" alt=""> © CLUTCH — <a href="https://clutch.game">clutch.game</a></span>
+  <a href="https://discord.gg/jVDC39J6mN">Discord</a>
+  <a href="mailto:support@clutch.game">support@clutch.game</a>
+</div></footer>
+
+</body>
+</html>

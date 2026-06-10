@@ -102,7 +102,9 @@ app.get('/v1', (req, res) => {
 // ============================================================================
 
 app.get('/admin-manual', (req, res) => res.redirect('/admin-manual.html'));
-app.use(express.static(path.join(__dirname, '../../public')));
+// `extensions` lets /faq, /user-guide, /contact resolve to their .html files;
+// index.html is served automatically at /
+app.use(express.static(path.join(__dirname, '../../public'), { extensions: ['html'] }));
 
 // ============================================================================
 // 404 Handler

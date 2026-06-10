@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FAQ — CLUTCH Tournaments</title>
+<meta name="description" content="Frequently asked questions about CLUTCH Tournaments: formats, byes, seeding, live web brackets, plans and troubleshooting.">
+<link rel="icon" type="image/png" href="/clutch-icon.png">
+<style>
+  :root {
+    --bg: #0a0a0c; --bg2: #140a22; --card: #141418; --border: #26262e;
+    --purple: #4a108c; --amber: #ffb94f; --text: #ebeff4; --dim: #9a93ad; --faint: #565a66;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif; line-height: 1.7; }
+  a { color: var(--amber); text-decoration: none; }
+  .wrap { max-width: 860px; margin: 0 auto; padding: 0 24px; }
+  nav { border-bottom: 1px solid var(--border); padding: 16px 0; position: sticky; top: 0; background: rgba(10,10,12,.85); backdrop-filter: blur(12px); z-index: 10; }
+  nav .wrap { display: flex; align-items: center; gap: 10px; max-width: 1060px; }
+  .brand { display: flex; align-items: center; gap: 10px; font-weight: 800; letter-spacing: 3px; color: var(--text); font-size: 14px; }
+  .brand img { width: 26px; height: 26px; }
+  .brand .x { color: var(--amber); }
+  nav .links { margin-left: auto; display: flex; gap: 22px; font-size: 14px; }
+  nav .links a { color: var(--dim); }
+  nav .links a:hover { color: var(--text); }
+  header { background: linear-gradient(135deg, var(--bg2), var(--bg)); border-bottom: 1px solid var(--border); padding: 48px 0 40px; }
+  h1 { font-size: 34px; font-weight: 800; }
+  header p { color: var(--dim); margin-top: 8px; }
+  main { padding: 40px 0 70px; }
+  h2 { font-size: 14px; font-weight: 800; letter-spacing: 2.5px; text-transform: uppercase; color: var(--dim); margin: 40px 0 14px; display: flex; align-items: center; gap: 12px; }
+  h2::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+  h2:first-child { margin-top: 0; }
+  details { background: var(--card); border: 1px solid var(--border); border-radius: 10px; margin-bottom: 10px; overflow: hidden; }
+  details[open] { border-color: #3a3a46; }
+  summary { padding: 15px 18px; cursor: pointer; font-weight: 600; font-size: 15.5px; list-style: none; display: flex; align-items: center; gap: 10px; }
+  summary::-webkit-details-marker { display: none; }
+  summary::before { content: '+'; color: var(--amber); font-weight: 800; font-size: 18px; width: 16px; }
+  details[open] summary::before { content: '–'; }
+  .a { padding: 0 18px 16px 44px; color: var(--dim); font-size: 14.5px; }
+  .a code { background: #16161c; border: 1px solid var(--border); border-radius: 5px; padding: 1px 6px; font-size: 13px; color: #ffd9a0; font-family: 'SF Mono', Consolas, monospace; }
+  .a strong { color: var(--text); }
+  footer { border-top: 1px solid var(--border); padding: 26px 0; color: var(--faint); font-size: 13px; }
+  footer .wrap { display: flex; gap: 18px; max-width: 1060px; }
+  footer a { color: var(--dim); }
+</style>
+</head>
+<body>
+
+<nav><div class="wrap">
+  <a class="brand" href="/"><img src="/clutch-icon.png" alt=""> CLUTCH <span class="x">//</span> TOURNAMENTS</a>
+  <div class="links">
+    <a href="/admin-manual.html">Admin Guide</a>
+    <a href="/user-guide">User Guide</a>
+    <a href="/faq">FAQ</a>
+    <a href="/contact">Contact</a>
+  </div>
+</div></nav>
+
+<header><div class="wrap">
+  <h1>❓ Frequently Asked Questions</h1>
+  <p>Quick answers for players and organizers. Can't find yours? <a href="/contact">Contact us</a>.</p>
+</div></header>
+
+<main><div class="wrap">
+
+  <h2>Getting started</h2>
+  <details><summary>What is CLUTCH Tournaments?</summary><div class="a">A Discord bot that runs competitive tournaments end-to-end inside your server: signups with buttons, automatic bracket generation, private match rooms for every match, result tracking, and a live web bracket anyone can follow.</div></details>
+  <details><summary>Which games are supported?</summary><div class="a">15 games with tuned presets — Counter-Strike 2, VALORANT, Deadlock, Marvel Rivals, Overwatch, League of Legends, Dota 2, Mobile Legends, Street Fighter 6, Tekken 8, 2XKO, Rocket League, GOALS, EA Sports FC, and GeoGuessr — plus a <strong>Custom</strong> option for any other game.</div></details>
+  <details><summary>Which tournament formats are available?</summary><div class="a"><strong>Single elimination</strong> (lose once, you're out), <strong>double elimination</strong> (winners + losers bracket with grand finals), <strong>Swiss</strong> (fixed rounds, paired by record), and <strong>round robin</strong> (everyone plays everyone). All formats handle any number of entrants.</div></details>
+  <details><summary>How do I create a tournament?</summary><div class="a">Admins run <code>/tournament create</code> (pick a game, fill in title/date/size — done) or <code>/tournament create-advanced</code> for full control over format, team size, best-of, check-in, seeding and more. See the <a href="/admin-manual.html">Admin Guide</a>.</div></details>
+
+  <h2>For players</h2>
+  <details><summary>How do I join a tournament?</summary><div class="a">Click <strong>Sign Up</strong> (solo) or <strong>Register Team</strong> (team events — the captain registers everyone) on the tournament announcement. Withdraw any time before the tournament starts with the <strong>Withdraw</strong> button.</div></details>
+  <details><summary>I got a DM saying I advanced with a bye — what does that mean?</summary><div class="a">The bracket size didn't divide evenly, so some entrants skip a round. Byes go to the top seeds (or earliest signups when seeding isn't used). You're automatically in the next round — wait for your match room to appear.</div></details>
+  <details><summary>Where do I play my match?</summary><div class="a">Each match gets a <strong>private channel</strong> visible only to both sides and the admins. Coordinate the lobby there and post a result screenshot when you're done.</div></details>
+  <details><summary>Who reports the result?</summary><div class="a">Tournament admins — using the 👑 buttons in the match room or <code>/tournament report</code>. Post your result (with a screenshot) in the match room and an admin will confirm it.</div></details>
+  <details><summary>What is check-in?</summary><div class="a">Some tournaments require confirming attendance shortly before start. You'll get a ping and a DM when check-in opens — click <strong>Check In</strong> in time, or you'll be removed from the bracket when it starts.</div></details>
+  <details><summary>I didn't get the bot's DMs.</summary><div class="a">Your privacy settings likely block DMs from server members. Right-click the server → Privacy Settings → allow direct messages. The bot DMs you for check-in, byes/walkovers, and team changes.</div></details>
+
+  <h2>For organizers</h2>
+  <details><summary>Can I edit a tournament after posting it?</summary><div class="a">Yes — <code>/tournament edit</code> opens a form pre-filled with the current values: title, date/time, max players/teams, best-of, and description. Signups and the live bracket link are preserved. Game and format can't be changed, and editing locks once the tournament starts.</div></details>
+  <details><summary>Who gets the byes when the bracket doesn't fill (e.g. 23 of 32)?</summary><div class="a">The <strong>top seeds</strong> — standard convention (seed 1 vs the empty 32-slot, etc.). With 23 entrants, seeds 1–9 skip round one. If seeding isn't used, byes follow signup order instead. The start confirmation lists exactly who got them, and each recipient is DMed.</div></details>
+  <details><summary>How does seeding work?</summary><div class="a">Enable <strong>Seeding</strong> when creating (advanced mode), then assign seeds before starting: <code>/tournament seed set</code> for specific placements or <code>/tournament seed randomize</code> for a fair random draw. Seed 1 meets seed 2 only in the final.</div></details>
+  <details><summary>How are double-elimination walkovers handled?</summary><div class="a">Automatically. When a losers-bracket slot can never receive an opponent (its source match was a bye), the waiting player advances by walkover — and gets a DM. No stuck brackets, regardless of entrant count.</div></details>
+  <details><summary>Can I test a tournament without real players?</summary><div class="a">Yes — <code>/admin add-players</code> / <code>/admin add-teams</code> fill the event with fake entrants so you can run a full dry run. <code>/admin clear-participants</code> resets it.</div></details>
+  <details><summary>A result was reported wrong — can I undo it?</summary><div class="a">There's no per-match undo yet. For now, cancel and recreate the tournament if a wrong result breaks the bracket. (An undo command is on the roadmap.)</div></details>
+  <details><summary>How do I clean up the match channels afterwards?</summary><div class="a"><code>/admin cleanup</code> removes a tournament's match rooms, or enable <code>/admin set-auto-cleanup</code> (Premium) to do it automatically on completion.</div></details>
+  <details><summary>Who can manage tournaments?</summary><div class="a">Anyone with <strong>Administrator</strong>, <strong>Manage Server</strong>, or a designated tournament-admin role (<code>/admin set-role</code>). Only they can start tournaments and report results.</div></details>
+
+  <h2>Live web brackets</h2>
+  <details><summary>What is the live web bracket?</summary><div class="a">A shareable page on this site (tournaments.clutch.game) showing the full bracket or standings — entrants during registration, live results during play (auto-refreshing every 15 seconds), and the podium when it's done. Available on Pro and Business plans.</div></details>
+  <details><summary>Where do I find the link?</summary><div class="a">On the tournament announcement (the <strong>🌐 Live Bracket</strong> button), in the start and completion posts, and in <code>/match bracket</code>. The link works from registration onward.</div></details>
+  <details><summary>Who can view it? Is it private?</summary><div class="a">Anyone with the link — no Discord account needed, which makes it perfect for spectators and streams. The URL is unguessable, only exists if the organizer enabled the Web Bracket toggle, and never exposes Discord IDs or member data — just display names, seeds and scores.</div></details>
+
+  <h2>Plans</h2>
+  <details><summary>What do the paid tiers add?</summary><div class="a"><strong>Premium</strong>: check-in, seeding, captain mode, required roles, auto-cleanup, full reminders. <strong>Pro</strong>: live web brackets, tournament templates, analytics. <strong>Business</strong>: REST API, webhooks, white-label branding, multi-server. See <code>/subscribe plans</code> in Discord for details and current limits.</div></details>
+  <details><summary>Is there a free trial?</summary><div class="a">Yes — <code>/subscribe trial</code> gives your server 7 days of Premium, once per server.</div></details>
+
+  <h2>Troubleshooting</h2>
+  <details><summary>"This interaction failed" when clicking a button</summary><div class="a">Usually a momentary hiccup — click again. If it keeps happening for a specific action, report it to us with the tournament name and what you clicked.</div></details>
+  <details><summary>Slash commands aren't showing up</summary><div class="a">Command updates can take a few minutes to propagate; restarting your Discord client forces a refresh. Also check the bot has the <strong>applications.commands</strong> scope in your server.</div></details>
+  <details><summary>The bot isn't responding at all</summary><div class="a">Brief unavailability can happen during updates (a minute or two). If it lasts longer, check our <a href="https://discord.gg/jVDC39J6mN">Discord</a> for status updates or <a href="/contact">contact us</a>.</div></details>
+
+</div></main>
+
+<footer><div class="wrap">
+  <span>© CLUTCH — <a href="https://clutch.game">clutch.game</a></span>
+  <a href="https://discord.gg/jVDC39J6mN">Discord</a>
+  <a href="mailto:support@clutch.game">support@clutch.game</a>
+</div></footer>
+
+</body>
+</html>

@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>User Guide — CLUTCH Tournaments</title>
+<meta name="description" content="Player guide for CLUTCH Tournaments: signing up, check-in, match rooms, byes, and following the bracket.">
+<link rel="icon" type="image/png" href="/clutch-icon.png">
+<style>
+  :root {
+    --bg: #0a0a0c; --bg2: #140a22; --card: #141418; --border: #26262e;
+    --purple: #4a108c; --amber: #ffb94f; --text: #ebeff4; --dim: #9a93ad; --faint: #565a66;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif; line-height: 1.7; }
+  a { color: var(--amber); text-decoration: none; }
+  .wrap { max-width: 860px; margin: 0 auto; padding: 0 24px; }
+  nav { border-bottom: 1px solid var(--border); padding: 16px 0; position: sticky; top: 0; background: rgba(10,10,12,.85); backdrop-filter: blur(12px); z-index: 10; }
+  nav .wrap { display: flex; align-items: center; gap: 10px; max-width: 1060px; }
+  .brand { display: flex; align-items: center; gap: 10px; font-weight: 800; letter-spacing: 3px; color: var(--text); font-size: 14px; }
+  .brand img { width: 26px; height: 26px; }
+  .brand .x { color: var(--amber); }
+  nav .links { margin-left: auto; display: flex; gap: 22px; font-size: 14px; }
+  nav .links a { color: var(--dim); }
+  nav .links a:hover { color: var(--text); }
+  header { background: linear-gradient(135deg, var(--bg2), var(--bg)); border-bottom: 1px solid var(--border); padding: 48px 0 40px; }
+  h1 { font-size: 34px; font-weight: 800; }
+  header p { color: var(--dim); margin-top: 8px; }
+  main { padding: 40px 0 70px; }
+  h2 { font-size: 21px; margin: 42px 0 14px; padding-bottom: 8px; border-bottom: 1px solid var(--border); }
+  h2:first-child { margin-top: 0; }
+  p { margin-bottom: 12px; }
+  ul, ol { margin: 0 0 14px 22px; }
+  li { margin-bottom: 6px; }
+  code { background: #16161c; border: 1px solid var(--border); border-radius: 5px; padding: 2px 7px; font-size: 13.5px; color: #ffd9a0; font-family: 'SF Mono', Consolas, monospace; }
+  .tip { background: var(--card); border: 1px solid var(--border); border-left: 3px solid var(--amber); border-radius: 8px; padding: 14px 16px; margin: 16px 0; color: var(--dim); font-size: 14.5px; }
+  .tip strong { color: var(--text); }
+  footer { border-top: 1px solid var(--border); padding: 26px 0; color: var(--faint); font-size: 13px; }
+  footer .wrap { display: flex; gap: 18px; max-width: 1060px; }
+  footer a { color: var(--dim); }
+</style>
+</head>
+<body>
+
+<nav><div class="wrap">
+  <a class="brand" href="/"><img src="/clutch-icon.png" alt=""> CLUTCH <span class="x">//</span> TOURNAMENTS</a>
+  <div class="links">
+    <a href="/admin-manual.html">Admin Guide</a>
+    <a href="/user-guide">User Guide</a>
+    <a href="/faq">FAQ</a>
+    <a href="/contact">Contact</a>
+  </div>
+</div></nav>
+
+<header><div class="wrap">
+  <h1>🎮 User Guide</h1>
+  <p>Everything you need as a <strong>player</strong> — from signing up to lifting the trophy. Running a tournament instead? See the <a href="/admin-manual.html">Admin Guide</a>.</p>
+</div></header>
+
+<main><div class="wrap">
+
+  <h2>1. Signing up</h2>
+  <p>Tournaments are announced with an embed in your server. Use the buttons on the post:</p>
+  <ul>
+    <li><strong>✅ Sign Up</strong> — solo tournaments. If the organizer requires an in-game nickname, a small form pops up first.</li>
+    <li><strong>🎯 Register Team</strong> — team tournaments. The captain registers the whole team: enter a team name and your teammates' Discord usernames (one per line). Your teammates get a DM confirming they've been added.</li>
+    <li><strong>❌ Withdraw</strong> — leave the tournament (captains withdraw the whole team). Only possible while registration is open.</li>
+  </ul>
+  <div class="tip"><strong>Tip:</strong> some tournaments require a server role to enter — if the bot says you're missing one, ask the organizer.</div>
+
+  <h2>2. Check-in</h2>
+  <p>Some tournaments require a check-in shortly before start (you'll see it on the announcement, e.g. “10 min before start”). When check-in opens, the bot posts in the channel and DMs you — click <strong>✅ Check In</strong> in time. For team events, every member checks in individually. <strong>No check-in = removed from the bracket</strong> when the tournament starts.</p>
+
+  <h2>3. Your matches & match rooms</h2>
+  <p>When the tournament starts, the bot creates a <strong>private channel for each match</strong> — only you (or your whole team), your opponents, and tournament admins can see it. Use it to:</p>
+  <ul>
+    <li>Agree on lobby details and server/host</li>
+    <li>Post result screenshots (recommended as proof)</li>
+    <li>Ping admins if something goes wrong</li>
+  </ul>
+  <p><strong>Reporting results is admin-only.</strong> When your match is done, post the result (screenshot helps) in the match room and an admin confirms it with the 👑 buttons. The bracket advances automatically and your next match room appears when your opponent is decided.</p>
+
+  <h2>4. Byes & walkovers</h2>
+  <p>When the bracket size doesn't divide evenly (say 23 players in a 32 bracket), some entrants skip a round with a <strong>bye</strong> — these go to the top seeds, or earliest signups if seeding isn't used. In double elimination you can also advance by <strong>walkover</strong> when no opponent can reach your slot.</p>
+  <p>Either way, <strong>the bot DMs you</strong> the moment you advance without playing — no need to discover it from the bracket. Make sure your DMs are open for the server.</p>
+
+  <h2>5. Following the tournament</h2>
+  <ul>
+    <li><code>/match list</code> — all matches currently being played</li>
+    <li><code>/match bracket</code> — the bracket or standings, in Discord</li>
+    <li><strong>🌐 Live Bracket</strong> — many tournaments include a link/button to a live web bracket on this site that updates every 15 seconds. Share it with anyone — no Discord needed to watch.</li>
+  </ul>
+
+  <h2>6. Team management (captains)</h2>
+  <ul>
+    <li><code>/team add</code> — add a member to your team</li>
+    <li><code>/team remove</code> — remove a member</li>
+    <li><code>/team transfer</code> — hand the captain role to a teammate</li>
+  </ul>
+  <p>Team changes are only possible while registration is open.</p>
+
+  <h2>7. Common hiccups</h2>
+  <ul>
+    <li><strong>“This interaction failed”</strong> — usually momentary; click again. If it persists, tell an admin.</li>
+    <li><strong>No bye/check-in DM?</strong> — your DMs are likely closed for this server: Server name → Privacy Settings → allow direct messages.</li>
+    <li><strong>Can't see your match room?</strong> — rooms are created when your match is ready (your opponent may still be playing). If it's ready and still missing, ping an admin.</li>
+    <li><strong>Result entered wrong?</strong> — only admins can correct results; flag it in the match room immediately.</li>
+  </ul>
+
+  <p style="margin-top: 36px; color: var(--dim)">Still stuck? <a href="/faq">Check the FAQ</a> or <a href="/contact">contact us</a>.</p>
+
+</div></main>
+
+<footer><div class="wrap">
+  <span>© CLUTCH — <a href="https://clutch.game">clutch.game</a></span>
+  <a href="https://discord.gg/jVDC39J6mN">Discord</a>
+  <a href="mailto:support@clutch.game">support@clutch.game</a>
+</div></footer>
+
+</body>
+</html>
