@@ -81,6 +81,12 @@ module.exports = {
     const participantCount = isSolo ? tournament.participants.length : tournament.teams.length;
     podiumText += `\n**Participants:** ${participantCount}`;
 
+    const { getBracketUrl } = require('../utils/embedBuilder');
+    const bracketUrl = getBracketUrl(tournament);
+    if (bracketUrl) {
+      podiumText += `\n\n🌐 **Full bracket:** ${bracketUrl}`;
+    }
+
     podiumEmbed.setDescription(podiumText);
     embeds.push(podiumEmbed);
 

@@ -186,7 +186,7 @@ async function announceTournamentComplete(interaction, tournament, results) {
   embed.addFields(fields);
   embed.setFooter({ text: 'Congratulations to all participants!' });
 
-  // Create results button
+  // Create results button (+ live bracket link when enabled)
   const row = new ActionRowBuilder().addComponents(
     new ButtonBuilder()
       .setCustomId(`viewResults:${tournament.id}`)
@@ -194,6 +194,18 @@ async function announceTournamentComplete(interaction, tournament, results) {
       .setEmoji('🏆')
       .setStyle(ButtonStyle.Success)
   );
+
+  const { getBracketUrl } = require('../utils/embedBuilder');
+  const bracketUrl = getBracketUrl(tournament);
+  if (bracketUrl) {
+    row.addComponents(
+      new ButtonBuilder()
+        .setLabel('View Bracket')
+        .setEmoji('🌐')
+        .setStyle(ButtonStyle.Link)
+        .setURL(bracketUrl)
+    );
+  }
 
   // Post to tournament channel
   try {

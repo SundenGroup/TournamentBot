@@ -885,6 +885,11 @@ async function handleReport(interaction) {
       const results = service.getResults(bracket);
       const champName = isSolo ? results.winner?.username : results.winner?.name;
       response += `\n\n🏆 **Tournament Complete!** Champion: **${champName}**`;
+      const { getBracketUrl } = require('../../utils/embedBuilder');
+      const finalBracketUrl = getBracketUrl(tournament);
+      if (finalBracketUrl) {
+        response += `\n🌐 Full bracket: ${finalBracketUrl}`;
+      }
       await updateTournament(tournamentId, { status: 'completed' });
 
       // Trigger tournament completed webhook
