@@ -623,6 +623,11 @@ async function handleStart(interaction) {
       }
     }
 
+    // DM players/teams that start with a bye (marks matches byeNotified,
+    // persisted by the update below)
+    const { notifyByesAndWalkovers, getStartByeSummary } = require('../../utils/byeNotifier');
+    await notifyByesAndWalkovers(interaction.client, tournament);
+
     await updateTournament(tournamentId, { bracket, status: 'active' });
 
     // Trigger webhook
@@ -666,6 +671,11 @@ async function handleStart(interaction) {
 
     if (format === 'swiss' || format === 'round_robin' || format === 'battle_royale') {
       desc += `\nUse \`/match bracket\` to view standings.`;
+    }
+
+    const byeSummary = getStartByeSummary(tournament);
+    if (byeSummary) {
+      desc += `\n\n${byeSummary}\n*Players with a bye have been notified by DM.*`;
     }
 
     const { getBracketUrl } = require('../../utils/embedBuilder');
@@ -862,6 +872,12 @@ async function handleReport(interaction) {
         response += `\n\n📋 **Round ${bracket.currentRound} started!** Use \`/match list\` to see new matches.`;
       }
     }
+
+    // DM anyone who advanced without playing — double-elim walkovers cascaded
+    // by this report, or a bye in a freshly generated Swiss round. The flags it
+    // sets are persisted by the update below.
+    const { notifyByesAndWalkovers } = require('../../utils/byeNotifier');
+    await notifyByesAndWalkovers(interaction.client, tournament);
 
     await updateTournament(tournamentId, { bracket });
 

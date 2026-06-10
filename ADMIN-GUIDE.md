@@ -89,6 +89,11 @@ You can fill a test event quickly with `/admin add-players` or `/admin add-teams
 **2. Start.** Click **Start** on the post, or run `/tournament start`. The bot
 generates the bracket and creates a **private match room** for each first-round match.
 
+With a non-power-of-2 field (e.g. 23 of 32), byes go to the **top seeds** — or
+to signup order if seeding isn't used. The start confirmation lists who got
+them, and every player/team that advances on a bye or walkover is **notified by
+DM automatically** (including mid-tournament walkovers in double elimination).
+
 **3. Match rooms.** Each room is visible only to the two competitors (all members,
 for teams) plus tournament admins. Players coordinate and play there.
 

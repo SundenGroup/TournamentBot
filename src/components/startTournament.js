@@ -119,6 +119,11 @@ module.exports = {
         }
       }
 
+      // DM players/teams that start with a bye (marks matches byeNotified,
+      // persisted by the update below)
+      const { notifyByesAndWalkovers, getStartByeSummary } = require('../utils/byeNotifier');
+      await notifyByesAndWalkovers(interaction.client, tournament);
+
       await updateTournament(tournamentId, { bracket, status: 'active' });
 
       // Trigger webhook
@@ -157,6 +162,11 @@ module.exports = {
         description += `\nUse \`/tournament br-report\` to report game results.`;
       } else {
         description += `\nUse \`/match list\` to see active matches.`;
+      }
+
+      const byeSummary = getStartByeSummary(tournament);
+      if (byeSummary) {
+        description += `\n\n${byeSummary}\n*Players with a bye have been notified by DM.*`;
       }
 
       const { getBracketUrl } = require('../utils/embedBuilder');

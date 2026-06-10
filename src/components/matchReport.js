@@ -80,6 +80,12 @@ module.exports = {
     try {
       // Advance winner
       service.advanceWinner(bracket, matchId, winner.id);
+
+      // A reported result can cascade walkovers (double-elim losers bracket) —
+      // DM anyone who just advanced without playing, then persist the flags.
+      const { notifyByesAndWalkovers } = require('../utils/byeNotifier');
+      await notifyByesAndWalkovers(interaction.client, tournament);
+
       await updateTournament(tournamentId, { bracket });
 
       const isSolo = tournament.settings.teamSize === 1;
@@ -106,6 +112,8 @@ module.exports = {
       if (bracket.type === 'swiss' && service.isRoundComplete(bracket)) {
         if (bracket.currentRound < bracket.totalRounds) {
           service.generateNextRound(bracket);
+          // A new Swiss round may hand someone a bye — DM them
+          await notifyByesAndWalkovers(interaction.client, tournament);
         }
       }
 

@@ -547,6 +547,7 @@ function resolveWalkovers(bracket) {
       if (soleWinner) {
         m.winner = soleWinner;
         m.loser = null; // a walkover has no loser to drop
+        m.isWalkover = true; // lets the Discord layer DM the advanced player
         placeWinnerForward(bracket, m, soleWinner);
         changed = true;
       }
