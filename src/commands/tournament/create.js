@@ -847,8 +847,31 @@ async function handleReport(interaction) {
     return interaction.reply({ content: '❌ Invalid score format. Use format like `2-1` or `16-14`.', ephemeral: true });
   }
 
+  // Bo3+ requires a valid series score (winner-first); Bo1 keeps the free-form
+  // optional score (useful for map scores like 16-14).
+  let normalizedScore = score ? score.trim() : null;
+  const bestOfSetting = tournament.settings.bestOf || 1;
+  if (bestOfSetting > 1) {
+    const { validSeriesScores } = require('../../components/matchReport');
+    const valid = validSeriesScores(bestOfSetting);
+    if (!normalizedScore) {
+      return interaction.reply({
+        content: `❌ This is a **Best of ${bestOfSetting}** — include the series score: \`score:\` ${valid.map(s => `\`${s}\``).join(' or ')}`,
+        ephemeral: true,
+      });
+    }
+    const [a, b] = normalizedScore.split('-').map(Number);
+    normalizedScore = `${Math.max(a, b)}-${Math.min(a, b)}`;
+    if (!valid.includes(normalizedScore)) {
+      return interaction.reply({
+        content: `❌ \`${score}\` isn't a valid Best of ${bestOfSetting} result. Valid scores: ${valid.map(s => `\`${s}\``).join(', ')}`,
+        ephemeral: true,
+      });
+    }
+  }
+
   try {
-    service.advanceWinner(bracket, match.id, winnerId, score);
+    service.advanceWinner(bracket, match.id, winnerId, normalizedScore);
 
     const winner = winnerId === p1Id ? match.participant1 : match.participant2;
     const loser = winnerId === p1Id ? match.participant2 : match.participant1;
@@ -864,7 +887,7 @@ async function handleReport(interaction) {
     });
 
     let response = `✅ **Match #${matchNumber}** reported: **${winnerName}** defeats **${loserName}**`;
-    if (score) response += ` (${score})`;
+    if (normalizedScore) response += ` (${normalizedScore})`;
 
     if (bracket.type === 'swiss' && service.isRoundComplete(bracket)) {
       if (bracket.currentRound < bracket.totalRounds) {
@@ -1316,7 +1339,7 @@ function buildBracketEmbeds(tournament) {
       for (const match of currentRound.matches) {
         const p1 = getName(match.participant1) || 'BYE';
         const p2 = getName(match.participant2) || 'BYE';
-        const status = match.winner ? `✓ ${getName(match.winner)}` : (match.isBye ? '(bye)' : '');
+        const status = match.winner ? `✓ ${getName(match.winner)}${match.score ? ` (${match.score})` : ''}` : (match.isBye ? '(bye)' : '');
         matchesText += `**#${match.matchNumber}:** ${p1} vs ${p2} ${status}\n`;
       }
 
@@ -1363,7 +1386,7 @@ function buildBracketEmbeds(tournament) {
       for (const match of currentRound.matches) {
         const p1 = getName(match.participant1) || 'TBD';
         const p2 = getName(match.participant2) || 'TBD';
-        const status = match.winner ? `✓ ${getName(match.winner)}` : '';
+        const status = match.winner ? `✓ ${getName(match.winner)}${match.score ? ` (${match.score})` : ''}` : '';
         matchesText += `**#${match.matchNumber}:** ${p1} vs ${p2} ${status}\n`;
       }
 
@@ -1472,7 +1495,7 @@ function buildBracketEmbeds(tournament) {
       for (const match of round.matches) {
         const p1 = getName(match.participant1) || 'TBD';
         const p2 = getName(match.participant2) || 'TBD';
-        const winner = match.winner ? `✓ ${getName(match.winner)}` : '';
+        const winner = match.winner ? `✓ ${getName(match.winner)}${match.score ? ` (${match.score})` : ''}` : '';
 
         if (match.isBye) {
           description += `#${match.matchNumber}: ${p1} (bye)\n`;
@@ -1497,7 +1520,7 @@ function buildBracketEmbeds(tournament) {
       for (const match of round.matches) {
         const p1 = getName(match.participant1) || 'TBD';
         const p2 = getName(match.participant2) || 'TBD';
-        const winner = match.winner ? `✓ ${getName(match.winner)}` : '';
+        const winner = match.winner ? `✓ ${getName(match.winner)}${match.score ? ` (${match.score})` : ''}` : '';
 
         if (match.isBye) {
           wbDesc += `#${match.matchNumber}: ${p1} (bye)\n`;
@@ -1520,7 +1543,7 @@ function buildBracketEmbeds(tournament) {
       for (const match of round.matches) {
         const p1 = getName(match.participant1) || 'TBD';
         const p2 = getName(match.participant2) || 'TBD';
-        const winner = match.winner ? `✓ ${getName(match.winner)}` : '';
+        const winner = match.winner ? `✓ ${getName(match.winner)}${match.score ? ` (${match.score})` : ''}` : '';
         lbDesc += `#${match.matchNumber}: ${p1} vs ${p2} ${winner}\n`;
       }
       lbDesc += '\n';
@@ -1539,7 +1562,7 @@ function buildBracketEmbeds(tournament) {
 
       const p1 = getName(match.participant1) || 'TBD';
       const p2 = getName(match.participant2) || 'TBD';
-      const winner = match.winner ? `✓ ${getName(match.winner)}` : '';
+      const winner = match.winner ? `✓ ${getName(match.winner)}${match.score ? ` (${match.score})` : ''}` : '';
       gfDesc += `**${round.name}**\n`;
       gfDesc += `#${match.matchNumber}: ${p1} vs ${p2} ${winner}\n\n`;
     }

@@ -67,7 +67,7 @@ module.exports = {
         for (const match of currentRound.matches) {
           const p1 = getName(match.participant1) || 'BYE';
           const p2 = getName(match.participant2) || 'BYE';
-          const status = match.winner ? `✓ ${getName(match.winner)}` : (match.isBye ? '(bye)' : '');
+          const status = match.winner ? `✓ ${getName(match.winner)}${match.score ? ` (${match.score})` : ''}` : (match.isBye ? '(bye)' : '');
           matchesText += `**#${match.matchNumber}:** ${p1} vs ${p2} ${status}\n`;
         }
 
@@ -117,7 +117,7 @@ module.exports = {
         for (const match of currentRound.matches) {
           const p1 = getName(match.participant1) || 'TBD';
           const p2 = getName(match.participant2) || 'TBD';
-          const status = match.winner ? `✓ ${getName(match.winner)}` : '';
+          const status = match.winner ? `✓ ${getName(match.winner)}${match.score ? ` (${match.score})` : ''}` : '';
           matchesText += `**#${match.matchNumber}:** ${p1} vs ${p2} ${status}\n`;
         }
 
@@ -136,7 +136,7 @@ module.exports = {
         for (const match of round.matches) {
           const p1 = getName(match.participant1) || 'TBD';
           const p2 = getName(match.participant2) || 'TBD';
-          const winner = match.winner ? `✓ ${getName(match.winner)}` : '';
+          const winner = match.winner ? `✓ ${getName(match.winner)}${match.score ? ` (${match.score})` : ''}` : '';
 
           if (match.isBye) {
             description += `#${match.matchNumber}: ${p1} (bye)\n`;
@@ -256,7 +256,7 @@ module.exports = {
         for (const match of round.matches) {
           const p1 = getName(match.participant1) || 'TBD';
           const p2 = getName(match.participant2) || 'TBD';
-          const winner = match.winner ? `✓ ${getName(match.winner)}` : '';
+          const winner = match.winner ? `✓ ${getName(match.winner)}${match.score ? ` (${match.score})` : ''}` : '';
 
           if (match.isBye) {
             wbDesc += `#${match.matchNumber}: ${p1} (bye)\n`;
@@ -280,7 +280,7 @@ module.exports = {
         for (const match of round.matches) {
           const p1 = getName(match.participant1) || 'TBD';
           const p2 = getName(match.participant2) || 'TBD';
-          const winner = match.winner ? `✓ ${getName(match.winner)}` : '';
+          const winner = match.winner ? `✓ ${getName(match.winner)}${match.score ? ` (${match.score})` : ''}` : '';
           lbDesc += `#${match.matchNumber}: ${p1} vs ${p2} ${winner}\n`;
         }
         lbDesc += '\n';
@@ -300,7 +300,7 @@ module.exports = {
 
         const p1 = getName(match.participant1) || 'TBD';
         const p2 = getName(match.participant2) || 'TBD';
-        const winner = match.winner ? `✓ ${getName(match.winner)}` : '';
+        const winner = match.winner ? `✓ ${getName(match.winner)}${match.score ? ` (${match.score})` : ''}` : '';
         gfDesc += `**${round.name}**\n`;
         gfDesc += `#${match.matchNumber}: ${p1} vs ${p2} ${winner}\n\n`;
       }

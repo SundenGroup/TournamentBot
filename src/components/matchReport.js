@@ -7,7 +7,7 @@ const swiss = require('../services/swissService');
 const roundRobin = require('../services/roundRobinService');
 const battleRoyale = require('../services/battleRoyaleService');
 const { createMatchRoom } = require('../services/channelService');
-const { createTournamentEmbed, createTournamentButtons } = require('../utils/embedBuilder');
+const { createTournamentEmbed, createTournamentButtons, getBracketUrl } = require('../utils/embedBuilder');
 const webhooks = require('../services/webhookService');
 
 function getServiceForBracket(bracket) {
@@ -24,6 +24,104 @@ function getServiceForBracket(bracket) {
     default:
       return singleElim;
   }
+}
+
+function findBracketMatch(bracket, matchId) {
+  if (bracket.type === 'double_elimination') return doubleElim.findMatch(bracket, matchId);
+  if (bracket.type === 'swiss') return swiss.findMatch(bracket, matchId);
+  if (bracket.type === 'round_robin') return roundRobin.findMatch(bracket, matchId);
+  for (const round of bracket.rounds) {
+    const match = round.matches.find(m => m.id === matchId);
+    if (match) return match;
+  }
+  return null;
+}
+
+/**
+ * Valid series scores for a best-of: the winner takes ceil(bo/2) games,
+ * the loser anywhere from 0 to floor(bo/2). Bo3 → 2-0, 2-1; Bo5 → 3-0..3-2.
+ */
+function validSeriesScores(bestOf) {
+  const need = Math.ceil(bestOf / 2);
+  const scores = [];
+  for (let l = 0; l < need; l++) scores.push(`${need}-${l}`);
+  return scores;
+}
+
+/**
+ * Complete a match report: advance the bracket, notify walkovers/byes,
+ * persist, fire webhooks, refresh rooms/announcements. `interaction` must be
+ * a component interaction on the match-room message (it gets updated).
+ * Shared by the direct Bo1 win buttons and the Bo>1 score picker.
+ */
+async function finalizeMatchReport(interaction, tournament, match, winner, score) {
+  const bracket = tournament.bracket;
+  const service = getServiceForBracket(bracket);
+  const tournamentId = tournament.id;
+  const isSolo = tournament.settings.teamSize === 1;
+
+  service.advanceWinner(bracket, match.id, winner.id, score);
+
+  // A reported result can cascade walkovers (double-elim losers bracket) —
+  // DM anyone who just advanced without playing, then persist the flags.
+  const { notifyByesAndWalkovers } = require('../utils/byeNotifier');
+  await notifyByesAndWalkovers(interaction.client, tournament);
+
+  await updateTournament(tournamentId, { bracket });
+
+  const winnerName = isSolo ? winner.username : winner.name;
+  const loser = match.participant1?.id === winner.id ? match.participant2 : match.participant1;
+  const loserName = isSolo ? loser?.username : loser?.name;
+
+  webhooks.onMatchCompleted(tournament, {
+    id: match.id,
+    round: match.round,
+    winner,
+    loser,
+    score: match.score,
+  });
+
+  // Update the match room message
+  await interaction.update({
+    content: `✅ **Match Complete!**\n\n🏆 **${winnerName}** defeats **${loserName}**${score ? ` **(${score})**` : ''}`,
+    components: [],
+  });
+
+  // For Swiss: check if round complete and generate next round
+  if (bracket.type === 'swiss' && service.isRoundComplete(bracket)) {
+    if (bracket.currentRound < bracket.totalRounds) {
+      service.generateNextRound(bracket);
+      // A new Swiss round may hand someone a bye — DM them
+      await notifyByesAndWalkovers(interaction.client, tournament);
+    }
+  }
+
+  // Check if tournament is complete
+  if (service.isComplete(bracket)) {
+    const results = service.getResults(bracket);
+    await announceTournamentComplete(interaction, tournament, results);
+    await updateTournament(tournamentId, { status: 'completed', standings: results.standings || [] });
+
+    webhooks.onTournamentCompleted(tournament, results.standings || [results.winner, results.runnerUp, results.thirdPlace].filter(Boolean));
+
+    await updateTournamentAnnouncement(interaction.client, tournament);
+    return;
+  }
+
+  // Create new match rooms for newly ready matches
+  const activeMatches = service.getActiveMatches(bracket);
+  for (const activeMatch of activeMatches) {
+    if (!activeMatch.channelId && activeMatch.participant1 && activeMatch.participant2) {
+      try {
+        const channel = await createMatchRoom(interaction.guild, activeMatch, tournament);
+        activeMatch.channelId = channel.id;
+      } catch (error) {
+        console.error('Error creating match room:', error);
+      }
+    }
+  }
+
+  await updateTournament(tournamentId, { bracket });
 }
 
 module.exports = {
@@ -46,22 +144,7 @@ module.exports = {
       return interaction.reply({ content: '❌ Bracket not found.', ephemeral: true });
     }
 
-    // Find the match
-    let match;
-    const service = getServiceForBracket(bracket);
-
-    if (bracket.type === 'double_elimination') {
-      match = doubleElim.findMatch(bracket, matchId);
-    } else if (bracket.type === 'swiss') {
-      match = swiss.findMatch(bracket, matchId);
-    } else if (bracket.type === 'round_robin') {
-      match = roundRobin.findMatch(bracket, matchId);
-    } else {
-      for (const round of bracket.rounds) {
-        match = round.matches.find(m => m.id === matchId);
-        if (match) break;
-      }
-    }
+    const match = findBracketMatch(bracket, matchId);
 
     if (!match) {
       return interaction.reply({ content: '❌ Match not found.', ephemeral: true });
@@ -71,86 +154,57 @@ module.exports = {
       return interaction.reply({ content: '❌ This match has already been reported.', ephemeral: true });
     }
 
-    // Determine winner
     const winner = winnerSlot === '1' ? match.participant1 : match.participant2;
     if (!winner) {
       return interaction.reply({ content: '❌ Invalid winner selection.', ephemeral: true });
     }
 
+    const isSolo = tournament.settings.teamSize === 1;
+    const winnerName = isSolo ? winner.username : winner.name;
+    const bestOf = tournament.settings.bestOf || 1;
+
     try {
-      // Advance winner
-      service.advanceWinner(bracket, matchId, winner.id);
+      // Bo1: report directly, no series score. Bo3+: ask for the series score.
+      if (bestOf <= 1) {
+        return await finalizeMatchReport(interaction, tournament, match, winner, null);
+      }
 
-      // A reported result can cascade walkovers (double-elim losers bracket) —
-      // DM anyone who just advanced without playing, then persist the flags.
-      const { notifyByesAndWalkovers } = require('../utils/byeNotifier');
-      await notifyByesAndWalkovers(interaction.client, tournament);
+      const rows = [];
+      let row = new ActionRowBuilder();
+      for (const s of validSeriesScores(bestOf)) {
+        if (row.components.length === 5) { rows.push(row); row = new ActionRowBuilder(); }
+        row.addComponents(
+          new ButtonBuilder()
+            .setCustomId(`matchScore:${tournamentId}:${matchId}:${winnerSlot}:${s}`)
+            .setLabel(s)
+            .setStyle(ButtonStyle.Primary)
+        );
+      }
+      if (row.components.length === 5) { rows.push(row); row = new ActionRowBuilder(); }
+      row.addComponents(
+        new ButtonBuilder()
+          .setCustomId(`matchScore:${tournamentId}:${matchId}:cancel`)
+          .setLabel('Back')
+          .setEmoji('↩️')
+          .setStyle(ButtonStyle.Secondary)
+      );
+      rows.push(row);
 
-      await updateTournament(tournamentId, { bracket });
-
-      const isSolo = tournament.settings.teamSize === 1;
-      const winnerName = isSolo ? winner.username : winner.name;
-      const loser = winnerSlot === '1' ? match.participant2 : match.participant1;
-      const loserName = isSolo ? loser?.username : loser?.name;
-
-      // Trigger match completed webhook
-      webhooks.onMatchCompleted(tournament, {
-        id: matchId,
-        round: match.round,
-        winner: winner,
-        loser: loser,
-        score: match.score,
+      return await interaction.update({
+        content: `🏆 **${winnerName}** wins — what was the series score? *(Best of ${bestOf})*`,
+        components: rows,
       });
-
-      // Update the match room message
-      await interaction.update({
-        content: `✅ **Match Complete!**\n\n🏆 **${winnerName}** defeats **${loserName}**`,
-        components: [],
-      });
-
-      // For Swiss: check if round complete and generate next round
-      if (bracket.type === 'swiss' && service.isRoundComplete(bracket)) {
-        if (bracket.currentRound < bracket.totalRounds) {
-          service.generateNextRound(bracket);
-          // A new Swiss round may hand someone a bye — DM them
-          await notifyByesAndWalkovers(interaction.client, tournament);
-        }
-      }
-
-      // Check if tournament is complete
-      if (service.isComplete(bracket)) {
-        const results = service.getResults(bracket);
-        await announceTournamentComplete(interaction, tournament, results);
-        await updateTournament(tournamentId, { status: 'completed', standings: results.standings || [] });
-
-        // Trigger tournament completed webhook
-        webhooks.onTournamentCompleted(tournament, results.standings || [results.winner, results.runnerUp, results.thirdPlace].filter(Boolean));
-
-        // Update the tournament announcement with results button
-        await updateTournamentAnnouncement(interaction.client, tournament);
-        return;
-      }
-
-      // Create new match rooms for newly ready matches
-      const activeMatches = service.getActiveMatches(bracket);
-      for (const activeMatch of activeMatches) {
-        if (!activeMatch.channelId && activeMatch.participant1 && activeMatch.participant2) {
-          try {
-            const channel = await createMatchRoom(interaction.guild, activeMatch, tournament);
-            activeMatch.channelId = channel.id;
-          } catch (error) {
-            console.error('Error creating match room:', error);
-          }
-        }
-      }
-
-      await updateTournament(tournamentId, { bracket });
-
     } catch (error) {
       console.error('Error reporting match:', error);
-      return interaction.reply({ content: `❌ Error: ${error.message}`, ephemeral: true });
+      return interaction.reply({ content: `❌ Error: ${error.message}`, ephemeral: true }).catch(() => {});
     }
   },
+
+  // shared with matchScore.js
+  finalizeMatchReport,
+  findBracketMatch,
+  getServiceForBracket,
+  validSeriesScores,
 };
 
 async function announceTournamentComplete(interaction, tournament, results) {
@@ -195,7 +249,6 @@ async function announceTournamentComplete(interaction, tournament, results) {
       .setStyle(ButtonStyle.Success)
   );
 
-  const { getBracketUrl } = require('../utils/embedBuilder');
   const bracketUrl = getBracketUrl(tournament);
   if (bracketUrl) {
     row.addComponents(
