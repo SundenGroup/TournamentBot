@@ -229,7 +229,7 @@ async function announceTournamentComplete(interaction, tournament, results) {
   }
 
   fields.push(
-    { name: '🎮 Game', value: `${tournament.game.icon} ${tournament.game.displayName}`, inline: true },
+    { name: '🎮 Game', value: `${require('../config/gamePresets').getGameEmojiText(tournament.game)} ${tournament.game.displayName}`, inline: true },
     { name: '🔄 Format', value: tournament.settings.format.replace('_', ' '), inline: true }
   );
 

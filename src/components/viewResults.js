@@ -76,7 +76,7 @@ module.exports = {
     };
 
     podiumText += `\n**Format:** ${formatNames[bracket.type] || bracket.type}`;
-    podiumText += `\n**Game:** ${tournament.game.icon} ${tournament.game.displayName}`;
+    podiumText += `\n**Game:** ${require('../config/gamePresets').getGameEmojiText(tournament.game)} ${tournament.game.displayName}`;
 
     const participantCount = isSolo ? tournament.participants.length : tournament.teams.length;
     podiumText += `\n**Participants:** ${participantCount}`;

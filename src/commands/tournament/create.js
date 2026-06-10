@@ -1227,7 +1227,7 @@ async function announceBRTournamentComplete(client, tournament, bracket) {
     }
 
     fields.push(
-      { name: '🎮 Game', value: `${tournament.game.icon} ${tournament.game.displayName}`, inline: true },
+      { name: '🎮 Game', value: `${require('../../config/gamePresets').getGameEmojiText(tournament.game)} ${tournament.game.displayName}`, inline: true },
       { name: '🔄 Format', value: 'Battle Royale', inline: true }
     );
 

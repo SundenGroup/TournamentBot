@@ -51,6 +51,23 @@ function getMenuEmoji(preset) {
   return preset?.icon ? { name: preset.icon } : undefined;
 }
 
+/**
+ * Game emoji for EMBEDS and MESSAGE CONTENT: `<:name:id>` markup of the
+ * uploaded logo emoji when available, unicode icon otherwise. Note: Discord
+ * renders this in embeds/messages but NOT in autocomplete or slash-command
+ * choices — those are plain text and must keep the unicode icon.
+ * Accepts a preset key or a tournament.game object ({preset, icon}).
+ */
+function getGameEmojiText(game) {
+  const key = typeof game === 'string' ? game : game?.preset;
+  const preset = key ? GAME_PRESETS[key] : null;
+  if (preset?.menuEmoji) {
+    return `<:${key.replace(/[^a-zA-Z0-9_]/g, '_')}:${preset.menuEmoji}>`;
+  }
+  if (typeof game === 'object' && game?.icon) return game.icon;
+  return preset?.icon || '🎮';
+}
+
 module.exports = {
   GAME_PRESETS,
   getPreset,
@@ -58,5 +75,6 @@ module.exports = {
   getPresetKeys,
   getFeaturedPresetKeys,
   getMenuEmoji,
+  getGameEmojiText,
   reloadPresets,
 };

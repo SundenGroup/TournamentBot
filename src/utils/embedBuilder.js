@@ -65,7 +65,7 @@ async function createTournamentEmbed(tournament) {
   embed.setDescription(descriptionText);
 
   const fields = [
-    { name: '🎮 Game', value: `${game.icon} ${game.displayName}`, inline: true },
+    { name: '🎮 Game', value: `${require('../config/gamePresets').getGameEmojiText(game)} ${game.displayName}`, inline: true },
     { name: '📅 Date', value: formatDate(startTime), inline: true },
     { name: isSolo ? '👥 Players' : '👥 Teams', value: `${currentCount} / ${maxCount}`, inline: true },
   ];

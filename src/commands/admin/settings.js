@@ -279,10 +279,10 @@ async function handleViewSettings(interaction) {
   const gameChannels = settings.gameAnnouncementChannels || {};
   const gameOverrides = Object.entries(gameChannels);
   if (gameOverrides.length > 0) {
-    const { GAME_PRESETS } = require('../../config/gamePresets');
+    const { GAME_PRESETS, getGameEmojiText } = require('../../config/gamePresets');
     const lines = gameOverrides.map(([key, chId]) => {
       const preset = GAME_PRESETS[key];
-      return `${preset?.icon || '🎮'} ${preset?.displayName || key} → <#${chId}>`;
+      return `${getGameEmojiText(key)} ${preset?.displayName || key} → <#${chId}>`;
     });
     announcementChannel += `\n**Per game:**\n${lines.join('\n')}`;
   }
@@ -333,7 +333,7 @@ async function handleSetAnnouncementChannel(interaction) {
     await setGameAnnouncementChannel(interaction.guildId, gameKey, channel.id);
 
     return interaction.reply({
-      content: `✅ **${preset.icon} ${preset.displayName}** tournaments will now be announced in ${channel}.\nOther games keep using the server default channel.`,
+      content: `✅ **${require('../../config/gamePresets').getGameEmojiText(gameKey)} ${preset.displayName}** tournaments will now be announced in ${channel}.\nOther games keep using the server default channel.`,
       ephemeral: true,
     });
   }

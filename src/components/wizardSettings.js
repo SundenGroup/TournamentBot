@@ -25,7 +25,8 @@ const ALL_FORMATS = ['single_elimination', 'double_elimination', 'swiss', 'round
 function buildSettingsMessage(session) {
   const { data } = session;
   const preset = GAME_PRESETS[data.gamePreset];
-  const gameIcon = preset?.icon || '🎮';
+  const { getGameEmojiText } = require('../config/gamePresets');
+  const gameIcon = getGameEmojiText(data.gamePreset);
   const gameName = data.gameName || preset?.displayName || 'Custom Game';
 
   const dateDisplay = data.datetime
