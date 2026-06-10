@@ -756,7 +756,7 @@
         <thead><tr><th>Command</th><th>Description</th><th>Tier</th></tr></thead>
         <tbody>
           <tr><td><code>/admin settings</code></td><td>View all current settings</td><td><span class="tag tag-free">Free</span></td></tr>
-          <tr><td><code>/admin set-announcement-channel</code></td><td>Set where tournament embeds post</td><td><span class="tag tag-free">Free</span></td></tr>
+          <tr><td><code>/admin set-announcement-channel</code></td><td>Set where tournament embeds post — add the optional <code>game:</code> parameter to give one game its own channel</td><td><span class="tag tag-free">Free</span></td></tr>
           <tr><td><code>/admin set-match-category</code></td><td>Set where match rooms are created</td><td><span class="tag tag-free">Free</span></td></tr>
           <tr><td><code>/admin set-role</code></td><td>Add/remove tournament admin roles (up to 3)</td><td><span class="tag tag-free">Free</span></td></tr>
           <tr><td><code>/admin set-auto-cleanup</code></td><td>Auto-delete/archive match rooms after tournaments</td><td><span class="tag tag-premium">Premium</span></td></tr>
@@ -766,6 +766,11 @@
         </tbody>
       </table>
     </div>
+
+    <h3>Per-game announcement channels</h3>
+    <p>Each game can announce its tournaments in its own channel. The <code>game:</code> parameter is <strong>optional</strong> — it appears in the option list after you pick the channel:</p>
+    <pre><code><span class="cmd">/admin set-announcement-channel</span> <span class="param">channel:</span><span class="value">#cs2-tournaments</span> <span class="param">game:</span><span class="value">Counter-Strike 2</span></code></pre>
+    <p>Games without an override keep using the server default channel. Current overrides are listed in <code>/admin settings</code>.</p>
   </section>
 
   <!-- ================================================================
