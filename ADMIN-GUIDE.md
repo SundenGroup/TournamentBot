@@ -132,8 +132,14 @@ unresolved members aren't added.
 ## Command reference
 
 **Tournaments — `/tournament`** (admin)
-`create` · `create-advanced` · `list` · `info` · `start` · `cancel` · `report` ·
-`bracket` · `seed set|list|randomize|clear`
+`create` · `create-advanced` · `edit` · `list` · `info` · `start` · `cancel` ·
+`report` · `bracket` · `seed set|list|randomize|clear`
+
+> **Editing:** `/tournament edit` opens a pre-filled form to change the title,
+> date/time, max players/teams, best-of, and description of a posted tournament
+> — signups and the Live Bracket link are preserved, and the announcement
+> updates in place. Only works before the tournament starts; game and format
+> are never editable.
 
 **Matches — `/match`** (everyone)
 `list` — active matches · `bracket` — bracket/standings

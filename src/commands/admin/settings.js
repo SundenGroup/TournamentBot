@@ -686,6 +686,7 @@ async function handleHelp(interaction) {
         '`info` — Show tournament details',
         '`start` — Start tournament & generate brackets',
         '`cancel` — Cancel a tournament',
+        '`edit` — Edit title/date/size/best-of before start',
         '`report` — Report match result',
         '`bracket` — View bracket/standings',
         '`seed set|list|randomize|clear` — Manage seeding',

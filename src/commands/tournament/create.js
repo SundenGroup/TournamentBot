@@ -55,6 +55,17 @@ module.exports = {
     )
     .addSubcommand(subcommand =>
       subcommand
+        .setName('edit')
+        .setDescription('Edit a tournament (title, date, size, best-of, description)')
+        .addStringOption(option =>
+          option.setName('tournament')
+            .setDescription('Tournament to edit')
+            .setRequired(true)
+            .setAutocomplete(true)
+        )
+    )
+    .addSubcommand(subcommand =>
+      subcommand
         .setName('start')
         .setDescription('Start a tournament and generate brackets')
         .addStringOption(option =>
@@ -168,7 +179,7 @@ module.exports = {
     const subcommand = interaction.options.getSubcommand();
 
     // Admin subcommands require tournament management permissions
-    const adminSubcommands = ['create', 'create-advanced', 'start', 'cancel', 'report', 'br-report'];
+    const adminSubcommands = ['create', 'create-advanced', 'start', 'cancel', 'edit', 'report', 'br-report'];
     const adminSeedSubcommands = ['set', 'randomize', 'clear'];
 
     const needsPermCheck = adminSubcommands.includes(subcommand) ||
@@ -214,6 +225,9 @@ module.exports = {
         break;
       case 'cancel':
         await handleCancel(interaction);
+        break;
+      case 'edit':
+        await handleEdit(interaction);
         break;
       case 'start':
         await handleStart(interaction);
@@ -668,6 +682,86 @@ async function handleStart(interaction) {
     console.error('Error starting tournament:', error);
     await interaction.editReply({ content: `❌ Error starting tournament: ${error.message}` });
   }
+}
+
+// ─── Tournament Edit ─────────────────────────────────────────────────────────
+
+/** Render a Date as a string the edit modal can round-trip through parseDateTime. */
+function toEditableUtc(date) {
+  const d = new Date(date);
+  const pad = n => String(n).padStart(2, '0');
+  return `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())} ${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())} UTC`;
+}
+
+async function handleEdit(interaction) {
+  const { ModalBuilder, TextInputBuilder, TextInputStyle } = require('discord.js');
+
+  const tournamentId = interaction.options.getString('tournament');
+  const tournament = await getTournament(tournamentId);
+
+  if (!tournament) {
+    return interaction.reply({ content: '❌ Tournament not found.', ephemeral: true });
+  }
+
+  if (tournament.status !== 'registration' && tournament.status !== 'checkin') {
+    return interaction.reply({
+      content: '❌ Only tournaments in registration/check-in can be edited. Game and format are never editable.',
+      ephemeral: true,
+    });
+  }
+
+  const isSolo = tournament.settings.teamSize === 1;
+
+  const modal = new ModalBuilder()
+    .setCustomId(`editTournament:${tournamentId}`)
+    .setTitle(`Edit: ${tournament.title.substring(0, 35)}`);
+
+  modal.addComponents(
+    new ActionRowBuilder().addComponents(
+      new TextInputBuilder()
+        .setCustomId('title')
+        .setLabel('Tournament Title')
+        .setStyle(TextInputStyle.Short)
+        .setValue(tournament.title)
+        .setRequired(true)
+        .setMaxLength(100)
+    ),
+    new ActionRowBuilder().addComponents(
+      new TextInputBuilder()
+        .setCustomId('datetime')
+        .setLabel('Date & Time (e.g., 2026-06-10 18:00 UTC)')
+        .setStyle(TextInputStyle.Short)
+        .setValue(toEditableUtc(tournament.startTime))
+        .setRequired(true)
+    ),
+    new ActionRowBuilder().addComponents(
+      new TextInputBuilder()
+        .setCustomId('maxParticipants')
+        .setLabel(`Max ${isSolo ? 'Players' : 'Teams'}`)
+        .setStyle(TextInputStyle.Short)
+        .setValue(String(tournament.settings.maxParticipants))
+        .setRequired(true)
+    ),
+    new ActionRowBuilder().addComponents(
+      new TextInputBuilder()
+        .setCustomId('bestOf')
+        .setLabel('Best Of (odd number, e.g. 1, 3, 5, 7)')
+        .setStyle(TextInputStyle.Short)
+        .setValue(String(tournament.settings.bestOf))
+        .setRequired(true)
+    ),
+    new ActionRowBuilder().addComponents(
+      new TextInputBuilder()
+        .setCustomId('description')
+        .setLabel('Description (optional)')
+        .setStyle(TextInputStyle.Paragraph)
+        .setValue(tournament.description || '')
+        .setRequired(false)
+        .setMaxLength(1000)
+    ),
+  );
+
+  return interaction.showModal(modal);
 }
 
 // ─── Match Reporting (moved from /match) ────────────────────────────────────
