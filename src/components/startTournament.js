@@ -91,6 +91,7 @@ module.exports = {
 
       // Get active matches that need rooms
       let roomsCreated = 0;
+      let roomsFailed = 0;
       if (format === 'battle_royale') {
         // Create ONE lobby room per group (used for all games in that group)
         for (const group of bracket.groups) {
@@ -100,6 +101,7 @@ module.exports = {
             roomsCreated++;
           } catch (error) {
             console.error('Error creating BR group room:', error);
+            roomsFailed++;
           }
         }
       } else {
@@ -114,6 +116,7 @@ module.exports = {
               roomsCreated++;
             } catch (error) {
               console.error('Error creating match room:', error);
+              roomsFailed++;
             }
           }
         }
@@ -144,6 +147,9 @@ module.exports = {
       let description = `**${tournament.title}** is now live!\n\n`;
       description += `• ${participantCount} ${isSolo ? 'players' : 'teams'} competing\n`;
       description += `• ${roomsCreated} ${format === 'battle_royale' ? 'lobby' : 'match'} rooms created\n`;
+      if (roomsFailed > 0) {
+        description += `• ⚠️ **${roomsFailed} room(s) failed to create** — run \`/tournament create-rooms\` to retry, and check the bot has Manage Channels + Manage Roles.\n`;
+      }
       description += `• Format: ${formatNames[format] || format}\n`;
 
       if (format === 'swiss') {

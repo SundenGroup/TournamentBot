@@ -1,8 +1,54 @@
-const { ChannelType, PermissionFlagsBits, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
+const { ChannelType, PermissionFlagsBits, OverwriteType, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const { getServerSettings } = require('../data/serverSettings');
 
 // Track in-progress channel creations to prevent race conditions
 const pendingCreations = new Set();
+
+const PLAYER_ALLOW = [
+  PermissionFlagsBits.ViewChannel,
+  PermissionFlagsBits.SendMessages,
+  PermissionFlagsBits.ReadMessageHistory,
+];
+
+/**
+ * Create a private channel, adding each player as an explicitly-typed Member
+ * overwrite. If the bulk create fails (most commonly because a participant
+ * isn't in the bot's user cache — which makes discord.js unable to infer the
+ * overwrite type and throw before any API call), fall back to creating the
+ * channel with the base overwrites only, then grant each player access
+ * individually so one bad/unresolvable member can't sink the whole room.
+ */
+async function createPrivateChannel(guild, { name, parentId, baseOverwrites, memberIds }) {
+  const memberOverwrites = memberIds.map(id => ({
+    id, type: OverwriteType.Member, allow: PLAYER_ALLOW,
+  }));
+  const options = { name, type: ChannelType.GuildText, permissionOverwrites: [...baseOverwrites, ...memberOverwrites] };
+  if (parentId) options.parent = parentId;
+
+  try {
+    return await guild.channels.create(options);
+  } catch (error) {
+    const noParentRetry = error.code === 50035 && /MAX_CHANNELS/.test(error.message || '');
+    if (noParentRetry) {
+      delete options.parent;
+      try { return await guild.channels.create(options); } catch { /* fall through */ }
+    }
+
+    // Resilient fallback: base channel first, then members one at a time.
+    console.error(`createPrivateChannel bulk create failed for "${name}", falling back to per-member:`, error.message);
+    const channel = await guild.channels.create({
+      name, type: ChannelType.GuildText, parent: parentId || undefined, permissionOverwrites: baseOverwrites,
+    });
+    for (const id of memberIds) {
+      try {
+        await channel.permissionOverwrites.edit(id, { ViewChannel: true, SendMessages: true, ReadMessageHistory: true }, { type: OverwriteType.Member });
+      } catch (memberErr) {
+        console.error(`  could not grant ${id} access to ${name}:`, memberErr.message);
+      }
+    }
+    return channel;
+  }
+}
 
 async function createMatchRoom(guild, match, tournament) {
   // Deduplicate: if this match already has a channel or is being created, skip
@@ -61,15 +107,14 @@ async function _createMatchRoom(guild, match, tournament) {
   // Find or create match rooms category
   let category = await findOrCreateMatchCategory(guild, tournament);
 
-  // Permission overwrites
-  const permissionOverwrites = [
+  // Base permission overwrites (explicitly typed so discord.js never has to
+  // resolve ids from cache — uncached team members used to make the whole
+  // create throw before any API call).
+  const baseOverwrites = [
+    { id: guild.roles.everyone.id, type: OverwriteType.Role, deny: [PermissionFlagsBits.ViewChannel] },
     {
-      id: guild.roles.everyone.id,
-      deny: [PermissionFlagsBits.ViewChannel],
-    },
-    {
-      // Bot needs access to its own channels
       id: guild.client.user.id,
+      type: OverwriteType.Member,
       allow: [
         PermissionFlagsBits.ViewChannel,
         PermissionFlagsBits.SendMessages,
@@ -84,79 +129,30 @@ async function _createMatchRoom(guild, match, tournament) {
   // Add tournament admin roles
   const settings = await getServerSettings(guild.id);
   for (const roleId of settings.tournamentAdminRoles || []) {
-    permissionOverwrites.push({
-      id: roleId,
-      allow: [
-        PermissionFlagsBits.ViewChannel,
-        PermissionFlagsBits.SendMessages,
-        PermissionFlagsBits.ReadMessageHistory,
-      ],
-    });
+    baseOverwrites.push({ id: roleId, type: OverwriteType.Role, allow: PLAYER_ALLOW });
   }
 
-  // Add participants
+  // Collect the player member ids for this match (skip fakes / unresolved)
+  const memberIds = [];
+  const sides = isSolo ? [match.participant1, match.participant2] : null;
   if (isSolo) {
-    if (match.participant1 && match.participant1.id && !match.participant1.id.startsWith('fake_')) {
-      permissionOverwrites.push({
-        id: match.participant1.id,
-        allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages],
-      });
-    }
-    if (match.participant2 && match.participant2.id && !match.participant2.id.startsWith('fake_')) {
-      permissionOverwrites.push({
-        id: match.participant2.id,
-        allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages],
-      });
+    for (const p of sides) {
+      if (p?.id && !String(p.id).startsWith('fake_')) memberIds.push(p.id);
     }
   } else {
-    // Team tournament - add all team members
-    if (match.participant1?.members) {
-      for (const member of match.participant1.members) {
-        if (member.id && !member.id.startsWith('fake_')) {
-          permissionOverwrites.push({
-            id: member.id,
-            allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages],
-          });
-        }
-      }
-    }
-    if (match.participant2?.members) {
-      for (const member of match.participant2.members) {
-        if (member.id && !member.id.startsWith('fake_')) {
-          permissionOverwrites.push({
-            id: member.id,
-            allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages],
-          });
-        }
+    for (const team of [match.participant1, match.participant2]) {
+      for (const member of team?.members || []) {
+        if (member.id && !String(member.id).startsWith('fake_')) memberIds.push(member.id);
       }
     }
   }
 
-  // Create the channel
-  const channelOptions = {
+  const channel = await createPrivateChannel(guild, {
     name: channelName,
-    type: ChannelType.GuildText,
-    permissionOverwrites,
-  };
-
-  // Only set parent if we have a valid category with space
-  if (category) {
-    channelOptions.parent = category.id;
-  }
-
-  let channel;
-  try {
-    channel = await guild.channels.create(channelOptions);
-  } catch (error) {
-    // If category is full, try without category
-    if (error.code === 50035 && error.message.includes('MAX_CHANNELS')) {
-      console.log('Category full, creating channel without category');
-      delete channelOptions.parent;
-      channel = await guild.channels.create(channelOptions);
-    } else {
-      throw error;
-    }
-  }
+    parentId: category ? category.id : null,
+    baseOverwrites,
+    memberIds,
+  });
 
   // Grant ManageRoles after creation (can't include in initial overwrites)
   try {
@@ -181,20 +177,8 @@ async function _createMatchRoom(guild, match, tournament) {
   );
 
   // Ping the players so they know where their match is played
-  const mentionIds = [];
-  if (isSolo) {
-    for (const p of [match.participant1, match.participant2]) {
-      if (p?.id && !String(p.id).startsWith('fake_')) mentionIds.push(p.id);
-    }
-  } else {
-    for (const team of [match.participant1, match.participant2]) {
-      for (const member of team?.members || []) {
-        if (member.id && !String(member.id).startsWith('fake_')) mentionIds.push(member.id);
-      }
-    }
-  }
-  const content = mentionIds.length
-    ? `⚔️ ${mentionIds.map(id => `<@${id}>`).join(' ')} — your match is ready, play it out here!`
+  const content = memberIds.length
+    ? `⚔️ ${memberIds.map(id => `<@${id}>`).join(' ')} — your match is ready, play it out here!`
     : undefined;
 
   await channel.send({ content, embeds: [embed], components: [buttons] });
@@ -404,14 +388,12 @@ async function _createBRGroupRoom(guild, group, tournament) {
   // Find or create match rooms category
   let category = await findOrCreateMatchCategory(guild, tournament);
 
-  // Permission overwrites
-  const permissionOverwrites = [
-    {
-      id: guild.roles.everyone.id,
-      deny: [PermissionFlagsBits.ViewChannel],
-    },
+  // Base permission overwrites (explicitly typed — see createPrivateChannel)
+  const baseOverwrites = [
+    { id: guild.roles.everyone.id, type: OverwriteType.Role, deny: [PermissionFlagsBits.ViewChannel] },
     {
       id: guild.client.user.id,
+      type: OverwriteType.Member,
       allow: [
         PermissionFlagsBits.ViewChannel,
         PermissionFlagsBits.SendMessages,
@@ -426,63 +408,27 @@ async function _createBRGroupRoom(guild, group, tournament) {
   // Add tournament admin roles
   const brSettings = await getServerSettings(guild.id);
   for (const roleId of brSettings.tournamentAdminRoles || []) {
-    permissionOverwrites.push({
-      id: roleId,
-      allow: [
-        PermissionFlagsBits.ViewChannel,
-        PermissionFlagsBits.SendMessages,
-        PermissionFlagsBits.ReadMessageHistory,
-      ],
-    });
+    baseOverwrites.push({ id: roleId, type: OverwriteType.Role, allow: PLAYER_ALLOW });
   }
 
-  // Add all teams/participants in the group
+  // Collect player member ids across the whole group
+  const memberIds = [];
   for (const team of group.teams) {
     if (isSolo) {
-      if (team.id && !team.id.startsWith('fake_')) {
-        permissionOverwrites.push({
-          id: team.id,
-          allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages],
-        });
-      }
+      if (team.id && !String(team.id).startsWith('fake_')) memberIds.push(team.id);
     } else {
-      // Team tournament - add all team members
-      if (team.members) {
-        for (const member of team.members) {
-          if (member.id && !member.id.startsWith('fake_')) {
-            permissionOverwrites.push({
-              id: member.id,
-              allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages],
-            });
-          }
-        }
+      for (const member of team.members || []) {
+        if (member.id && !String(member.id).startsWith('fake_')) memberIds.push(member.id);
       }
     }
   }
 
-  // Create the channel
-  const channelOptions = {
+  const channel = await createPrivateChannel(guild, {
     name: channelName,
-    type: ChannelType.GuildText,
-    permissionOverwrites,
-  };
-
-  if (category) {
-    channelOptions.parent = category.id;
-  }
-
-  let channel;
-  try {
-    channel = await guild.channels.create(channelOptions);
-  } catch (error) {
-    if (error.code === 50035 && error.message.includes('MAX_CHANNELS')) {
-      console.log('Category full, creating BR group channel without category');
-      delete channelOptions.parent;
-      channel = await guild.channels.create(channelOptions);
-    } else {
-      throw error;
-    }
-  }
+    parentId: category ? category.id : null,
+    baseOverwrites,
+    memberIds,
+  });
 
   // Grant ManageRoles after creation (can't include in initial overwrites)
   try {

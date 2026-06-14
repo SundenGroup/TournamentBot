@@ -207,5 +207,8 @@ unresolved members aren't added.
 - **Mis-reported a result?** `/tournament correct` fixes it while nothing
   downstream has been played.
 - **Match rooms piling up:** `/admin cleanup`, or enable `/admin set-auto-cleanup`.
+- **Some match rooms didn't get created?** Run `/tournament create-rooms` to
+  retry the current round, and make sure the bot has **Manage Channels** +
+  **Manage Roles** and a role positioned above the others.
 
 For the full web manual, open `/admin-manual` on the bot's host.

@@ -737,6 +737,7 @@ async function handleHelp(interaction) {
         '`disqualify` — DQ a player/team (forfeits remaining matches)',
         '`add-player`/`add-team` — Manually register real entrants',
         '`remove-player`/`remove-team` — Remove a specific entrant (before start)',
+        '`create-rooms` — Retry creating missing match rooms',
         '`bracket` — View bracket/standings',
         '`seed set|list|randomize|clear` — Manage seeding',
       ].join('\n'),

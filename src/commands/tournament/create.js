@@ -114,6 +114,17 @@ module.exports = {
     )
     .addSubcommand(subcommand =>
       subcommand
+        .setName('create-rooms')
+        .setDescription('(Re)create any missing match rooms for the current round')
+        .addStringOption(option =>
+          option.setName('tournament')
+            .setDescription('Tournament')
+            .setRequired(true)
+            .setAutocomplete(true)
+        )
+    )
+    .addSubcommand(subcommand =>
+      subcommand
         .setName('disqualify')
         .setDescription('Disqualify a player/team — remaining matches are forfeited')
         .addStringOption(option =>
@@ -306,7 +317,7 @@ module.exports = {
     const subcommand = interaction.options.getSubcommand();
 
     // Admin subcommands require tournament management permissions
-    const adminSubcommands = ['create', 'create-advanced', 'start', 'cancel', 'edit', 'report', 'br-report', 'disqualify', 'correct', 'add-player', 'add-team', 'remove-player', 'remove-team'];
+    const adminSubcommands = ['create', 'create-advanced', 'start', 'cancel', 'edit', 'report', 'br-report', 'disqualify', 'correct', 'add-player', 'add-team', 'remove-player', 'remove-team', 'create-rooms'];
     const adminSeedSubcommands = ['set', 'randomize', 'clear'];
 
     const needsPermCheck = adminSubcommands.includes(subcommand) ||
@@ -383,6 +394,9 @@ module.exports = {
       case 'remove-player':
       case 'remove-team':
         await handleRemoveEntrant(interaction);
+        break;
+      case 'create-rooms':
+        await handleCreateRooms(interaction);
         break;
     }
   },
@@ -749,6 +763,7 @@ async function handleStart(interaction) {
     tournament.status = 'active';
 
     let roomsCreated = 0;
+    let roomsFailed = 0;
     if (format === 'battle_royale') {
       for (const g of bracket.groups) {
         try {
@@ -757,6 +772,7 @@ async function handleStart(interaction) {
           roomsCreated++;
         } catch (error) {
           console.error('Error creating BR group room:', error);
+          roomsFailed++;
         }
       }
     } else {
@@ -771,6 +787,7 @@ async function handleStart(interaction) {
             roomsCreated++;
           } catch (error) {
             console.error('Error creating match room:', error);
+            roomsFailed++;
           }
         }
       }
@@ -819,7 +836,11 @@ async function handleStart(interaction) {
       desc += `**Teams to Finals:** ${bracket.totalAdvancing}\n`;
     }
 
-    desc += `\n**${roomsCreated}** match rooms created.\n\n`;
+    desc += `\n**${roomsCreated}** match rooms created.\n`;
+    if (roomsFailed > 0) {
+      desc += `⚠️ **${roomsFailed} room(s) failed** — run \`/tournament create-rooms\` to retry, and check the bot has Manage Channels + Manage Roles.\n`;
+    }
+    desc += `\n`;
     desc += `Use \`/match list\` to see active matches.`;
 
     if (format === 'swiss' || format === 'round_robin' || format === 'battle_royale') {
@@ -1218,6 +1239,67 @@ async function handleRemoveEntrant(interaction) {
   return interaction.editReply({
     content: `✅ Removed ${isSolo ? '**' + name + '**' : 'team **' + name + '**'} from **${tournament.title}**. (${count}/${tournament.settings.maxParticipants})`,
   });
+}
+
+async function handleCreateRooms(interaction) {
+  await interaction.deferReply({ ephemeral: true });
+
+  const tournamentId = interaction.options.getString('tournament');
+  const tournament = await getTournament(tournamentId);
+  if (!tournament) return interaction.editReply({ content: '❌ Tournament not found.' });
+  if (!tournament.bracket || tournament.status !== 'active') {
+    return interaction.editReply({ content: '❌ This tournament is not running, so there are no match rooms to create.' });
+  }
+
+  const bracket = tournament.bracket;
+  const { createMatchRoom, createBRGroupRoom } = require('../../services/channelService');
+
+  let created = 0, failed = 0, existing = 0;
+
+  if (bracket.type === 'battle_royale') {
+    for (const group of bracket.groups || []) {
+      if (group.channelId) { existing++; continue; }
+      try {
+        const channel = await createBRGroupRoom(interaction.guild, group, tournament);
+        group.channelId = channel.id;
+        created++;
+      } catch (error) {
+        console.error('create-rooms BR error:', error);
+        failed++;
+      }
+    }
+  } else {
+    const service = getServiceForBracket(bracket);
+    for (const match of service.getActiveMatches(bracket)) {
+      if (!match.participant1 || !match.participant2) continue;
+      if (match.channelId) { existing++; continue; }
+      try {
+        const channel = await createMatchRoom(interaction.guild, match, tournament);
+        match.channelId = channel.id;
+        created++;
+      } catch (error) {
+        console.error('create-rooms match error:', error);
+        failed++;
+      }
+    }
+  }
+
+  if (created > 0) {
+    await updateTournament(tournamentId, { bracket });
+  }
+
+  let response = `🔧 **${tournament.title}** — match rooms:\n`;
+  response += `• ${created} created\n`;
+  if (existing > 0) response += `• ${existing} already existed\n`;
+  if (failed > 0) {
+    response += `• ⚠️ ${failed} still failed — confirm the bot has **Manage Channels** + **Manage Roles**, that its role sits above the others, and that the match-room category (if set) isn't full.`;
+  } else if (created === 0 && existing > 0) {
+    response += `\nAll current matches already have rooms. ✅`;
+  } else if (created === 0 && existing === 0) {
+    response += `\nNo active matches need rooms right now.`;
+  }
+
+  return interaction.editReply({ content: response });
 }
 
 // ─── Match Reporting (moved from /match) ────────────────────────────────────
