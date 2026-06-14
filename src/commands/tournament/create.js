@@ -161,6 +161,40 @@ module.exports = {
     )
     .addSubcommand(subcommand =>
       subcommand
+        .setName('remove-player')
+        .setDescription('Remove a player from a tournament (before it starts)')
+        .addStringOption(option =>
+          option.setName('tournament')
+            .setDescription('Tournament')
+            .setRequired(true)
+            .setAutocomplete(true)
+        )
+        .addStringOption(option =>
+          option.setName('participant')
+            .setDescription('Player to remove')
+            .setRequired(true)
+            .setAutocomplete(true)
+        )
+    )
+    .addSubcommand(subcommand =>
+      subcommand
+        .setName('remove-team')
+        .setDescription('Remove a team from a tournament (before it starts)')
+        .addStringOption(option =>
+          option.setName('tournament')
+            .setDescription('Tournament')
+            .setRequired(true)
+            .setAutocomplete(true)
+        )
+        .addStringOption(option =>
+          option.setName('team')
+            .setDescription('Team to remove')
+            .setRequired(true)
+            .setAutocomplete(true)
+        )
+    )
+    .addSubcommand(subcommand =>
+      subcommand
         .setName('add-player')
         .setDescription('Manually register a real player (solo tournaments)')
         .addStringOption(option =>
@@ -272,7 +306,7 @@ module.exports = {
     const subcommand = interaction.options.getSubcommand();
 
     // Admin subcommands require tournament management permissions
-    const adminSubcommands = ['create', 'create-advanced', 'start', 'cancel', 'edit', 'report', 'br-report', 'disqualify', 'correct', 'add-player', 'add-team'];
+    const adminSubcommands = ['create', 'create-advanced', 'start', 'cancel', 'edit', 'report', 'br-report', 'disqualify', 'correct', 'add-player', 'add-team', 'remove-player', 'remove-team'];
     const adminSeedSubcommands = ['set', 'randomize', 'clear'];
 
     const needsPermCheck = adminSubcommands.includes(subcommand) ||
@@ -345,6 +379,10 @@ module.exports = {
         break;
       case 'add-team':
         await handleAddTeam(interaction);
+        break;
+      case 'remove-player':
+      case 'remove-team':
+        await handleRemoveEntrant(interaction);
         break;
     }
   },
@@ -451,6 +489,16 @@ module.exports = {
       const filtered = choices.filter(choice =>
         choice.name.toLowerCase().includes(focused.value.toLowerCase())
       );
+      await interaction.respond(filtered.slice(0, 25));
+    }
+
+    if (focused.name === 'team') {
+      const tournamentId = interaction.options.getString('tournament');
+      const tournament = await getTournament(tournamentId);
+      if (!tournament) return interaction.respond([]);
+
+      const choices = (tournament.teams || []).map(t => ({ name: t.name, value: t.id }));
+      const filtered = choices.filter(c => c.name.toLowerCase().includes(focused.value.toLowerCase()));
       await interaction.respond(filtered.slice(0, 25));
     }
   },
@@ -1120,6 +1168,56 @@ async function handleAddTeam(interaction) {
   }
 
   return interaction.editReply({ content: `✅ Team **${teamName}** registered for **${tournament.title}**. (${result.tournament.teams.length}/${tournament.settings.maxParticipants})` });
+}
+
+async function handleRemoveEntrant(interaction) {
+  await interaction.deferReply({ ephemeral: true });
+
+  const tournamentId = interaction.options.getString('tournament');
+  const subcommand = interaction.options.getSubcommand();
+  const entrantId = interaction.options.getString(subcommand === 'remove-team' ? 'team' : 'participant');
+
+  const tournament = await getTournament(tournamentId);
+  if (!tournament) return interaction.editReply({ content: '❌ Tournament not found.' });
+
+  const isSolo = tournament.settings.teamSize === 1;
+  if (subcommand === 'remove-team' && isSolo) {
+    return interaction.editReply({ content: '❌ This is a solo tournament — use `/tournament remove-player`.' });
+  }
+  if (subcommand === 'remove-player' && !isSolo) {
+    return interaction.editReply({ content: '❌ This is a team tournament — use `/tournament remove-team`.' });
+  }
+
+  const { adminRemoveEntrant } = require('../../services/tournamentService');
+  const result = await adminRemoveEntrant(tournamentId, entrantId);
+  if (!result.success) return interaction.editReply({ content: `❌ ${result.error}` });
+
+  const removed = result.removed;
+  const name = isSolo ? removed.username : removed.name;
+
+  const { updateTournamentMessages } = require('../../utils/tournamentUpdater');
+  await updateTournamentMessages(interaction.client, result.tournament);
+
+  // Let the removed player(s) know
+  const userIds = [];
+  if (isSolo) {
+    if (removed.id && !String(removed.id).startsWith('fake_')) userIds.push(removed.id);
+  } else {
+    for (const m of removed.members || []) {
+      if (m.id && !String(m.id).startsWith('fake_')) userIds.push(m.id);
+    }
+  }
+  for (const uid of userIds) {
+    try {
+      const u = await interaction.client.users.fetch(uid);
+      await u.send(`ℹ️ ${isSolo ? 'You have' : `Your team **${name}** has`} been removed from **${tournament.title}** by a tournament admin.`);
+    } catch {}
+  }
+
+  const count = isSolo ? result.tournament.participants.length : result.tournament.teams.length;
+  return interaction.editReply({
+    content: `✅ Removed ${isSolo ? '**' + name + '**' : 'team **' + name + '**'} from **${tournament.title}**. (${count}/${tournament.settings.maxParticipants})`,
+  });
 }
 
 // ─── Match Reporting (moved from /match) ────────────────────────────────────

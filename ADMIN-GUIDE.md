@@ -127,6 +127,12 @@ and `/tournament add-team name: captain:@… members:@… @…` register actual 
 members — they get a DM. For *fake* test entrants use
 `/admin add-test-players` / `add-test-teams` instead.
 
+**Removing an entrant before start:** `/tournament remove-player participant:` or
+`/tournament remove-team team:` removes a specific player/team during
+registration or check-in (they're DMed). To remove everyone, use
+`/admin clear-participants`. Once the tournament is running, use
+`/tournament disqualify` instead.
+
 **Byes, walkovers and DQ forfeits** are recorded with the best possible series
 score (2-0 in a Bo3); Bo1 records no series score.
 
@@ -164,8 +170,8 @@ unresolved members aren't added.
 
 **Tournaments — `/tournament`** (admin)
 `create` · `create-advanced` · `edit` · `list` · `info` · `start` · `cancel` ·
-`report` · `correct` · `disqualify` · `add-player` · `add-team` · `bracket` ·
-`seed set|list|randomize|clear`
+`report` · `correct` · `disqualify` · `add-player` · `add-team` ·
+`remove-player` · `remove-team` · `bracket` · `seed set|list|randomize|clear`
 
 > **Editing:** `/tournament edit` opens a pre-filled form to change the title,
 > date/time, max players/teams, best-of, and description of a posted tournament

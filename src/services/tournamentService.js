@@ -450,6 +450,51 @@ async function removeTeam(tournamentId, captainId) {
   return result;
 }
 
+/**
+ * Admin removal of a specific entrant (by id) during registration or check-in.
+ * Unlike the self-service withdraw functions this targets any entrant and
+ * allows the check-in phase too. Returns { success, tournament, removed }.
+ */
+async function adminRemoveEntrant(tournamentId, entrantId) {
+  let result;
+  try {
+    result = await db.transaction(async (trx) => {
+      const row = await trx('tournaments').where('id', tournamentId).forUpdate().first();
+      if (!row) return { success: false, error: 'Tournament not found' };
+
+      const tournament = rowToTournament(row);
+      if (tournament.status !== 'registration' && tournament.status !== 'checkin') {
+        return { success: false, error: 'Entrants can only be removed before the tournament starts. Use `/tournament disqualify` once it is running.' };
+      }
+
+      const isSolo = tournament.settings.teamSize === 1;
+      const list = isSolo ? tournament.participants : tournament.teams;
+      const index = list.findIndex(e => e.id === entrantId);
+      if (index === -1) return { success: false, error: 'That entrant is not in this tournament.' };
+
+      const removed = list[index];
+      list.splice(index, 1);
+
+      await trx('tournaments')
+        .where('id', tournamentId)
+        .update(isSolo
+          ? { participants: JSON.stringify(tournament.participants) }
+          : { teams: JSON.stringify(tournament.teams) });
+
+      return { success: true, tournament, removed, isSolo };
+    });
+  } catch (err) {
+    console.error('adminRemoveEntrant transaction failed:', err);
+    return { success: false, error: 'Could not remove the entrant, please try again.' };
+  }
+
+  if (result.success) {
+    tournaments.set(tournamentId, result.tournament);
+    webhooks.onParticipantWithdrawn(result.tournament, result.removed);
+  }
+  return result;
+}
+
 async function findTournamentByMessage(messageId) {
   const row = await db('tournaments')
     .where('message_id', messageId)
@@ -539,6 +584,7 @@ module.exports = {
   deleteTournament,
   addParticipant,
   removeParticipant,
+  adminRemoveEntrant,
   addTeam,
   removeTeam,
   findTournamentByMessage,
