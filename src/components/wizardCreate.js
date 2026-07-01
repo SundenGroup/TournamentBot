@@ -49,37 +49,47 @@ async function createTournamentFromWizard(interaction, session) {
     components: [],
   });
 
-  await createAndAnnounce({
-    client: interaction.client,
-    guildId,
-    targetChannel,
-    boostToUse: checks.boostToUse,
-    data: {
-      title: data.title,
-      description: data.description || undefined,
-      gamePreset: data.gamePreset,
-      gameDisplayName,
-      gameShortName,
-      maxParticipants: data.maxParticipants,
-      teamSize: data.teamSize,
-      format: data.format,
-      bestOf: data.bestOf,
-      checkinRequired: data.checkinRequired,
-      checkinWindow: data.checkinWindow,
-      seedingEnabled: data.seedingEnabled,
-      requireGameNick: data.requireGameNick,
-      captainMode: data.captainMode,
-      lobbySize: data.lobbySize,
-      gamesPerStage: data.gamesPerStage,
-      advancingPerGroup: data.advancingPerGroup,
-      requiredRoles: data.requiredRoles || [],
-      publicBracket: data.publicBracket ?? false,
-      thirdPlaceMatch: (data.format === 'single_elimination' && data.thirdPlaceMatch) || false,
-      startTime: new Date(data.datetime),
-      setupMode: 'advanced',
-      createdBy: session.userId,
-    },
-  });
+  try {
+    await createAndAnnounce({
+      client: interaction.client,
+      guildId,
+      targetChannel,
+      boostToUse: checks.boostToUse,
+      data: {
+        title: data.title,
+        description: data.description || undefined,
+        gamePreset: data.gamePreset,
+        gameDisplayName,
+        gameShortName,
+        maxParticipants: data.maxParticipants,
+        teamSize: data.teamSize,
+        format: data.format,
+        bestOf: data.bestOf,
+        checkinRequired: data.checkinRequired,
+        checkinWindow: data.checkinWindow,
+        seedingEnabled: data.seedingEnabled,
+        requireGameNick: data.requireGameNick,
+        captainMode: data.captainMode,
+        lobbySize: data.lobbySize,
+        gamesPerStage: data.gamesPerStage,
+        advancingPerGroup: data.advancingPerGroup,
+        requiredRoles: data.requiredRoles || [],
+        publicBracket: data.publicBracket ?? false,
+        thirdPlaceMatch: (data.format === 'single_elimination' && data.thirdPlaceMatch) || false,
+        startTime: new Date(data.datetime),
+        setupMode: 'advanced',
+        createdBy: session.userId,
+      },
+      });
+  } catch (error) {
+    // Turn the premature ✅ into an accurate failure message. The wizard
+    // session is kept so a retry doesn't mean redoing every step.
+    console.error('Wizard create failed:', error);
+    await interaction.editReply({
+      content: `❌ Creation failed: ${error.message}\nNothing was created — run \`/tournament create-advanced\` to try again.`,
+    }).catch(() => {});
+    return;
+  }
 
   await deleteSession(session.id);
 }

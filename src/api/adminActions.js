@@ -6,7 +6,7 @@
 const express = require('express');
 const { ChannelType, PermissionFlagsBits } = require('discord.js');
 const { getClient } = require('./botClient');
-const { requireSession, requireGuildAdmin, requireCsrf, adminRateLimit } = require('./adminAuth');
+const { requireSession, requireGuildAdmin, verifyLiveGuildAdmin, requireCsrf, adminRateLimit } = require('./adminAuth');
 const { logWebAction } = require('./audit');
 const { getTournament } = require('../services/tournamentService');
 const { GAME_PRESETS, getPresetKeys, getFeaturedPresetKeys } = require('../config/gamePresets');
@@ -50,6 +50,28 @@ async function loadOwned(req, res) {
     return null;
   }
   return t;
+}
+
+/**
+ * loadOwned + LIVE re-authorization against Discord (session guild lists are
+ * a login-time snapshot; mutations must not honor a since-revoked admin).
+ */
+async function loadOwnedForMutation(req, res) {
+  const t = await loadOwned(req, res);
+  if (!t) return null;
+  if (!(await verifyLiveGuildAdmin(t.guildId, req.session.uid))) {
+    res.status(403).json({ error: 'Your admin rights on this server could not be confirmed — sign out and back in.' });
+    return null;
+  }
+  return t;
+}
+
+/** Live re-authorization for guild-scoped mutations (create). */
+async function requireLiveGuildAdmin(req, res, next) {
+  if (!(await verifyLiveGuildAdmin(req.params.guildId, req.session.uid))) {
+    return res.status(403).json({ error: 'Your admin rights on this server could not be confirmed — sign out and back in.' });
+  }
+  next();
 }
 
 function audit(req, tournament, action, details = {}) {
@@ -180,7 +202,7 @@ router.get('/admin/api/tournaments/:id/manage', requireSession, async (req, res)
       removeEntrant: ['registration', 'checkin'].includes(t.status),
       report: t.status === 'active' && t.settings.format !== 'battle_royale',
       correct: !!t.bracket && t.settings.format !== 'battle_royale',
-      disqualify: t.status === 'active',
+      disqualify: t.status === 'active' && t.settings.format !== 'battle_royale',
       createRooms: t.status === 'active',
     },
   });
@@ -191,7 +213,7 @@ router.get('/admin/api/tournaments/:id/manage', requireSession, async (req, res)
 // ════════════════════════════════════════════════════════════════════════════
 
 // Create a tournament (simple-mode parity + format/team-size/best-of/channel)
-router.post('/admin/api/guilds/:guildId/tournaments', ...mutate, requireGuildAdmin, async (req, res) => {
+router.post('/admin/api/guilds/:guildId/tournaments', ...mutate, requireGuildAdmin, requireLiveGuildAdmin, async (req, res) => {
   const guild = getGuildOr503(req.params.guildId, res);
   if (!guild) return;
 
@@ -206,6 +228,8 @@ router.post('/admin/api/guilds/:guildId/tournaments', ...mutate, requireGuildAdm
   const gameName = String(b.gameName || '').trim();
   if (gamePreset === 'custom' && !gameName) return res.status(400).json({ error: 'Custom games need a game name' });
 
+  // new Date(null) is the epoch, so reject missing values explicitly
+  if (!b.startTime) return res.status(400).json({ error: 'Pick a start time' });
   const startTime = new Date(b.startTime);
   if (isNaN(startTime.getTime())) return res.status(400).json({ error: 'Invalid start time' });
 
@@ -282,7 +306,7 @@ router.post('/admin/api/guilds/:guildId/tournaments', ...mutate, requireGuildAdm
 
 // Edit (registration/checkin only)
 router.patch('/admin/api/tournaments/:id', ...mutate, async (req, res) => {
-  const t = await loadOwned(req, res);
+  const t = await loadOwnedForMutation(req, res);
   if (!t) return;
   try {
     const { updated, changes } = await editTournamentFlow({
@@ -299,13 +323,14 @@ router.patch('/admin/api/tournaments/:id', ...mutate, async (req, res) => {
     await audit(req, t, 'edit', { changes });
     res.json({ ok: true, changes, title: updated.title });
   } catch (err) {
+    console.error(`[web-admin] ${req.method} ${req.path} failed:`, err.message);
     res.status(400).json({ error: err.message });
   }
 });
 
 // Start
 router.post('/admin/api/tournaments/:id/start', ...mutate, async (req, res) => {
-  const t = await loadOwned(req, res);
+  const t = await loadOwnedForMutation(req, res);
   if (!t) return;
   const guild = getGuildOr503(t.guildId, res);
   if (!guild) return;
@@ -314,13 +339,14 @@ router.post('/admin/api/tournaments/:id/start', ...mutate, async (req, res) => {
     await audit(req, t, 'start', { rooms: summary.roomsCreated, roomsFailed: summary.roomsFailed });
     res.json({ ok: true, ...summary });
   } catch (err) {
+    console.error(`[web-admin] ${req.method} ${req.path} failed:`, err.message);
     res.status(400).json({ error: err.message });
   }
 });
 
 // Cancel
 router.post('/admin/api/tournaments/:id/cancel', ...mutate, async (req, res) => {
-  const t = await loadOwned(req, res);
+  const t = await loadOwnedForMutation(req, res);
   if (!t) return;
   if (['completed', 'cancelled'].includes(t.status)) {
     return res.status(400).json({ error: `Tournament is already ${t.status}.` });
@@ -330,13 +356,14 @@ router.post('/admin/api/tournaments/:id/cancel', ...mutate, async (req, res) => 
     await audit(req, t, 'cancel', {});
     res.json({ ok: true });
   } catch (err) {
+    console.error(`[web-admin] ${req.method} ${req.path} failed:`, err.message);
     res.status(400).json({ error: err.message });
   }
 });
 
 // Report a result
 router.post('/admin/api/tournaments/:id/report', ...mutate, async (req, res) => {
-  const t = await loadOwned(req, res);
+  const t = await loadOwnedForMutation(req, res);
   if (!t) return;
   const guild = getGuildOr503(t.guildId, res);
   if (!guild) return;
@@ -372,13 +399,14 @@ router.post('/admin/api/tournaments/:id/report', ...mutate, async (req, res) => 
       champion: result.completed ? entrantName(t, result.results.winner) : null,
     });
   } catch (err) {
+    console.error(`[web-admin] ${req.method} ${req.path} failed:`, err.message);
     res.status(400).json({ error: err.message });
   }
 });
 
 // Correct a result
 router.post('/admin/api/tournaments/:id/correct', ...mutate, async (req, res) => {
-  const t = await loadOwned(req, res);
+  const t = await loadOwnedForMutation(req, res);
   if (!t) return;
   if (t.bracket?.type === 'battle_royale') return res.status(400).json({ error: 'Battle Royale results are corrected in Discord.' });
   try {
@@ -398,13 +426,14 @@ router.post('/admin/api/tournaments/:id/correct', ...mutate, async (req, res) =>
       wasCompleted: result.wasCompleted,
     });
   } catch (err) {
+    console.error(`[web-admin] ${req.method} ${req.path} failed:`, err.message);
     res.status(400).json({ error: err.message.replace(/\*\*|`/g, '') });
   }
 });
 
 // Disqualify
 router.post('/admin/api/tournaments/:id/disqualify', ...mutate, async (req, res) => {
-  const t = await loadOwned(req, res);
+  const t = await loadOwnedForMutation(req, res);
   if (!t) return;
   try {
     const result = await disqualifyFlow({
@@ -416,13 +445,14 @@ router.post('/admin/api/tournaments/:id/disqualify', ...mutate, async (req, res)
     await audit(req, t, 'disqualify', { participantId: req.body?.participantId, reason: req.body?.reason || null });
     res.json({ ok: true, name: result.name, forfeited: result.forfeited, pending: result.pending });
   } catch (err) {
+    console.error(`[web-admin] ${req.method} ${req.path} failed:`, err.message);
     res.status(400).json({ error: err.message });
   }
 });
 
 // Remove an entrant (registration/check-in)
 router.post('/admin/api/tournaments/:id/remove-entrant', ...mutate, async (req, res) => {
-  const t = await loadOwned(req, res);
+  const t = await loadOwnedForMutation(req, res);
   if (!t) return;
   try {
     const result = await removeEntrantFlow({
@@ -433,13 +463,14 @@ router.post('/admin/api/tournaments/:id/remove-entrant', ...mutate, async (req, 
     await audit(req, t, 'remove_entrant', { entrantId: req.body?.entrantId, name: result.name });
     res.json({ ok: true, name: result.name, remaining: result.count });
   } catch (err) {
+    console.error(`[web-admin] ${req.method} ${req.path} failed:`, err.message);
     res.status(400).json({ error: err.message });
   }
 });
 
 // Create missing match rooms
 router.post('/admin/api/tournaments/:id/create-rooms', ...mutate, async (req, res) => {
-  const t = await loadOwned(req, res);
+  const t = await loadOwnedForMutation(req, res);
   if (!t) return;
   const guild = getGuildOr503(t.guildId, res);
   if (!guild) return;
@@ -448,6 +479,7 @@ router.post('/admin/api/tournaments/:id/create-rooms', ...mutate, async (req, re
     await audit(req, t, 'create_rooms', result);
     res.json({ ok: true, ...result });
   } catch (err) {
+    console.error(`[web-admin] ${req.method} ${req.path} failed:`, err.message);
     res.status(400).json({ error: err.message });
   }
 });

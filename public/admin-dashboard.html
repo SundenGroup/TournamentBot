@@ -473,8 +473,11 @@ document.addEventListener('keydown', e => {
 // ── Manage tab ───────────────────────────────────────────────────────────────
 async function loadManage() {
   if (!currentTournament) return;
+  const id = currentTournament.id;
   manageInner.innerHTML = '<div class="skel"></div>';
-  const res = await api(`/admin/api/tournaments/${encodeURIComponent(currentTournament.id)}/manage`);
+  const res = await api(`/admin/api/tournaments/${encodeURIComponent(id)}/manage`);
+  // Discard stale responses: overlay closed or switched tournaments mid-fetch
+  if (currentTournament?.id !== id) return;
   if (!res.ok) { manageInner.innerHTML = `<div class="empty">${esc(res.error)}</div>`; return; }
   manageData = res.data;
   renderManage(manageData);
@@ -586,7 +589,8 @@ function renderManage(d) {
       await refreshAfterAction();
     }));
     entrantsEl.querySelectorAll('[data-dq]').forEach(btn => armConfirm(btn, 'DQ', async () => {
-      const reason = prompt('Reason for the disqualification (optional):') || '';
+      const reason = prompt('Reason for the disqualification (optional):');
+      if (reason === null) return; // Cancel aborts the DQ
       const res = await api(`/admin/api/tournaments/${d.id}/disqualify`, { method: 'POST', body: { participantId: btn.dataset.dq, reason } });
       if (!res.ok) return toast(res.error, true);
       toast(`${res.data.name} disqualified — ${res.data.forfeited} match(es) forfeited`);
@@ -658,8 +662,8 @@ function renderManage(d) {
         </div>
         <div class="mrow-form" data-fixform style="display:none">
           <select data-winner>
-            <option value="${esc(m.participant1?.id)}">${esc(m.participant1?.name)}</option>
-            <option value="${esc(m.participant2?.id)}">${esc(m.participant2?.name)}</option>
+            <option value="${esc(m.participant1?.id)}" ${m.winnerId === m.participant1?.id ? 'selected' : ''}>${esc(m.participant1?.name)}</option>
+            <option value="${esc(m.participant2?.id)}" ${m.winnerId === m.participant2?.id ? 'selected' : ''}>${esc(m.participant2?.name)}</option>
           </select>
           ${d.validScores
             ? `<select data-score><option value="">Score…</option>${d.validScores.map(s => `<option>${s}</option>`).join('')}</select>`
@@ -697,6 +701,7 @@ function renderManage(d) {
 
 // ── Edit form (registration/check-in) ────────────────────────────────────────
 function toDatetimeLocal(iso) {
+  if (!iso) return ''; // new Date(null) is the epoch, not invalid
   const dt = new Date(iso);
   if (isNaN(dt)) return '';
   const pad = n => String(n).padStart(2, '0');
@@ -724,19 +729,27 @@ function toggleEditForm(d) {
     </div>`;
   document.getElementById('eCancel').addEventListener('click', () => toggleEditForm(d));
   document.getElementById('eSave').addEventListener('click', async () => {
+    const btn = document.getElementById('eSave');
     const startVal = document.getElementById('eStart').value;
+    const newTitle = document.getElementById('eTitle').value;
+    btn.disabled = true;
     const res = await api(`/admin/api/tournaments/${d.id}`, {
       method: 'PATCH',
       body: {
-        title: document.getElementById('eTitle').value,
+        title: newTitle,
         startTime: startVal ? new Date(startVal).toISOString() : undefined,
         maxParticipants: document.getElementById('eMax').value,
         bestOf: document.getElementById('eBestOf').value,
         description: document.getElementById('eDesc').value,
       },
     });
+    btn.disabled = false;
     if (!res.ok) return toast(res.error, true);
     toast(res.data.changes.length ? `Saved: ${res.data.changes.join(', ')}` : 'No changes to save');
+    if (currentTournament) {
+      currentTournament.title = res.data.title || newTitle;
+      document.getElementById('detailTitle').textContent = currentTournament.title;
+    }
     await refreshAfterAction();
   });
 }
@@ -801,6 +814,7 @@ document.getElementById('cGame').addEventListener('change', applyGamePreset);
 document.getElementById('createSubmit').addEventListener('click', async () => {
   const btn = document.getElementById('createSubmit');
   const startVal = document.getElementById('cStart').value;
+  if (!startVal) return toast('Pick a start time', true);
   btn.disabled = true;
   const res = await api(`/admin/api/guilds/${encodeURIComponent(activeGuild)}/tournaments`, {
     method: 'POST',

@@ -10,6 +10,7 @@
 
 const crypto = require('node:crypto');
 const express = require('express');
+const { PermissionFlagsBits } = require('discord.js');
 const config = require('../config');
 const { getClient } = require('./botClient');
 const { getServerSettings } = require('../data/serverSettings');
@@ -152,6 +153,30 @@ function requireGuildAdmin(req, res, next) {
   next();
 }
 
+/**
+ * Live authorization check via the bot's own view of the guild — the session's
+ * guild list is a snapshot from login, so a demoted/kicked admin would keep
+ * access for up to 7 days. State-changing routes call this per request.
+ */
+async function verifyLiveGuildAdmin(guildId, userId) {
+  const client = getClient();
+  const guild = client?.guilds.cache.get(guildId);
+  if (!guild) return false;
+  if (guild.ownerId === userId) return true;
+
+  const member = await guild.members.fetch(userId).catch(() => null);
+  if (!member) return false;
+  if (member.permissions.has(PermissionFlagsBits.Administrator)
+    || member.permissions.has(PermissionFlagsBits.ManageGuild)) return true;
+
+  try {
+    const settings = await getServerSettings(guildId);
+    return (settings.tournamentAdminRoles || []).some(r => member.roles.cache.has(r));
+  } catch {
+    return false;
+  }
+}
+
 // ── CSRF ────────────────────────────────────────────────────────────────────
 // The session cookie is SameSite=Lax (cross-site POSTs never carry it), and on
 // top of that every mutating request must echo a per-session token in the
@@ -168,13 +193,20 @@ function csrfToken(sess) {
 /** Require a valid CSRF token (and same-origin Origin when the browser sends one). */
 function requireCsrf(req, res, next) {
   const origin = req.headers.origin;
-  if (origin && origin !== new URL(config.publicBaseUrl).origin && !origin.startsWith('http://localhost')) {
-    return res.status(403).json({ error: 'Cross-origin request rejected' });
+  if (origin) {
+    const allowed = origin === new URL(config.publicBaseUrl).origin
+      // exact localhost origins for local development only
+      || (config.nodeEnv !== 'production' && /^https?:\/\/localhost(:\d+)?$/.test(origin));
+    if (!allowed) {
+      return res.status(403).json({ error: 'Cross-origin request rejected' });
+    }
   }
   const token = req.headers['x-csrf-token'];
   const expected = csrfToken(req.session);
-  if (!token || token.length !== expected.length
-      || !crypto.timingSafeEqual(Buffer.from(token), Buffer.from(expected))) {
+  // byte-length guard so a multibyte header value can't make timingSafeEqual throw
+  const tokenBuf = Buffer.from(String(token || ''), 'utf8');
+  const expectedBuf = Buffer.from(expected, 'utf8');
+  if (tokenBuf.length !== expectedBuf.length || !crypto.timingSafeEqual(tokenBuf, expectedBuf)) {
     return res.status(403).json({ error: 'Invalid CSRF token — reload the page and try again' });
   }
   next();
@@ -214,6 +246,7 @@ module.exports = {
   router,
   requireSession,
   requireGuildAdmin,
+  verifyLiveGuildAdmin,
   requireCsrf,
   adminRateLimit,
   csrfToken,

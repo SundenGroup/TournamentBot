@@ -28,11 +28,15 @@ function serialize(payload) {
 
 function deserialize(token) {
   if (!token || typeof token !== 'string' || !token.includes('.')) return null;
-  const [body, sig] = token.split('.');
-  const expected = sign(body);
-  // constant-time compare
-  if (sig.length !== expected.length || !crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(expected))) return null;
   try {
+    const [body, sig] = token.split('.');
+    const expected = sign(body);
+    // constant-time compare on BYTE length (a multibyte char in the sig slot
+    // could match on string length but not byte length, which would make
+    // timingSafeEqual throw instead of returning false)
+    const sigBuf = Buffer.from(sig, 'utf8');
+    const expBuf = Buffer.from(expected, 'utf8');
+    if (sigBuf.length !== expBuf.length || !crypto.timingSafeEqual(sigBuf, expBuf)) return null;
     const payload = JSON.parse(fromB64url(body).toString('utf8'));
     if (!payload.exp || Date.now() > payload.exp) return null;
     return payload;
@@ -48,7 +52,12 @@ function parseCookies(req) {
   for (const part of header.split(';')) {
     const idx = part.indexOf('=');
     if (idx === -1) continue;
-    out[part.slice(0, idx).trim()] = decodeURIComponent(part.slice(idx + 1).trim());
+    try {
+      out[part.slice(0, idx).trim()] = decodeURIComponent(part.slice(idx + 1).trim());
+    } catch {
+      // malformed percent-encoding (e.g. a bare '%') — skip the pair rather
+      // than 500 the request
+    }
   }
   return out;
 }

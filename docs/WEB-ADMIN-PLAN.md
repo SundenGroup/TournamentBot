@@ -15,7 +15,18 @@ unusually well-suited, with no blockers.
   and the OAuth redirect `…/admin/callback` must be registered in the dev portal.
   Files: `src/api/{session,botClient,adminAuth,adminDashboard}.js`,
   `public/admin-dashboard.html`.
-- **Phases 2–4 — not started** (safe mutations → live-ops → polish; see below).
+- **Phase 2 (safe mutations) + Phase 3 (live-ops) — BUILT.** The dashboard
+  mirrors the whole Discord admin toolset: create (with per-tournament channel
+  picker), edit, remove entrants, start, report + series score, correct,
+  disqualify, create-rooms, cancel. All wired through the SAME orchestration
+  the slash commands / buttons use (`services/lifecycleService.js`,
+  `services/creationService.js`), so web actions produce identical Discord
+  side-effects. Security: CSRF token per session, per-user mutation rate
+  limit, per-request guild re-authorization incl. a LIVE Discord member check
+  on every mutation, and a `web_admin_audit` table. Battle Royale reporting
+  stays Discord-only (feature-flagged off anyway).
+- **Phase 4 — polish backlog:** audit-log viewer in the UI, SSE/live updates
+  instead of manual refresh, mobile layout pass, server-settings tab.
 
 ## Why it's a good fit (what already exists)
 

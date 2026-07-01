@@ -60,7 +60,8 @@ function validSeriesScores(bestOf) {
  * each surface adds its own framing).
  */
 function normalizeSeriesScore(score, bestOf) {
-  let normalized = score ? String(score).trim() : null;
+  // whitespace-only counts as "no score provided"
+  let normalized = score && String(score).trim() ? String(score).trim() : null;
   if (normalized && !/^\d{1,3}-\d{1,3}$/.test(normalized)) {
     return { ok: false, error: 'Invalid score format. Use format like `2-1` or `16-14`.' };
   }

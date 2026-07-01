@@ -81,22 +81,30 @@ module.exports = {
       ephemeral: true,
     });
 
-    await createAndAnnounce({
-      client: interaction.client,
-      guildId,
-      targetChannel,
-      boostToUse: checks.boostToUse,
-      data: {
-        title,
-        gamePreset,
-        gameDisplayName: gameName,
-        gameShortName: gamePreset === 'custom' ? gameName.substring(0, 4).toUpperCase() : preset?.shortName,
-        maxParticipants,
-        startTime,
-        publicBracket,
-        setupMode: 'simple',
-        createdBy: interaction.user.id,
-      },
-    });
+    try {
+      await createAndAnnounce({
+        client: interaction.client,
+        guildId,
+        targetChannel,
+        boostToUse: checks.boostToUse,
+        data: {
+          title,
+          gamePreset,
+          gameDisplayName: gameName,
+          gameShortName: gamePreset === 'custom' ? gameName.substring(0, 4).toUpperCase() : preset?.shortName,
+          maxParticipants,
+          startTime,
+          publicBracket,
+          setupMode: 'simple',
+          createdBy: interaction.user.id,
+        },
+      });
+    } catch (error) {
+      // Turn the premature ✅ into an accurate failure message
+      console.error('Simple create failed:', error);
+      await interaction.editReply({
+        content: `❌ Creation failed: ${error.message}\nNothing was created — please try again.`,
+      }).catch(() => {});
+    }
   },
 };

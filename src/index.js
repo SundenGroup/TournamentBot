@@ -18,6 +18,10 @@ const client = new Client({
     GatewayIntentBits.GuildMembers,
     GatewayIntentBits.GuildMessages,
   ],
+  // Only ever ping individual users (match-room "your match is ready" pings).
+  // Blocks @everyone/@here/role pings smuggled into titles or team names —
+  // those strings end up in bot-authored channel messages (e.g. DQ notices).
+  allowedMentions: { parse: ['users'] },
 });
 
 // Initialize collections
