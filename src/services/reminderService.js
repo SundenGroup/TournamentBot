@@ -174,10 +174,13 @@ async function openCheckin(tournament, client) {
     }
 
     // Notify channel
-    await channel.send(`📢 **Check-in is now open for ${current.title}!** You have ${current.settings.checkinWindow} minutes to check in.`);
+    await channel.send(`📢 **Check-in is now open for ${current.title}!** You have ${current.settings.checkinWindow} minutes — hit **✅ Check In** on the announcement above.`);
 
-    // DM participants
-    const dmMessage = `✅ Check-in is now open for **${current.title}**! Please check in within ${current.settings.checkinWindow} minutes.`;
+    // DM participants — include a jump link straight to the Check In button
+    const jumpLink = current.messageId
+      ? `\n👉 Check in here: https://discord.com/channels/${current.guildId}/${current.channelId}/${current.messageId}`
+      : '';
+    const dmMessage = `✅ Check-in is now open for **${current.title}**! Please check in within ${current.settings.checkinWindow} minutes.${jumpLink}`;
 
     if (isSolo) {
       for (const participant of current.participants) {

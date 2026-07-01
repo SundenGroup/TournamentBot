@@ -723,6 +723,11 @@ async function handleHelp(interaction) {
 
   embed.addFields(
     {
+      name: '🚀 Quick Start',
+      value: '1. `/tournament create` — Create a tournament\n2. Players sign up via buttons\n3. `/tournament start` — Start when ready\n4. Use the 👑 buttons in each match room to report results\n5. `/match bracket` — View standings',
+      inline: false,
+    },
+    {
       name: '/tournament (Admin)',
       value: [
         '`create` — Simple mode wizard (optional `channel:` for its own channel)',
@@ -823,11 +828,6 @@ async function handleHelp(interaction) {
     {
       name: 'Tournament Formats',
       value: Object.values(FORMAT_INFO).map(f => `**${f.name}** — ${f.description}`).join('\n'),
-      inline: false,
-    },
-    {
-      name: 'Quick Start',
-      value: '1. `/tournament create` — Create a tournament\n2. Players sign up via buttons\n3. `/tournament start` — Start when ready\n4. `/tournament report` — Report results\n5. `/match bracket` — View standings',
       inline: false,
     }
   );

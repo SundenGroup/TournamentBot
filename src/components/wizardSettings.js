@@ -38,7 +38,8 @@ function buildSettingsMessage(session) {
   content += `**Title:** ${data.title}\n`;
   content += `**Date:** ${dateDisplay}\n`;
   content += `**Players:** ${data.maxParticipants}\n\n`;
-  content += `Customize your tournament settings below, or create with defaults.`;
+  content += `Customize your tournament settings below, or create with defaults.\n`;
+  content += `-# 💎 Premium · 🌐 Web Bracket is Pro — toggles turn green when on.`;
 
   const rows = [];
 
@@ -96,7 +97,7 @@ function buildSettingsMessage(session) {
   const toggleRow = new ActionRowBuilder().addComponents(
     new ButtonBuilder()
       .setCustomId(`wizardSettings:${session.id}:toggleCheckin`)
-      .setLabel(`${data.checkinRequired ? '✅' : '❌'} Check-in`)
+      .setLabel(`${data.checkinRequired ? '✅' : '❌'} Check-in 💎`)
       .setStyle(data.checkinRequired ? ButtonStyle.Success : ButtonStyle.Secondary),
     new ButtonBuilder()
       .setCustomId(`wizardSettings:${session.id}:toggleGameNick`)
@@ -104,15 +105,15 @@ function buildSettingsMessage(session) {
       .setStyle(data.requireGameNick ? ButtonStyle.Success : ButtonStyle.Secondary),
     new ButtonBuilder()
       .setCustomId(`wizardSettings:${session.id}:toggleCaptain`)
-      .setLabel(`${data.captainMode ? '✅' : '❌'} Captain Mode`)
+      .setLabel(`${data.captainMode ? '✅' : '❌'} Captain Mode 💎`)
       .setStyle(data.captainMode ? ButtonStyle.Success : ButtonStyle.Secondary),
     new ButtonBuilder()
       .setCustomId(`wizardSettings:${session.id}:toggleSeeding`)
-      .setLabel(`${data.seedingEnabled ? '✅' : '❌'} Seeding`)
+      .setLabel(`${data.seedingEnabled ? '✅' : '❌'} Seeding 💎`)
       .setStyle(data.seedingEnabled ? ButtonStyle.Success : ButtonStyle.Secondary),
     new ButtonBuilder()
       .setCustomId(`wizardSettings:${session.id}:togglePublicBracket`)
-      .setLabel(`${data.publicBracket ? '✅' : '❌'} Web Bracket`)
+      .setLabel(`${data.publicBracket ? '✅' : '❌'} Web Bracket 🌐`)
       .setStyle(data.publicBracket ? ButtonStyle.Success : ButtonStyle.Secondary),
   );
   rows.push(toggleRow);

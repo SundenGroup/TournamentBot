@@ -204,8 +204,9 @@ module.exports = {
       }
     }
 
+    const { signupNextSteps } = require('../utils/signupMessages');
     return interaction.editReply({
-      content: `✅ Team **${teamName}** has been registered for **${tournament.title}**!`,
+      content: `✅ Team **${teamName}** has been registered for **${tournament.title}**!${signupNextSteps(tournament)}`,
       ephemeral: true,
     });
   },

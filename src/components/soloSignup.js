@@ -40,8 +40,9 @@ module.exports = {
     }
 
     await updateTournamentMessages(interaction.client, result.tournament);
+    const { signupNextSteps } = require('../utils/signupMessages');
     return interaction.editReply({
-      content: `✅ You're signed up for **${tournament.title}**!\nIn-game nick: **${gameNick}**`,
+      content: `✅ You're signed up for **${tournament.title}**!\nIn-game nick: **${gameNick}**${signupNextSteps(tournament)}`,
       ephemeral: true,
     });
   },
