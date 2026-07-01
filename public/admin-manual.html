@@ -630,6 +630,10 @@
     </ol>
     <p>Simple mode uses the game's default settings (format, team size, best-of-1, no check-in).</p>
 
+    <h3>One tournament = one channel</h3>
+    <pre><code><span class="cmd">/tournament create</span> <span class="param">channel:</span><span class="value">#cs2-eu</span></code></pre>
+    <p>Both create commands take an optional <code>channel:</code> — the tournament announces there and <strong>all</strong> of its posts (start, check-in, round news, DQ notices, final results) follow it. Ideal for per-region events of the same game: create one with <code>channel:#cs2-eu</code> and another with <code>channel:#cs2-na</code>. Without it, the per-game override (<code>/admin set-announcement-channel game:</code>) or server default applies. The <a href="/admin">web dashboard</a>'s create form has the same channel picker.</p>
+
     <h3>Advanced Mode</h3>
     <pre><code><span class="cmd">/tournament create-advanced</span></code></pre>
     <p>Same game picker, but after the basic info form you get a <strong>settings screen</strong> with dropdowns and toggles:</p>

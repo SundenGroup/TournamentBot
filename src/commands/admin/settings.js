@@ -725,8 +725,8 @@ async function handleHelp(interaction) {
     {
       name: '/tournament (Admin)',
       value: [
-        '`create` — Simple mode wizard',
-        '`create-advanced` — Full customization wizard',
+        '`create` — Simple mode wizard (optional `channel:` for its own channel)',
+        '`create-advanced` — Full customization wizard (also takes `channel:`)',
         '`list` — List all tournaments',
         '`info` — Show tournament details',
         '`start` — Start tournament & generate brackets',

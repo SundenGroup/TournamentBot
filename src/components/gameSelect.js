@@ -3,8 +3,11 @@ const { GAME_PRESETS, getPresetKeys, getMenuEmoji } = require('../config/gamePre
 
 module.exports = {
   customId: 'gameSelect',
-  async execute(interaction) {
+  async execute(interaction, args) {
     const selectedGame = interaction.values[0];
+    // Optional per-tournament announcement channel riding along in the
+    // customId (set by /tournament create channel:#…).
+    const overrideChannelId = args?.[0] || null;
 
     // Handle "More Games..." selection — show full list
     if (selectedGame === '__more_games__') {
@@ -24,7 +27,7 @@ module.exports = {
       });
 
       const selectMenu = new StringSelectMenuBuilder()
-        .setCustomId('gameSelect')
+        .setCustomId(overrideChannelId ? `gameSelect:${overrideChannelId}` : 'gameSelect')
         .setPlaceholder('Select a game')
         .addOptions(options);
 
@@ -39,7 +42,7 @@ module.exports = {
     const preset = GAME_PRESETS[selectedGame];
 
     const modal = new ModalBuilder()
-      .setCustomId(`simpleCreate:${selectedGame}`)
+      .setCustomId(overrideChannelId ? `simpleCreate:${selectedGame}:${overrideChannelId}` : `simpleCreate:${selectedGame}`)
       .setTitle(`Create ${preset?.displayName || 'Custom'} Tournament`);
 
     const titleInput = new TextInputBuilder()

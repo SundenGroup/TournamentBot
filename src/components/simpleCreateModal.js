@@ -27,6 +27,9 @@ module.exports = {
   checkFailureReply, // shared with wizardCreate.js
   async execute(interaction, args) {
     const gamePreset = args[0];
+    // Optional per-tournament announcement channel (threaded through the
+    // customId chain from /tournament create channel:#…)
+    const overrideChannelId = args[1] || null;
     const preset = GAME_PRESETS[gamePreset];
     const guildId = interaction.guildId;
 
@@ -65,8 +68,11 @@ module.exports = {
     // when the tier allows it — advanced mode exposes an explicit toggle.
     const publicBracket = (await checkFeature(guildId, 'public_bracket')).allowed;
 
-    // Announcement channel (per-game override aware)
-    const resolved = await resolveAnnouncementChannel(interaction.guild, gamePreset);
+    // Announcement channel: per-tournament override → per-game → server default
+    const resolved = await resolveAnnouncementChannel(interaction.guild, gamePreset, overrideChannelId);
+    if (resolved.error) {
+      return interaction.reply({ content: `❌ ${resolved.error}`, ephemeral: true });
+    }
     const targetChannel = resolved.channel || interaction.channel;
 
     // Ack inside the 3s modal window; the announcement posts right after.

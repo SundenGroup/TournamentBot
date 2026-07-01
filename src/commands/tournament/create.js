@@ -1,4 +1,4 @@
-const { SlashCommandBuilder, ActionRowBuilder, StringSelectMenuBuilder, EmbedBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
+const { SlashCommandBuilder, ActionRowBuilder, StringSelectMenuBuilder, EmbedBuilder, ButtonBuilder, ButtonStyle, ChannelType } = require('discord.js');
 const { getPresetKeys, getFeaturedPresetKeys, getMenuEmoji, GAME_PRESETS } = require('../../config/gamePresets');
 const { getTournament, getActiveTournaments, updateTournament } = require('../../services/tournamentService');
 const { createBRGroupRoom } = require('../../services/channelService');
@@ -19,11 +19,23 @@ module.exports = {
       subcommand
         .setName('create')
         .setDescription('Create a new tournament (Simple Mode)')
+        .addChannelOption(option =>
+          option.setName('channel')
+            .setDescription('Announce this tournament in a specific channel (e.g. a region channel)')
+            .addChannelTypes(ChannelType.GuildText)
+            .setRequired(false)
+        )
     )
     .addSubcommand(subcommand =>
       subcommand
         .setName('create-advanced')
         .setDescription('Create a new tournament with full customization (guided wizard)')
+        .addChannelOption(option =>
+          option.setName('channel')
+            .setDescription('Announce this tournament in a specific channel (e.g. a region channel)')
+            .addChannelTypes(ChannelType.GuildText)
+            .setRequired(false)
+        )
     )
     .addSubcommand(subcommand =>
       subcommand
@@ -519,7 +531,28 @@ module.exports = {
 
 // ─── Tournament Create ──────────────────────────────────────────────────────
 
+/**
+ * Optional per-tournament announcement channel (the `channel:` option on both
+ * create commands). Validated up front so the admin hears about a permission
+ * problem immediately, not after filling in the whole form.
+ */
+function validateAnnounceChannel(interaction) {
+  const channel = interaction.options.getChannel('channel');
+  if (!channel) return { channel: null };
+  const me = interaction.guild.members.me;
+  const perms = me ? channel.permissionsFor(me) : null;
+  if (!perms?.has('ViewChannel') || !perms?.has('SendMessages') || !perms?.has('EmbedLinks')) {
+    return { error: `I can't post in ${channel} — I need **View Channel**, **Send Messages** and **Embed Links** there.` };
+  }
+  return { channel };
+}
+
 async function handleSimpleCreate(interaction) {
+  const { channel: overrideChannel, error: channelError } = validateAnnounceChannel(interaction);
+  if (channelError) {
+    return interaction.reply({ content: `❌ ${channelError}`, ephemeral: true });
+  }
+
   const featuredKeys = getFeaturedPresetKeys();
   const allKeys = getPresetKeys();
   const hasMoreGames = allKeys.length > featuredKeys.length;
@@ -548,14 +581,14 @@ async function handleSimpleCreate(interaction) {
   });
 
   const selectMenu = new StringSelectMenuBuilder()
-    .setCustomId('gameSelect')
+    .setCustomId(overrideChannel ? `gameSelect:${overrideChannel.id}` : 'gameSelect')
     .setPlaceholder('Select a game')
     .addOptions(options);
 
   const row = new ActionRowBuilder().addComponents(selectMenu);
 
   await interaction.reply({
-    content: '🎮 **Create Tournament — Simple Mode**\n\nSelect a game to get started:\n\n*Or use `/tournament create-advanced` for full customization.*',
+    content: `🎮 **Create Tournament — Simple Mode**\n${overrideChannel ? `📣 Will be announced in ${overrideChannel}\n` : ''}\nSelect a game to get started:\n\n*Or use \`/tournament create-advanced\` for full customization.*`,
     components: [row],
     ephemeral: true,
   });
@@ -566,7 +599,17 @@ async function handleAdvancedCreate(interaction) {
   const { getPresetKeys, getFeaturedPresetKeys } = require('../../config/gamePresets');
   const { checkFeature } = require('../../services/subscriptionService');
 
+  const { channel: overrideChannel, error: channelError } = validateAnnounceChannel(interaction);
+  if (channelError) {
+    return interaction.reply({ content: `❌ ${channelError}`, ephemeral: true });
+  }
+
   const session = await createSession(interaction.user.id, interaction.guildId);
+
+  // Per-tournament announcement channel riding along in the wizard session
+  if (overrideChannel) {
+    await updateSession(session.id, { announcementChannelId: overrideChannel.id });
+  }
 
   // Live web bracket (Pro/Business) defaults to ON when the tier allows it;
   // the settings screen exposes a toggle either way.
@@ -610,7 +653,7 @@ async function handleAdvancedCreate(interaction) {
   const row = new ActionRowBuilder().addComponents(selectMenu);
 
   await interaction.reply({
-    content: '🎮 **Create Tournament — Advanced Mode**\n\nSelect a game to get started:',
+    content: `🎮 **Create Tournament — Advanced Mode**\n${overrideChannel ? `📣 Will be announced in ${overrideChannel}\n` : ''}\nSelect a game to get started:`,
     components: [row],
     ephemeral: true,
   });

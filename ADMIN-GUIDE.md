@@ -30,6 +30,13 @@ Pick a game from the dropdown, then fill the short form:
 The game's defaults (team size, format, best-of) are applied automatically. The bot
 posts an announcement with **Sign Up** / **Register Team** buttons.
 
+**One tournament = one channel.** Both create commands take an optional
+`channel:` — the tournament announces there and ALL of its posts (start,
+check-in, round news, DQs, final results) follow it. Perfect for running the
+same game per region: `/tournament create channel:#cs2-eu`, then another with
+`channel:#cs2-na`. Without `channel:` the per-game override or server default
+applies as before. (The web dashboard's create form has the same picker.)
+
 **Advanced mode — `/tournament create-advanced`**
 A guided wizard. Same basics, plus you can change **Format**, **Team Size**,
 **Best-Of**, and toggle **Check-in**, **Seeding**, **Captain Mode**, **Game Nick**,

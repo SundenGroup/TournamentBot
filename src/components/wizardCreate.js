@@ -27,8 +27,12 @@ async function createTournamentFromWizard(interaction, session) {
     return interaction.update({ ...(await checkFailureReply(guildId, checks)), components: [] });
   }
 
-  // Announcement channel (per-game override aware)
-  const resolved = await resolveAnnouncementChannel(interaction.guild, data.gamePreset);
+  // Announcement channel: per-tournament override (stored in the wizard
+  // session by /tournament create-advanced channel:#…) → per-game → default
+  const resolved = await resolveAnnouncementChannel(interaction.guild, data.gamePreset, data.announcementChannelId || null);
+  if (resolved.error) {
+    return interaction.update({ content: `❌ ${resolved.error}`, components: [] });
+  }
   const targetChannel = resolved.channel || interaction.channel;
 
   let gameDisplayName = data.gameName || preset?.displayName;
