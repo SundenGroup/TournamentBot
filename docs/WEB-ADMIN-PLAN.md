@@ -4,6 +4,19 @@ Mirroring the Discord admin toolset on a logged-in web dashboard at
 `tournaments.clutch.game`. **Verdict: highly feasible** — the architecture is
 unusually well-suited, with no blockers.
 
+## Status
+
+- **Phase 0 (auth) + Phase 1 (read-only dashboard) — BUILT.** Discord OAuth
+  login, signed-cookie sessions, per-guild authorization (mirrors
+  `canManageTournaments`), and a Clutch-branded dashboard that lists your
+  manageable servers → their tournaments → the live bracket (reusing
+  `bracket.html` in an iframe via a session-gated data feed). Ships dormant:
+  `webAdmin.enabled` is false until `DISCORD_CLIENT_SECRET` is set on the host,
+  and the OAuth redirect `…/admin/callback` must be registered in the dev portal.
+  Files: `src/api/{session,botClient,adminAuth,adminDashboard}.js`,
+  `public/admin-dashboard.html`.
+- **Phases 2–4 — not started** (safe mutations → live-ops → polish; see below).
+
 ## Why it's a good fit (what already exists)
 
 1. **The web server runs in the same process as the bot.** `src/index.js` logs

@@ -187,6 +187,7 @@ router.get('/b/:id', async (req, res) => {
     .replaceAll('{{TITLE}}', escapeHtml(title))
     .replaceAll('{{DESCRIPTION}}', escapeHtml(desc))
     .replaceAll('{{BASE}}', escapeHtml(config.publicBaseUrl))
+    .replaceAll('{{DATA_URL}}', `/api/public/brackets/${escapeHtml(req.params.id)}`)
     .replaceAll('{{TOURNAMENT_ID}}', escapeHtml(req.params.id));
 
   res.set('Content-Type', 'text/html; charset=utf-8');

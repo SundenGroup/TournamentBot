@@ -241,6 +241,7 @@
 
 <script>
 const TOURNAMENT_ID = '{{TOURNAMENT_ID}}';
+const DATA_URL = '{{DATA_URL}}';
 const POLL_MS = 15000;
 let lastFetched = null;
 let pollTimer = null;
@@ -257,7 +258,7 @@ const FORMAT_NAMES = {
 // ── data fetch ─────────────────────────────────────────
 async function fetchData() {
   try {
-    const res = await fetch(`/api/public/brackets/${TOURNAMENT_ID}`, { cache: 'no-store' });
+    const res = await fetch(DATA_URL, { cache: 'no-store' });
     if (!res.ok) {
       if (!lastFetched) renderUnavailable();
       return;

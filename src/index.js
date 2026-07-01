@@ -128,9 +128,11 @@ async function start() {
 
   await client.login(config.discord.token);
 
-  // 4. Start API server for Stripe webhooks and Business tier REST API
+  // 4. Start API server for Stripe webhooks, the REST API, and the web-admin
+  // dashboard. Pass the logged-in client so web handlers can reach Discord
+  // (guild/member lookups for authorization).
   const { startApiServer } = require('./api');
-  startApiServer(process.env.API_PORT || 3000);
+  startApiServer(process.env.API_PORT || 3000, client);
 }
 
 start().catch(error => {

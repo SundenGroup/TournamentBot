@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Admin Dashboard — CLUTCH Tournaments</title>
+<meta name="description" content="Manage your CLUTCH tournaments from the web. Sign in with Discord to view your servers, tournaments and live brackets.">
+<meta name="robots" content="noindex">
+<link rel="icon" type="image/png" href="/clutch-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0A0D12; --bg-elev: #121620; --bg-sunken: #05090E; --bg-hover: #1A2030;
+    --fg: #F5F7FA; --fg-muted: #9BA3AF; --fg-subtle: #6B7280;
+    --border: #222938; --border-strong: #313B4E;
+    --accent: #FF154D; --accent-soft: #FF4D7A; --accent-wash: rgba(255,21,77,.12);
+    --r-sm: 6px; --r-md: 10px; --r-lg: 14px;
+    --sans: 'DM Sans', system-ui, sans-serif;
+    --mono: 'JetBrains Mono', ui-monospace, monospace;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--fg); font-family: var(--sans); font-feature-settings: "ss01","cv11"; line-height: 1.6; min-height: 100vh; display: flex; flex-direction: column; }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { color: var(--accent-soft); }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .wrap { max-width: 1060px; margin: 0 auto; padding: 0 28px; width: 100%; }
+  .eyebrow { font-family: var(--mono); font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: .14em; color: var(--fg-subtle); }
+
+  nav { border-bottom: 1px solid var(--border); background: rgba(10,13,18,.85); backdrop-filter: blur(12px); position: sticky; top: 0; z-index: 40; height: 52px; display: flex; align-items: center; }
+  nav .wrap { display: flex; align-items: center; gap: 12px; }
+  .brand { display: flex; align-items: center; gap: 10px; color: var(--fg); }
+  .brand img.mark { width: 24px; height: 24px; }
+  .brand img.word { height: 14px; display: block; }
+  .brand .sub { font-family: var(--mono); font-size: 10px; font-weight: 600; letter-spacing: .14em; color: var(--fg-subtle); border-left: 1px solid var(--border-strong); padding-left: 10px; text-transform: uppercase; }
+  nav .links { margin-left: auto; display: flex; gap: 20px; font-size: 13px; font-weight: 500; align-items: center; }
+  nav .links a { color: var(--fg-muted); }
+  nav .links a:hover { color: var(--fg); }
+
+  .userchip { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; color: var(--fg); }
+  .userchip img { width: 22px; height: 22px; border-radius: 50%; border: 1px solid var(--border-strong); }
+
+  header { background: radial-gradient(ellipse 60% 100% at 20% 0%, var(--accent-wash), transparent), linear-gradient(180deg, #0D1018, var(--bg)); border-bottom: 1px solid var(--border); padding: 40px 0 32px; }
+  header .eyebrow { display: block; margin-bottom: 10px; color: var(--accent); }
+  h1 { font-size: 28px; font-weight: 700; letter-spacing: -0.02em; }
+  header p { color: var(--fg-muted); margin-top: 8px; font-size: 15px; }
+
+  main { padding: 32px 0 60px; flex: 1; }
+
+  .btn { display: inline-flex; align-items: center; gap: 9px; font-family: var(--sans); font-weight: 600; font-size: 14px; padding: 11px 18px; border-radius: var(--r-md); border: 1px solid transparent; cursor: pointer; transition: background .12s, border-color .12s; }
+  .btn-discord { background: #5865F2; color: #fff; }
+  .btn-discord:hover { background: #4954da; color: #fff; }
+  .btn-ghost { background: var(--bg-elev); color: var(--fg); border-color: var(--border); }
+  .btn-ghost:hover { background: var(--bg-hover); border-color: var(--border-strong); }
+
+  .card { background: var(--bg-elev); border: 1px solid var(--border); border-radius: var(--r-lg); }
+
+  /* Login state */
+  .signin { max-width: 460px; margin: 20px auto; text-align: center; padding: 40px 32px; }
+  .signin h2 { font-size: 20px; font-weight: 700; margin-bottom: 8px; }
+  .signin p { color: var(--fg-muted); font-size: 14px; margin-bottom: 22px; }
+
+  /* Layout */
+  .grid { display: grid; grid-template-columns: 260px 1fr; gap: 22px; align-items: start; }
+  @media (max-width: 780px) { .grid { grid-template-columns: 1fr; } }
+
+  .side-title { margin: 0 0 10px; }
+  .guilds { display: flex; flex-direction: column; gap: 6px; }
+  .guild { display: flex; align-items: center; gap: 11px; padding: 10px 12px; border-radius: var(--r-md); border: 1px solid var(--border); background: var(--bg-elev); cursor: pointer; text-align: left; width: 100%; color: var(--fg); font-family: var(--sans); font-size: 14px; font-weight: 600; transition: background .12s, border-color .12s; }
+  .guild:hover { background: var(--bg-hover); border-color: var(--border-strong); }
+  .guild.active { border-color: var(--accent); background: var(--accent-wash); }
+  .guild .gicon { width: 30px; height: 30px; border-radius: 8px; flex-shrink: 0; background: var(--bg-sunken); display: grid; place-items: center; font-family: var(--mono); font-weight: 700; color: var(--fg-muted); overflow: hidden; }
+  .guild .gicon img { width: 100%; height: 100%; object-fit: cover; }
+  .guild .gname { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  .panel { min-height: 240px; }
+  .panel-head { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 14px; gap: 12px; }
+  .panel-head h2 { font-size: 17px; font-weight: 700; }
+
+  .tlist { display: flex; flex-direction: column; gap: 8px; }
+  .trow { display: flex; align-items: center; gap: 13px; padding: 13px 15px; border-radius: var(--r-md); border: 1px solid var(--border); background: var(--bg-elev); cursor: pointer; transition: background .12s, border-color .12s; }
+  .trow:hover { background: var(--bg-hover); border-color: var(--border-strong); }
+  .tlogo { width: 34px; height: 34px; border-radius: 8px; flex-shrink: 0; background: var(--bg-sunken); display: grid; place-items: center; overflow: hidden; }
+  .tlogo img { width: 100%; height: 100%; object-fit: contain; }
+  .tmain { flex: 1; min-width: 0; }
+  .tname { font-weight: 700; font-size: 15px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .tmeta { font-size: 12px; color: var(--fg-muted); margin-top: 2px; display: flex; flex-wrap: wrap; gap: 6px 12px; }
+  .tmeta .mono { font-family: var(--mono); }
+  .arrow { color: var(--fg-subtle); font-size: 18px; flex-shrink: 0; }
+
+  .pill { display: inline-flex; align-items: center; gap: 5px; font-family: var(--mono); font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; padding: 3px 8px; border-radius: 999px; border: 1px solid var(--border-strong); color: var(--fg-muted); }
+  .pill.registration { color: #6ee7ff; border-color: rgba(110,231,255,.35); }
+  .pill.checkin { color: #ffd36e; border-color: rgba(255,211,110,.35); }
+  .pill.active { color: #4ade80; border-color: rgba(74,222,128,.4); }
+  .pill.completed { color: var(--fg-muted); }
+  .pill.cancelled { color: var(--fg-subtle); }
+
+  .muted { color: var(--fg-muted); font-size: 14px; }
+  .empty { padding: 40px 20px; text-align: center; color: var(--fg-muted); font-size: 14px; }
+  .empty strong { color: var(--fg); display: block; margin-bottom: 4px; font-size: 15px; }
+  .skel { height: 60px; border-radius: var(--r-md); background: linear-gradient(90deg, var(--bg-elev), var(--bg-hover), var(--bg-elev)); background-size: 200% 100%; animation: sh 1.2s infinite; }
+  @keyframes sh { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+
+  /* Bracket detail overlay */
+  .detail { position: fixed; inset: 0; z-index: 60; background: rgba(5,9,14,.72); backdrop-filter: blur(6px); display: none; flex-direction: column; }
+  .detail.open { display: flex; }
+  .detail-bar { display: flex; align-items: center; gap: 14px; padding: 12px 18px; border-bottom: 1px solid var(--border); background: var(--bg); }
+  .detail-bar h3 { font-size: 15px; font-weight: 700; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .detail-bar .close { background: none; border: 1px solid var(--border-strong); color: var(--fg); border-radius: var(--r-sm); width: 30px; height: 30px; cursor: pointer; font-size: 16px; line-height: 1; }
+  .detail-bar .close:hover { background: var(--bg-hover); }
+  .detail iframe { flex: 1; width: 100%; border: 0; background: var(--bg); }
+
+  footer { border-top: 1px solid var(--border); padding: 22px 0; color: var(--fg-subtle); font-size: 13px; }
+  footer .wrap { display: flex; gap: 18px; }
+  footer a { color: var(--fg-muted); }
+  @media (max-width: 640px) { .wrap { padding: 0 16px; } .brand .sub { display: none; } }
+</style>
+</head>
+<body>
+
+<nav><div class="wrap">
+  <a class="brand" href="/"><img class="mark" src="/clutch-icon.png" alt=""><img class="word" src="/clutch-wordmark.png" alt="CLUTCH"><span class="sub">Admin</span></a>
+  <div class="links">
+    <a href="/admin-manual.html">Admin Guide</a>
+    <a href="/faq">FAQ</a>
+    <span id="navUser"></span>
+  </div>
+</div></nav>
+
+<header><div class="wrap">
+  <span class="eyebrow">Admin dashboard</span>
+  <h1>Your tournaments</h1>
+  <p>View your servers, tournaments and live brackets in one place. Signed in with Discord — you see only the servers you can manage.</p>
+</div></header>
+
+<main><div class="wrap" id="app">
+  <div class="empty"><div class="skel" style="max-width:360px;margin:0 auto"></div></div>
+</div></main>
+
+<div class="detail" id="detail" aria-hidden="true">
+  <div class="detail-bar">
+    <h3 id="detailTitle">Bracket</h3>
+    <a id="detailOpen" class="btn btn-ghost" style="padding:7px 12px;font-size:13px" target="_blank" rel="noopener">Open in new tab ↗</a>
+    <button class="close" id="detailClose" aria-label="Close">✕</button>
+  </div>
+  <iframe id="detailFrame" title="Live bracket"></iframe>
+</div>
+
+<footer><div class="wrap">
+  <span>© CLUTCH</span>
+  <a href="/faq">FAQ</a>
+  <a href="/admin-manual.html">Admin Guide</a>
+  <a href="/contact">Contact</a>
+</div></footer>
+
+<script>
+const app = document.getElementById('app');
+const navUser = document.getElementById('navUser');
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+const FORMAT_NAMES = {
+  single_elimination: 'Single Elim', double_elimination: 'Double Elim',
+  swiss: 'Swiss', round_robin: 'Round Robin', battle_royale: 'Battle Royale',
+};
+const STATUS_LABEL = {
+  registration: 'Registration', checkin: 'Check-in', active: 'Live',
+  completed: 'Final', cancelled: 'Cancelled',
+};
+
+let ME = null;
+let activeGuild = null;
+
+async function boot() {
+  let res;
+  try { res = await fetch('/admin/api/me', { cache: 'no-store' }); }
+  catch { return renderError(); }
+
+  if (res.status === 401) return renderSignedOut();
+  if (!res.ok) return renderError();
+
+  ME = await res.json();
+  renderNavUser();
+  renderShell();
+}
+
+function renderSignedOut() {
+  navUser.innerHTML = '';
+  app.innerHTML = `
+    <div class="card signin">
+      <h2>Sign in to manage your tournaments</h2>
+      <p>Log in with Discord to see the servers you administer and their tournaments, brackets and results.</p>
+      <a class="btn btn-discord" href="/admin/login">
+        <svg width="18" height="18" viewBox="0 0 127 96" fill="currentColor" aria-hidden="true"><path d="M107.7 8.07A105.15 105.15 0 0 0 81.47 0a72.06 72.06 0 0 0-3.36 6.83 97.68 97.68 0 0 0-29.11 0A72.37 72.37 0 0 0 45.64 0a105.89 105.89 0 0 0-26.25 8.09C2.79 32.65-1.71 56.6.54 80.21a105.73 105.73 0 0 0 32.17 16.15 77.7 77.7 0 0 0 6.89-11.11 68.42 68.42 0 0 1-10.85-5.18c.91-.66 1.8-1.34 2.66-2a75.57 75.57 0 0 0 64.32 0c.87.71 1.76 1.39 2.66 2a68.68 68.68 0 0 1-10.87 5.19 77 77 0 0 0 6.89 11.1 105.25 105.25 0 0 0 32.19-16.14c2.64-27.38-4.51-51.11-18.9-72.15ZM42.45 65.69C36.18 65.69 31 60 31 53s5-12.74 11.43-12.74S54 46 53.89 53s-5.05 12.69-11.44 12.69Zm42.24 0C78.41 65.69 73.25 60 73.25 53s5-12.74 11.44-12.74S96.23 46 96.12 53s-5.04 12.69-11.43 12.69Z"/></svg>
+        Sign in with Discord
+      </a>
+    </div>`;
+}
+
+function renderError() {
+  navUser.innerHTML = '';
+  app.innerHTML = `<div class="card empty"><strong>Something went wrong</strong>Couldn't reach the server. <a href="/admin">Try again</a>.</div>`;
+}
+
+function renderNavUser() {
+  navUser.innerHTML = `<span class="userchip">${ME.user.avatar ? `<img src="${esc(ME.user.avatar)}" alt="">` : ''}${esc(ME.user.username)}</span> <a href="/admin/logout" style="margin-left:14px">Log out</a>`;
+}
+
+function renderShell() {
+  if (!ME.guilds.length) {
+    app.innerHTML = `<div class="card empty"><strong>No manageable servers</strong>You're not an admin on any server that has the CLUTCH bot. <a href="/">Add the bot</a> or ask a server admin for a tournament-admin role.</div>`;
+    return;
+  }
+  app.innerHTML = `
+    <div class="grid">
+      <aside>
+        <div class="eyebrow side-title">Your servers</div>
+        <div class="guilds" id="guilds"></div>
+      </aside>
+      <section class="panel">
+        <div class="panel-head"><h2 id="panelTitle">Tournaments</h2></div>
+        <div id="tourneys"><div class="muted">Select a server to view its tournaments.</div></div>
+      </section>
+    </div>`;
+
+  const guildsEl = document.getElementById('guilds');
+  guildsEl.innerHTML = ME.guilds.map(g => `
+    <button class="guild" data-id="${esc(g.id)}">
+      <span class="gicon">${g.icon ? `<img src="${esc(g.icon)}" alt="">` : esc((g.name || '?').slice(0,1).toUpperCase())}</span>
+      <span class="gname">${esc(g.name)}</span>
+    </button>`).join('');
+
+  guildsEl.querySelectorAll('.guild').forEach(btn => {
+    btn.addEventListener('click', () => selectGuild(btn.dataset.id, btn));
+  });
+
+  // Auto-select the first server
+  const first = guildsEl.querySelector('.guild');
+  if (first) selectGuild(first.dataset.id, first);
+}
+
+async function selectGuild(guildId, btn) {
+  activeGuild = guildId;
+  document.querySelectorAll('.guild').forEach(b => b.classList.toggle('active', b === btn));
+  const guild = ME.guilds.find(g => g.id === guildId);
+  document.getElementById('panelTitle').textContent = guild ? guild.name : 'Tournaments';
+
+  const box = document.getElementById('tourneys');
+  box.innerHTML = '<div class="tlist"><div class="skel"></div><div class="skel"></div><div class="skel"></div></div>';
+
+  let data;
+  try {
+    const res = await fetch(`/admin/api/guilds/${encodeURIComponent(guildId)}/tournaments`, { cache: 'no-store' });
+    if (res.status === 401) return renderSignedOut();
+    if (!res.ok) { box.innerHTML = `<div class="empty">Couldn't load tournaments.</div>`; return; }
+    data = await res.json();
+  } catch { box.innerHTML = `<div class="empty">Couldn't load tournaments.</div>`; return; }
+
+  if (guildId !== activeGuild) return; // a newer selection won
+  renderTournaments(box, data.tournaments || []);
+}
+
+function renderTournaments(box, list) {
+  if (!list.length) {
+    box.innerHTML = `<div class="empty"><strong>No tournaments yet</strong>Create one in Discord with <span class="mono">/tournament create</span>.</div>`;
+    return;
+  }
+  box.innerHTML = `<div class="tlist">${list.map(rowHtml).join('')}</div>`;
+  box.querySelectorAll('.trow').forEach(row => {
+    row.addEventListener('click', () => openBracket(row.dataset.id, row.dataset.title));
+  });
+}
+
+function rowHtml(t) {
+  const teamMode = t.teamSize > 1 ? `${t.teamSize}v${t.teamSize}` : 'Solo';
+  const meta = [
+    `<span class="mono">${esc(t.game)}</span>`,
+    esc(FORMAT_NAMES[t.format] || t.format),
+    teamMode,
+    t.format !== 'battle_royale' && t.bestOf > 1 ? `Bo${t.bestOf}` : '',
+    `${t.entrants}/${t.maxParticipants} entrants`,
+  ].filter(Boolean).map(m => `<span>${m}</span>`).join('');
+  const statusCls = t.status || 'registration';
+  return `
+    <div class="trow" data-id="${esc(t.id)}" data-title="${esc(t.title)}">
+      <span class="tlogo">${t.gameLogo ? `<img src="${esc(t.gameLogo)}" alt="">` : ''}</span>
+      <div class="tmain">
+        <div class="tname">${esc(t.title)}</div>
+        <div class="tmeta">${meta}</div>
+      </div>
+      <span class="pill ${statusCls}">${esc(STATUS_LABEL[t.status] || t.status)}</span>
+      <span class="arrow">›</span>
+    </div>`;
+}
+
+// ── Bracket detail overlay ─────────────────────────────────────────────
+const detail = document.getElementById('detail');
+const detailFrame = document.getElementById('detailFrame');
+const detailTitle = document.getElementById('detailTitle');
+const detailOpen = document.getElementById('detailOpen');
+
+function openBracket(id, title) {
+  const url = `/admin/b/${encodeURIComponent(id)}`;
+  detailTitle.textContent = title || 'Bracket';
+  detailOpen.href = url;
+  detailFrame.src = url;
+  detail.classList.add('open');
+  detail.setAttribute('aria-hidden', 'false');
+  document.body.style.overflow = 'hidden';
+}
+function closeBracket() {
+  detail.classList.remove('open');
+  detail.setAttribute('aria-hidden', 'true');
+  detailFrame.src = 'about:blank';
+  document.body.style.overflow = '';
+}
+document.getElementById('detailClose').addEventListener('click', closeBracket);
+detail.addEventListener('click', e => { if (e.target === detail) closeBracket(); });
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && detail.classList.contains('open')) closeBracket(); });
+
+boot();
+</script>
+</body>
+</html>
