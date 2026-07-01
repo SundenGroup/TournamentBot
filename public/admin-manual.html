@@ -888,25 +888,24 @@
        ================================================================ -->
   <section id="web-dashboard">
     <h2>11. Web Dashboard</h2>
-    <p>Manage from the browser: sign in with Discord at <a href="/admin"><strong>tournaments.clutch.game/admin</strong></a> and every server where you can manage tournaments shows up — with its tournaments, entrants and live brackets in one place.</p>
+    <p>Run tournaments from the browser: sign in with Discord at <a href="/admin"><strong>tournaments.clutch.game/admin</strong></a> and every server where you can manage tournaments shows up. The dashboard mirrors the whole Discord admin toolset — everything you do there posts to Discord exactly as if you'd used the commands (announcements, match rooms, DMs).</p>
 
     <h3>Who can sign in</h3>
-    <p>Anyone can sign in, but you only see servers where the bot is installed <em>and</em> you're the owner, have <strong>Administrator</strong> or <strong>Manage Server</strong>, or hold a tournament-admin role (<code>/admin set-role</code>) — the same permission check as in Discord, re-verified on every request.</p>
+    <p>Anyone can sign in, but you only see servers where the bot is installed <em>and</em> you're the owner, have <strong>Administrator</strong> or <strong>Manage Server</strong>, or hold a tournament-admin role (<code>/admin set-role</code>) — the same permission check as in Discord. Every state-changing action re-verifies your rights live, so revoked admins lose access immediately.</p>
 
-    <h3>What you can see</h3>
+    <h3>What you can do</h3>
     <div class="table-wrap">
       <table>
-        <thead><tr><th>View</th><th>Details</th></tr></thead>
+        <thead><tr><th>Where</th><th>What</th></tr></thead>
         <tbody>
-          <tr><td><strong>Your servers</strong></td><td>Every server you can manage, side by side</td></tr>
-          <tr><td><strong>Tournaments</strong></td><td>Each tournament with game, format, team size, best-of, entrants and live status</td></tr>
-          <tr><td><strong>Live bracket</strong></td><td>The full bracket / standings / roster view — including tournaments whose public Web Bracket toggle is off (this view is admin-only)</td></tr>
+          <tr><td><strong>＋ New tournament</strong></td><td>Create &amp; announce a tournament — game presets with their defaults, format / team size / best-of, description, live-bracket toggle, and a <strong>channel picker</strong> (one tournament = one channel)</td></tr>
+          <tr><td><strong>Bracket tab</strong></td><td>The full live bracket / standings / roster view — including tournaments whose public Web Bracket toggle is off (this view is admin-only)</td></tr>
+          <tr><td><strong>Manage tab</strong></td><td>Edit title/date/size/best-of · remove entrants · <strong>start</strong> · report results with the series score · correct mistakes · disqualify · retry missing match rooms · cancel — destructive actions ask twice</td></tr>
         </tbody>
       </table>
     </div>
 
-    <h3>Read-only (for now)</h3>
-    <p>This first release is view-only — creating tournaments, reporting results and other actions still happen in Discord. Sessions last 7 days; use <strong>Log out</strong> (top right) to end one sooner.</p>
+    <p>Battle Royale results are the one exception — report those in Discord with <code>/tournament br-report</code>. Sessions last 7 days; use <strong>Log out</strong> (top right) to end one sooner.</p>
   </section>
 
   <!-- ================================================================
@@ -920,8 +919,8 @@
       <table>
         <thead><tr><th>Command</th><th>Description</th></tr></thead>
         <tbody>
-          <tr><td><code>/tournament create</code></td><td>Create a tournament (simple mode)</td></tr>
-          <tr><td><code>/tournament create-advanced</code></td><td>Create with full settings control</td></tr>
+          <tr><td><code>/tournament create</code></td><td>Create a tournament (simple mode) — optional <code>channel:</code> to announce in a specific channel</td></tr>
+          <tr><td><code>/tournament create-advanced</code></td><td>Create with full settings control — also takes <code>channel:</code></td></tr>
           <tr><td><code>/tournament list</code></td><td>List all tournaments in the server</td></tr>
           <tr><td><code>/tournament info</code></td><td>View a tournament's details</td></tr>
           <tr><td><code>/tournament start</code></td><td>Start a tournament (generates bracket)</td></tr>

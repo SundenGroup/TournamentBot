@@ -176,15 +176,26 @@ unresolved members aren't added.
 ## Web dashboard
 
 Sign in with Discord at **[tournaments.clutch.game/admin](https://tournaments.clutch.game/admin)**
-to manage from the browser. You'll see every server where the bot is installed
-*and* you can manage tournaments (same permission check as in Discord: owner,
-Administrator, Manage Server, or a tournament-admin role) — each server's
-tournaments with status at a glance, plus the full live bracket/standings/roster
-view for any of them, including tournaments whose public Web Bracket toggle is
-off (the dashboard view is admin-only).
+to run tournaments from the browser. You'll see every server where the bot is
+installed *and* you can manage tournaments (same permission check as in
+Discord: owner, Administrator, Manage Server, or a tournament-admin role —
+re-verified live on every action).
 
-Read-only for now: creating tournaments, reporting results and other actions
-still happen in Discord. Sessions last 7 days; use **Log out** to end one sooner.
+The dashboard mirrors the whole Discord admin toolset:
+
+- **＋ New tournament** — create & announce with game presets, format/team
+  size/best-of, live-bracket toggle and a **channel picker** (one tournament =
+  one channel)
+- **Bracket tab** — the full live bracket/standings/roster view, including
+  tournaments whose public Web Bracket toggle is off (admin-only view)
+- **Manage tab** — edit, remove entrants, **start**, report results with the
+  series score, correct mistakes, disqualify, retry match rooms, cancel —
+  destructive actions ask twice
+
+Everything posts to Discord exactly as if you'd used the commands
+(announcements, match rooms, DMs). Battle Royale results are the one
+exception — report those with `/tournament br-report` in Discord. Sessions
+last 7 days; use **Log out** to end one sooner.
 
 ---
 

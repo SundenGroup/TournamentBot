@@ -822,7 +822,7 @@ async function handleHelp(interaction) {
     },
     {
       name: 'Web Dashboard',
-      value: 'Sign in with Discord at https://tournaments.clutch.game/admin to browse your servers\' tournaments, entrants and live brackets from the web (read-only for now).',
+      value: 'Sign in with Discord at https://tournaments.clutch.game/admin to run tournaments from the browser: create (with a channel picker), edit, start, report scores, correct, DQ, remove entrants, retry rooms, cancel — plus live brackets for every tournament.',
       inline: false,
     },
     {
