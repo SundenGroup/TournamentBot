@@ -11,7 +11,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const express = require('express');
 const config = require('../config');
-const { requireSession, requireGuildAdmin } = require('./adminAuth');
+const { requireSession, requireGuildAdmin, requireCsrf, adminRateLimit, csrfToken } = require('./adminAuth');
 const { getTournament, getTournamentsByGuild } = require('../services/tournamentService');
 const { buildPayload } = require('./publicBracket');
 
@@ -31,6 +31,7 @@ router.get('/admin/api/me', requireSession, (req, res) => {
   res.json({
     user: { id: req.session.uid, username: req.session.username, avatar: req.session.avatar },
     guilds: req.session.guilds,
+    csrf: csrfToken(req.session),
   });
 });
 

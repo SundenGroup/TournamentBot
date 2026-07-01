@@ -1,25 +1,30 @@
+// Simple-mode creation modal submit. The shared creation orchestration
+// (subscription checks, channel resolution, announcement, reminders, usage
+// accounting) lives in services/creationService.js — also used by the
+// advanced wizard and the web-admin dashboard.
+
 const { GAME_PRESETS } = require('../config/gamePresets');
-const { createTournament, updateTournament } = require('../services/tournamentService');
-const { createTournamentEmbed, createTournamentButtons, createParticipantListEmbed } = require('../utils/embedBuilder');
 const { parseDateTime } = require('../utils/timeUtils');
-const { getOrCreateAnnouncementChannel } = require('../services/announcementService');
-const { scheduleReminders } = require('../services/reminderService');
-const { getTokenBalance } = require('../data/subscriptions');
+const { runCreationChecks, resolveAnnouncementChannel, createAndAnnounce } = require('../services/creationService');
 const {
-  checkConcurrentLimit,
-  checkTournamentLimit,
-  checkParticipantLimit,
   checkFeature,
-  recordTournamentCreation,
   getEffectiveTier,
   getUpgradeEmbed,
   getTokenPurchaseEmbed,
   getBoostPurchaseEmbed,
-  TIER_LIMITS,
 } = require('../services/subscriptionService');
+
+/** Render a failed creation check as the right upgrade/purchase prompt. */
+async function checkFailureReply(guildId, checks) {
+  if (checks.type === 'tournament_limit') return getTokenPurchaseEmbed(checks.check);
+  if (checks.type === 'participants') return getBoostPurchaseEmbed(checks.check);
+  if (checks.type === 'feature') return getUpgradeEmbed(checks.feature, checks.tier ?? await getEffectiveTier(guildId));
+  return getUpgradeEmbed('concurrent', checks.tier ?? await getEffectiveTier(guildId), checks.check?.reason);
+}
 
 module.exports = {
   customId: 'simpleCreate',
+  checkFailureReply, // shared with wizardCreate.js
   async execute(interaction, args) {
     const gamePreset = args[0];
     const preset = GAME_PRESETS[gamePreset];
@@ -50,108 +55,42 @@ module.exports = {
       });
     }
 
-    // === Subscription checks ===
-
-    // 1. Check concurrent limit
-    const concurrentCheck = await checkConcurrentLimit(guildId);
-    if (!concurrentCheck.allowed) {
-      return interaction.reply({
-        ...getUpgradeEmbed('concurrent', await getEffectiveTier(guildId), concurrentCheck.reason),
-      });
-    }
-
-    // 2. Check tournament limit (may use token)
-    const limitCheck = await checkTournamentLimit(guildId);
-    if (!limitCheck.allowed) {
-      return interaction.reply({
-        ...getTokenPurchaseEmbed(limitCheck),
-      });
-    }
-
-    // 3. Check participant limit (and try to use a boost if available)
-    let boostToUse = null;
-    let participantCheck = await checkParticipantLimit(guildId, maxParticipants);
-
-    if (!participantCheck.allowed) {
-      // Check if we have an available boost that would cover it
-      const tier = await getEffectiveTier(guildId);
-      const baseMax = TIER_LIMITS[tier].maxParticipants;
-      const needed = maxParticipants - baseMax;
-      const tokenBalance = await getTokenBalance(guildId);
-
-      // Find smallest boost that covers the need
-      const availableBoosts = tokenBalance.participantBoosts
-        .filter(b => b.amount >= needed)
-        .sort((a, b) => a.amount - b.amount);
-
-      if (availableBoosts.length > 0) {
-        // Use the smallest sufficient boost
-        boostToUse = availableBoosts[0].amount;
-        participantCheck = await checkParticipantLimit(guildId, maxParticipants, boostToUse);
-        console.log(`[Subscription] Guild ${guildId} auto-applying +${boostToUse} participant boost`);
-      }
-
-      // If still not allowed (no suitable boost), show purchase prompt
-      if (!participantCheck.allowed) {
-        return interaction.reply({
-          ...getBoostPurchaseEmbed(participantCheck),
-        });
-      }
-    }
-
-    // Log if using a token
-    if (limitCheck.usingToken) {
-      console.log(`[Subscription] Guild ${guildId} using tournament token`);
+    // Subscription checks (concurrent / monthly / participant cap + boosts)
+    const checks = await runCreationChecks(guildId, { maxParticipants });
+    if (!checks.ok) {
+      return interaction.reply({ ...(await checkFailureReply(guildId, checks)) });
     }
 
     // Live web bracket (Pro/Business): enabled automatically in simple mode
     // when the tier allows it — advanced mode exposes an explicit toggle.
     const publicBracket = (await checkFeature(guildId, 'public_bracket')).allowed;
 
-    // Get or create announcement channel (per-game override aware)
-    const announcementChannel = await getOrCreateAnnouncementChannel(interaction.guild, gamePreset);
-    const targetChannel = announcementChannel || interaction.channel;
+    // Announcement channel (per-game override aware)
+    const resolved = await resolveAnnouncementChannel(interaction.guild, gamePreset);
+    const targetChannel = resolved.channel || interaction.channel;
 
-    const tournament = await createTournament({
-      guildId: interaction.guildId,
-      channelId: targetChannel.id,
-      title,
-      gamePreset,
-      gameDisplayName: gameName,
-      gameShortName: gamePreset === 'custom' ? gameName.substring(0, 4).toUpperCase() : preset?.shortName,
-      maxParticipants,
-      startTime,
-      publicBracket,
-      setupMode: 'simple',
-      createdBy: interaction.user.id,
-    });
-
-    const embed = await createTournamentEmbed(tournament);
-    const buttons = createTournamentButtons(tournament);
-    const participantEmbed = await createParticipantListEmbed(tournament);
-
+    // Ack inside the 3s modal window; the announcement posts right after.
     await interaction.reply({
       content: `✅ Tournament created! Announced in ${targetChannel}.`,
       ephemeral: true,
     });
 
-    const mainMessage = await targetChannel.send({ embeds: [embed], components: buttons });
-    const listMessage = await targetChannel.send({ embeds: [participantEmbed] });
-
-    await updateTournament(tournament.id, {
-      messageId: mainMessage.id,
-      participantListMessageId: listMessage.id,
+    await createAndAnnounce({
+      client: interaction.client,
+      guildId,
+      targetChannel,
+      boostToUse: checks.boostToUse,
+      data: {
+        title,
+        gamePreset,
+        gameDisplayName: gameName,
+        gameShortName: gamePreset === 'custom' ? gameName.substring(0, 4).toUpperCase() : preset?.shortName,
+        maxParticipants,
+        startTime,
+        publicBracket,
+        setupMode: 'simple',
+        createdBy: interaction.user.id,
+      },
     });
-
-    scheduleReminders(tournament, interaction.client);
-
-    // Record usage (consumes token and/or boost if needed)
-    const { usedToken, usedBoost } = await recordTournamentCreation(guildId, boostToUse);
-    if (usedToken) {
-      console.log(`[Subscription] Guild ${guildId} consumed tournament token`);
-    }
-    if (usedBoost) {
-      console.log(`[Subscription] Guild ${guildId} consumed +${usedBoost} participant boost`);
-    }
   },
 };

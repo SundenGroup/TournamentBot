@@ -16,6 +16,7 @@
     --fg: #F5F7FA; --fg-muted: #9BA3AF; --fg-subtle: #6B7280;
     --border: #222938; --border-strong: #313B4E;
     --accent: #FF154D; --accent-soft: #FF4D7A; --accent-wash: rgba(255,21,77,.12);
+    --ok: #4ade80; --warn: #ffd36e;
     --r-sm: 6px; --r-md: 10px; --r-lg: 14px;
     --sans: 'DM Sans', system-ui, sans-serif;
     --mono: 'JetBrains Mono', ui-monospace, monospace;
@@ -48,20 +49,24 @@
 
   main { padding: 32px 0 60px; flex: 1; }
 
-  .btn { display: inline-flex; align-items: center; gap: 9px; font-family: var(--sans); font-weight: 600; font-size: 14px; padding: 11px 18px; border-radius: var(--r-md); border: 1px solid transparent; cursor: pointer; transition: background .12s, border-color .12s; }
+  .btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; font-family: var(--sans); font-weight: 600; font-size: 14px; padding: 10px 16px; border-radius: var(--r-md); border: 1px solid transparent; cursor: pointer; transition: background .12s, border-color .12s, opacity .12s; }
+  .btn:disabled { opacity: .45; cursor: not-allowed; }
   .btn-discord { background: #5865F2; color: #fff; }
   .btn-discord:hover { background: #4954da; color: #fff; }
   .btn-ghost { background: var(--bg-elev); color: var(--fg); border-color: var(--border); }
-  .btn-ghost:hover { background: var(--bg-hover); border-color: var(--border-strong); }
+  .btn-ghost:hover:not(:disabled) { background: var(--bg-hover); border-color: var(--border-strong); }
+  .btn-accent { background: var(--accent); color: #fff; }
+  .btn-accent:hover:not(:disabled) { background: #e01245; color: #fff; }
+  .btn-danger { background: transparent; color: #ff7d9c; border-color: rgba(255,21,77,.4); }
+  .btn-danger:hover:not(:disabled) { background: var(--accent-wash); border-color: var(--accent); color: #ff9db5; }
+  .btn-sm { padding: 5px 10px; font-size: 12px; border-radius: var(--r-sm); }
 
   .card { background: var(--bg-elev); border: 1px solid var(--border); border-radius: var(--r-lg); }
 
-  /* Login state */
   .signin { max-width: 460px; margin: 20px auto; text-align: center; padding: 40px 32px; }
   .signin h2 { font-size: 20px; font-weight: 700; margin-bottom: 8px; }
   .signin p { color: var(--fg-muted); font-size: 14px; margin-bottom: 22px; }
 
-  /* Layout */
   .grid { display: grid; grid-template-columns: 260px 1fr; gap: 22px; align-items: start; }
   @media (max-width: 780px) { .grid { grid-template-columns: 1fr; } }
 
@@ -75,7 +80,7 @@
   .guild .gname { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
   .panel { min-height: 240px; }
-  .panel-head { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 14px; gap: 12px; }
+  .panel-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; gap: 12px; }
   .panel-head h2 { font-size: 17px; font-weight: 700; }
 
   .tlist { display: flex; flex-direction: column; gap: 8px; }
@@ -86,13 +91,13 @@
   .tmain { flex: 1; min-width: 0; }
   .tname { font-weight: 700; font-size: 15px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .tmeta { font-size: 12px; color: var(--fg-muted); margin-top: 2px; display: flex; flex-wrap: wrap; gap: 6px 12px; }
-  .tmeta .mono { font-family: var(--mono); }
+  .tmeta .mono, .mono { font-family: var(--mono); }
   .arrow { color: var(--fg-subtle); font-size: 18px; flex-shrink: 0; }
 
-  .pill { display: inline-flex; align-items: center; gap: 5px; font-family: var(--mono); font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; padding: 3px 8px; border-radius: 999px; border: 1px solid var(--border-strong); color: var(--fg-muted); }
+  .pill { display: inline-flex; align-items: center; gap: 5px; font-family: var(--mono); font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; padding: 3px 8px; border-radius: 999px; border: 1px solid var(--border-strong); color: var(--fg-muted); white-space: nowrap; }
   .pill.registration { color: #6ee7ff; border-color: rgba(110,231,255,.35); }
-  .pill.checkin { color: #ffd36e; border-color: rgba(255,211,110,.35); }
-  .pill.active { color: #4ade80; border-color: rgba(74,222,128,.4); }
+  .pill.checkin { color: var(--warn); border-color: rgba(255,211,110,.35); }
+  .pill.active { color: var(--ok); border-color: rgba(74,222,128,.4); }
   .pill.completed { color: var(--fg-muted); }
   .pill.cancelled { color: var(--fg-subtle); }
 
@@ -102,14 +107,65 @@
   .skel { height: 60px; border-radius: var(--r-md); background: linear-gradient(90deg, var(--bg-elev), var(--bg-hover), var(--bg-elev)); background-size: 200% 100%; animation: sh 1.2s infinite; }
   @keyframes sh { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
 
-  /* Bracket detail overlay */
+  /* Detail overlay (bracket + manage) */
   .detail { position: fixed; inset: 0; z-index: 60; background: rgba(5,9,14,.72); backdrop-filter: blur(6px); display: none; flex-direction: column; }
   .detail.open { display: flex; }
-  .detail-bar { display: flex; align-items: center; gap: 14px; padding: 12px 18px; border-bottom: 1px solid var(--border); background: var(--bg); }
-  .detail-bar h3 { font-size: 15px; font-weight: 700; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .detail-bar .close { background: none; border: 1px solid var(--border-strong); color: var(--fg); border-radius: var(--r-sm); width: 30px; height: 30px; cursor: pointer; font-size: 16px; line-height: 1; }
+  .detail-bar { display: flex; align-items: center; gap: 14px; padding: 10px 18px; border-bottom: 1px solid var(--border); background: var(--bg); flex-wrap: wrap; }
+  .detail-bar h3 { font-size: 15px; font-weight: 700; flex: 1; min-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .detail-bar .close { background: none; border: 1px solid var(--border-strong); color: var(--fg); border-radius: var(--r-sm); width: 30px; height: 30px; cursor: pointer; font-size: 16px; line-height: 1; flex-shrink: 0; }
   .detail-bar .close:hover { background: var(--bg-hover); }
+  .tabs { display: flex; gap: 4px; background: var(--bg-elev); border: 1px solid var(--border); border-radius: var(--r-md); padding: 3px; }
+  .tab { border: 0; background: none; color: var(--fg-muted); font-family: var(--sans); font-size: 13px; font-weight: 600; padding: 6px 14px; border-radius: 7px; cursor: pointer; }
+  .tab.active { background: var(--accent); color: #fff; }
+  .detail-body { flex: 1; min-height: 0; display: flex; }
   .detail iframe { flex: 1; width: 100%; border: 0; background: var(--bg); }
+
+  /* Manage pane */
+  .manage { flex: 1; overflow-y: auto; padding: 22px; background: var(--bg); }
+  .manage-inner { max-width: 1060px; margin: 0 auto; display: flex; flex-direction: column; gap: 18px; }
+  .actionbar { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+  .actionbar .spacer { flex: 1; }
+  .mgrid { display: grid; grid-template-columns: 320px 1fr; gap: 18px; align-items: start; }
+  @media (max-width: 860px) { .mgrid { grid-template-columns: 1fr; } }
+  .box { background: var(--bg-elev); border: 1px solid var(--border); border-radius: var(--r-lg); padding: 16px; }
+  .box-title { font-family: var(--mono); font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: .14em; color: var(--fg-subtle); margin-bottom: 12px; display: flex; justify-content: space-between; align-items: baseline; }
+  .lrow { display: flex; align-items: center; gap: 10px; padding: 7px 8px; border-radius: var(--r-sm); font-size: 13px; }
+  .lrow:hover { background: var(--bg-hover); }
+  .lrow .nm { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
+  .lrow .sub { color: var(--fg-subtle); font-size: 11px; font-family: var(--mono); }
+  .lrow.dq .nm { color: var(--fg-subtle); text-decoration: line-through; }
+  .mrow { border: 1px solid var(--border); border-radius: var(--r-md); padding: 10px 12px; margin-bottom: 8px; background: var(--bg-sunken); }
+  .mrow-head { display: flex; align-items: center; gap: 10px; font-size: 13px; font-weight: 600; flex-wrap: wrap; }
+  .mrow-head .mnum { font-family: var(--mono); color: var(--fg-subtle); font-size: 11px; }
+  .mrow-head .vs { color: var(--fg-subtle); font-weight: 400; }
+  .mrow-head .win { color: var(--ok); }
+  .mrow-form { display: flex; gap: 8px; margin-top: 9px; flex-wrap: wrap; align-items: center; }
+  .mrow .result { margin-left: auto; font-family: var(--mono); font-size: 12px; color: var(--fg-muted); }
+
+  select, input[type=text], input[type=number], input[type=datetime-local], textarea {
+    background: var(--bg-sunken); border: 1px solid var(--border-strong); color: var(--fg);
+    font-family: var(--sans); font-size: 13px; border-radius: var(--r-sm); padding: 7px 10px;
+  }
+  select:focus, input:focus, textarea:focus { outline: none; border-color: var(--accent); }
+  .field { display: flex; flex-direction: column; gap: 5px; }
+  .field label { font-size: 12px; font-weight: 600; color: var(--fg-muted); }
+  .field .hint { font-size: 11px; color: var(--fg-subtle); }
+  .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .form-grid .full { grid-column: 1 / -1; }
+  @media (max-width: 640px) { .form-grid { grid-template-columns: 1fr; } }
+
+  /* Create-form overlay */
+  .modal { position: fixed; inset: 0; z-index: 70; background: rgba(5,9,14,.72); backdrop-filter: blur(6px); display: none; align-items: flex-start; justify-content: center; overflow-y: auto; padding: 40px 16px; }
+  .modal.open { display: flex; }
+  .modal-card { background: var(--bg-elev); border: 1px solid var(--border-strong); border-radius: var(--r-lg); width: 100%; max-width: 640px; padding: 24px; }
+  .modal-card h3 { font-size: 17px; font-weight: 700; margin-bottom: 4px; }
+  .modal-card .sub { color: var(--fg-muted); font-size: 13px; margin-bottom: 18px; }
+  .modal-foot { display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; }
+
+  /* Toast */
+  .toast { position: fixed; left: 50%; bottom: 26px; transform: translateX(-50%) translateY(20px); z-index: 90; background: var(--bg-elev); border: 1px solid var(--border-strong); border-left: 3px solid var(--ok); border-radius: var(--r-md); padding: 11px 18px; font-size: 13px; font-weight: 600; opacity: 0; pointer-events: none; transition: opacity .18s, transform .18s; max-width: min(520px, 90vw); }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  .toast.err { border-left-color: var(--accent); }
 
   footer { border-top: 1px solid var(--border); padding: 22px 0; color: var(--fg-subtle); font-size: 13px; }
   footer .wrap { display: flex; gap: 18px; }
@@ -131,21 +187,56 @@
 <header><div class="wrap">
   <span class="eyebrow">Admin dashboard</span>
   <h1>Your tournaments</h1>
-  <p>View your servers, tournaments and live brackets in one place. Signed in with Discord — you see only the servers you can manage.</p>
+  <p>Create, run and follow your tournaments from the browser. Signed in with Discord — you see only the servers you can manage.</p>
 </div></header>
 
 <main><div class="wrap" id="app">
   <div class="empty"><div class="skel" style="max-width:360px;margin:0 auto"></div></div>
 </div></main>
 
+<!-- Detail overlay: bracket + manage tabs -->
 <div class="detail" id="detail" aria-hidden="true">
   <div class="detail-bar">
-    <h3 id="detailTitle">Bracket</h3>
-    <a id="detailOpen" class="btn btn-ghost" style="padding:7px 12px;font-size:13px" target="_blank" rel="noopener">Open in new tab ↗</a>
+    <h3 id="detailTitle">Tournament</h3>
+    <div class="tabs" role="tablist">
+      <button class="tab active" id="tabBracket" role="tab">Bracket</button>
+      <button class="tab" id="tabManage" role="tab">Manage</button>
+    </div>
+    <a id="detailOpen" class="btn btn-ghost btn-sm" target="_blank" rel="noopener">Open in new tab ↗</a>
     <button class="close" id="detailClose" aria-label="Close">✕</button>
   </div>
-  <iframe id="detailFrame" title="Live bracket"></iframe>
+  <div class="detail-body">
+    <iframe id="detailFrame" title="Live bracket"></iframe>
+    <div class="manage" id="managePane" style="display:none"><div class="manage-inner" id="manageInner"></div></div>
+  </div>
 </div>
+
+<!-- Create tournament overlay -->
+<div class="modal" id="createModal" aria-hidden="true">
+  <div class="modal-card">
+    <h3>New tournament</h3>
+    <p class="sub">Creates and announces the tournament in Discord — signups happen there as usual.</p>
+    <div class="form-grid" id="createForm">
+      <div class="field"><label for="cGame">Game</label><select id="cGame"></select></div>
+      <div class="field"><label for="cChannel">Announcement channel</label><select id="cChannel"><option value="">Server default</option></select><span class="hint">Pick a channel to give this tournament its own — e.g. a region channel.</span></div>
+      <div class="field" id="cGameNameField" style="display:none"><label for="cGameName">Game name</label><input type="text" id="cGameName" maxlength="60" placeholder="e.g. Fortnite"></div>
+      <div class="field full"><label for="cTitle">Title</label><input type="text" id="cTitle" maxlength="100" placeholder="e.g. EU Summer Cup #1"></div>
+      <div class="field"><label for="cStart">Start time</label><input type="datetime-local" id="cStart"></div>
+      <div class="field"><label for="cMax">Max entrants</label><input type="number" id="cMax" min="2" max="512" value="16"></div>
+      <div class="field"><label for="cFormat">Format</label><select id="cFormat"></select></div>
+      <div class="field"><label for="cTeamSize">Team size</label><select id="cTeamSize"></select></div>
+      <div class="field"><label for="cBestOf">Best of</label><select id="cBestOf"></select></div>
+      <div class="field"><label style="display:flex;align-items:center;gap:8px;margin-top:22px;cursor:pointer"><input type="checkbox" id="cPublic" checked style="accent-color:var(--accent)"> Live web bracket <span class="hint">(Pro)</span></label></div>
+      <div class="field full"><label for="cDesc">Description <span class="hint">(optional)</span></label><textarea id="cDesc" rows="2" maxlength="1000" placeholder="Rules, prize, notes…"></textarea></div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-ghost" id="createCancel">Cancel</button>
+      <button class="btn btn-accent" id="createSubmit">Create &amp; announce</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
 
 <footer><div class="wrap">
   <span>© CLUTCH</span>
@@ -169,13 +260,47 @@ const STATUS_LABEL = {
 };
 
 let ME = null;
+let META = null;
 let activeGuild = null;
+let currentTournament = null;   // { id, title }
+let manageData = null;
 
+// ── API helper ───────────────────────────────────────────────────────────────
+async function api(path, { method = 'GET', body } = {}) {
+  const headers = {};
+  if (method !== 'GET') {
+    headers['Content-Type'] = 'application/json';
+    headers['X-CSRF-Token'] = ME?.csrf || '';
+  }
+  let res;
+  try {
+    res = await fetch(path, { method, headers, body: body ? JSON.stringify(body) : undefined, cache: 'no-store' });
+  } catch {
+    return { ok: false, status: 0, error: "Couldn't reach the server." };
+  }
+  if (res.status === 401) { renderSignedOut(); return { ok: false, status: 401, error: 'Signed out' }; }
+  let data = null;
+  try { data = await res.json(); } catch { /* non-JSON */ }
+  if (!res.ok) return { ok: false, status: res.status, error: data?.error || `Request failed (${res.status})` };
+  return { ok: true, status: res.status, data };
+}
+
+// ── Toast ────────────────────────────────────────────────────────────────────
+let toastTimer = null;
+function toast(msg, isErr = false) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.toggle('err', isErr);
+  el.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('show'), isErr ? 6000 : 3500);
+}
+
+// ── Boot / auth states ───────────────────────────────────────────────────────
 async function boot() {
   let res;
   try { res = await fetch('/admin/api/me', { cache: 'no-store' }); }
   catch { return renderError(); }
-
   if (res.status === 401) return renderSignedOut();
   if (!res.ok) return renderError();
 
@@ -206,6 +331,7 @@ function renderNavUser() {
   navUser.innerHTML = `<span class="userchip">${ME.user.avatar ? `<img src="${esc(ME.user.avatar)}" alt="">` : ''}${esc(ME.user.username)}</span> <a href="/admin/logout" style="margin-left:14px">Log out</a>`;
 }
 
+// ── Shell: guilds + tournament list ─────────────────────────────────────────
 function renderShell() {
   if (!ME.guilds.length) {
     app.innerHTML = `<div class="card empty"><strong>No manageable servers</strong>You're not an admin on any server that has the CLUTCH bot. <a href="/">Add the bot</a> or ask a server admin for a tournament-admin role.</div>`;
@@ -218,7 +344,10 @@ function renderShell() {
         <div class="guilds" id="guilds"></div>
       </aside>
       <section class="panel">
-        <div class="panel-head"><h2 id="panelTitle">Tournaments</h2></div>
+        <div class="panel-head">
+          <h2 id="panelTitle">Tournaments</h2>
+          <button class="btn btn-accent btn-sm" id="newBtn" disabled>＋ New tournament</button>
+        </div>
         <div id="tourneys"><div class="muted">Select a server to view its tournaments.</div></div>
       </section>
     </div>`;
@@ -233,8 +362,8 @@ function renderShell() {
   guildsEl.querySelectorAll('.guild').forEach(btn => {
     btn.addEventListener('click', () => selectGuild(btn.dataset.id, btn));
   });
+  document.getElementById('newBtn').addEventListener('click', openCreate);
 
-  // Auto-select the first server
   const first = guildsEl.querySelector('.guild');
   if (first) selectGuild(first.dataset.id, first);
 }
@@ -244,30 +373,29 @@ async function selectGuild(guildId, btn) {
   document.querySelectorAll('.guild').forEach(b => b.classList.toggle('active', b === btn));
   const guild = ME.guilds.find(g => g.id === guildId);
   document.getElementById('panelTitle').textContent = guild ? guild.name : 'Tournaments';
+  document.getElementById('newBtn').disabled = false;
+  await reloadTournaments();
+}
 
+async function reloadTournaments() {
   const box = document.getElementById('tourneys');
+  if (!box) return;
   box.innerHTML = '<div class="tlist"><div class="skel"></div><div class="skel"></div><div class="skel"></div></div>';
-
-  let data;
-  try {
-    const res = await fetch(`/admin/api/guilds/${encodeURIComponent(guildId)}/tournaments`, { cache: 'no-store' });
-    if (res.status === 401) return renderSignedOut();
-    if (!res.ok) { box.innerHTML = `<div class="empty">Couldn't load tournaments.</div>`; return; }
-    data = await res.json();
-  } catch { box.innerHTML = `<div class="empty">Couldn't load tournaments.</div>`; return; }
-
+  const guildId = activeGuild;
+  const res = await api(`/admin/api/guilds/${encodeURIComponent(guildId)}/tournaments`);
   if (guildId !== activeGuild) return; // a newer selection won
-  renderTournaments(box, data.tournaments || []);
+  if (!res.ok) { box.innerHTML = `<div class="empty">Couldn't load tournaments.</div>`; return; }
+  renderTournaments(box, res.data.tournaments || []);
 }
 
 function renderTournaments(box, list) {
   if (!list.length) {
-    box.innerHTML = `<div class="empty"><strong>No tournaments yet</strong>Create one in Discord with <span class="mono">/tournament create</span>.</div>`;
+    box.innerHTML = `<div class="empty"><strong>No tournaments yet</strong>Create one with the ＋ button above, or in Discord with <span class="mono">/tournament create</span>.</div>`;
     return;
   }
   box.innerHTML = `<div class="tlist">${list.map(rowHtml).join('')}</div>`;
   box.querySelectorAll('.trow').forEach(row => {
-    row.addEventListener('click', () => openBracket(row.dataset.id, row.dataset.title));
+    row.addEventListener('click', () => openDetail(row.dataset.id, row.dataset.title, row.dataset.status));
   });
 }
 
@@ -282,7 +410,7 @@ function rowHtml(t) {
   ].filter(Boolean).map(m => `<span>${m}</span>`).join('');
   const statusCls = t.status || 'registration';
   return `
-    <div class="trow" data-id="${esc(t.id)}" data-title="${esc(t.title)}">
+    <div class="trow" data-id="${esc(t.id)}" data-title="${esc(t.title)}" data-status="${esc(t.status)}">
       <span class="tlogo">${t.gameLogo ? `<img src="${esc(t.gameLogo)}" alt="">` : ''}</span>
       <div class="tmain">
         <div class="tname">${esc(t.title)}</div>
@@ -293,30 +421,409 @@ function rowHtml(t) {
     </div>`;
 }
 
-// ── Bracket detail overlay ─────────────────────────────────────────────
+// ── Detail overlay (Bracket / Manage tabs) ──────────────────────────────────
 const detail = document.getElementById('detail');
 const detailFrame = document.getElementById('detailFrame');
-const detailTitle = document.getElementById('detailTitle');
-const detailOpen = document.getElementById('detailOpen');
+const managePane = document.getElementById('managePane');
+const manageInner = document.getElementById('manageInner');
+const tabBracket = document.getElementById('tabBracket');
+const tabManage = document.getElementById('tabManage');
 
-function openBracket(id, title) {
+function openDetail(id, title, status) {
+  currentTournament = { id, title };
+  document.getElementById('detailTitle').textContent = title || 'Tournament';
   const url = `/admin/b/${encodeURIComponent(id)}`;
-  detailTitle.textContent = title || 'Bracket';
-  detailOpen.href = url;
+  document.getElementById('detailOpen').href = url;
   detailFrame.src = url;
   detail.classList.add('open');
   detail.setAttribute('aria-hidden', 'false');
   document.body.style.overflow = 'hidden';
+  // Registration-phase tournaments open on Manage (that's where the work is);
+  // running/finished ones open on the bracket.
+  switchTab(status === 'registration' || status === 'checkin' ? 'manage' : 'bracket');
 }
-function closeBracket() {
+
+function switchTab(which) {
+  const bracket = which === 'bracket';
+  tabBracket.classList.toggle('active', bracket);
+  tabManage.classList.toggle('active', !bracket);
+  detailFrame.style.display = bracket ? '' : 'none';
+  managePane.style.display = bracket ? 'none' : '';
+  if (!bracket) loadManage();
+}
+tabBracket.addEventListener('click', () => switchTab('bracket'));
+tabManage.addEventListener('click', () => switchTab('manage'));
+
+function closeDetail() {
   detail.classList.remove('open');
   detail.setAttribute('aria-hidden', 'true');
   detailFrame.src = 'about:blank';
+  manageInner.innerHTML = '';
+  currentTournament = null;
   document.body.style.overflow = '';
+  reloadTournaments();
 }
-document.getElementById('detailClose').addEventListener('click', closeBracket);
-detail.addEventListener('click', e => { if (e.target === detail) closeBracket(); });
-document.addEventListener('keydown', e => { if (e.key === 'Escape' && detail.classList.contains('open')) closeBracket(); });
+document.getElementById('detailClose').addEventListener('click', closeDetail);
+document.addEventListener('keydown', e => {
+  if (e.key !== 'Escape') return;
+  if (document.getElementById('createModal').classList.contains('open')) return closeCreate();
+  if (detail.classList.contains('open')) closeDetail();
+});
+
+// ── Manage tab ───────────────────────────────────────────────────────────────
+async function loadManage() {
+  if (!currentTournament) return;
+  manageInner.innerHTML = '<div class="skel"></div>';
+  const res = await api(`/admin/api/tournaments/${encodeURIComponent(currentTournament.id)}/manage`);
+  if (!res.ok) { manageInner.innerHTML = `<div class="empty">${esc(res.error)}</div>`; return; }
+  manageData = res.data;
+  renderManage(manageData);
+}
+
+async function refreshAfterAction() {
+  detailFrame.src = detailFrame.src; // reload the bracket iframe
+  await loadManage();
+}
+
+/** Two-step confirm: first click arms the button, second click fires. */
+function armConfirm(btn, label, fn) {
+  btn.addEventListener('click', async () => {
+    if (btn.dataset.armed) {
+      btn.disabled = true;
+      await fn();
+      btn.disabled = false;
+      delete btn.dataset.armed;
+      btn.textContent = label;
+      return;
+    }
+    btn.dataset.armed = '1';
+    btn.textContent = `Really ${label.replace(/^[^\p{L}]+\s*/u, '').toLowerCase()}?`;
+    setTimeout(() => { if (btn.dataset.armed) { delete btn.dataset.armed; btn.textContent = label; } }, 3500);
+  });
+}
+
+function renderManage(d) {
+  const pending = d.matches.filter(m => !m.winnerId && m.participant1 && m.participant2);
+  const decided = d.matches.filter(m => m.winnerId);
+
+  manageInner.innerHTML = `
+    <div class="actionbar">
+      <span class="pill ${esc(d.status)}">${esc(STATUS_LABEL[d.status] || d.status)}</span>
+      <span class="muted">${d.counts.entrants}/${d.maxParticipants} entrants${d.bestOf > 1 ? ` · Bo${d.bestOf}` : ''} · ${esc(FORMAT_NAMES[d.format] || d.format)}</span>
+      <span class="spacer"></span>
+      ${d.can.edit ? '<button class="btn btn-ghost btn-sm" id="mEdit">✏️ Edit</button>' : ''}
+      ${d.can.createRooms ? '<button class="btn btn-ghost btn-sm" id="mRooms">Create missing rooms</button>' : ''}
+      ${d.can.start ? '<button class="btn btn-accent btn-sm" id="mStart">🚀 Start tournament</button>' : ''}
+      ${d.can.cancel ? '<button class="btn btn-danger btn-sm" id="mCancel">Cancel tournament</button>' : ''}
+    </div>
+    <div id="mEditForm" style="display:none"></div>
+    <div class="mgrid">
+      <div class="box">
+        <div class="box-title"><span>Entrants (${d.counts.entrants})</span></div>
+        <div id="mEntrants">${d.entrants.length ? '' : '<div class="muted">No entrants yet.</div>'}</div>
+      </div>
+      <div>
+        ${d.status === 'active' && d.format !== 'battle_royale' ? `
+        <div class="box" style="margin-bottom:18px">
+          <div class="box-title"><span>Report a result (${pending.length} pending)</span></div>
+          <div id="mPending">${pending.length ? '' : '<div class="muted">No matches waiting for a result.</div>'}</div>
+        </div>` : ''}
+        ${d.can.correct && decided.length ? `
+        <div class="box">
+          <div class="box-title"><span>Decided matches — correct a mistake</span></div>
+          <div id="mDecided"></div>
+        </div>` : ''}
+        ${d.format === 'battle_royale' ? '<div class="box"><div class="muted">Battle Royale results are reported in Discord with <span class="mono">/tournament br-report</span>.</div></div>' : ''}
+        ${d.status !== 'active' && !decided.length && d.format !== 'battle_royale' ? '<div class="box"><div class="muted">Match reporting appears here once the tournament starts.</div></div>' : ''}
+      </div>
+    </div>`;
+
+  // Action bar
+  const startBtn = document.getElementById('mStart');
+  if (startBtn) armConfirm(startBtn, '🚀 Start tournament', async () => {
+    toast('Starting… creating match rooms');
+    const res = await api(`/admin/api/tournaments/${d.id}/start`, { method: 'POST', body: {} });
+    if (!res.ok) return toast(res.error, true);
+    toast(`Started — ${res.data.roomsCreated} rooms created${res.data.roomsFailed ? `, ${res.data.roomsFailed} failed` : ''}`);
+    await refreshAfterAction();
+  });
+
+  const cancelBtn = document.getElementById('mCancel');
+  if (cancelBtn) armConfirm(cancelBtn, 'Cancel tournament', async () => {
+    const res = await api(`/admin/api/tournaments/${d.id}/cancel`, { method: 'POST', body: {} });
+    if (!res.ok) return toast(res.error, true);
+    toast('Tournament cancelled');
+    await refreshAfterAction();
+  });
+
+  const roomsBtn = document.getElementById('mRooms');
+  if (roomsBtn) roomsBtn.addEventListener('click', async () => {
+    roomsBtn.disabled = true;
+    const res = await api(`/admin/api/tournaments/${d.id}/create-rooms`, { method: 'POST', body: {} });
+    roomsBtn.disabled = false;
+    if (!res.ok) return toast(res.error, true);
+    toast(`Rooms: ${res.data.created} created, ${res.data.existing} already existed${res.data.failed ? `, ${res.data.failed} failed` : ''}`);
+    await refreshAfterAction();
+  });
+
+  const editBtn = document.getElementById('mEdit');
+  if (editBtn) editBtn.addEventListener('click', () => toggleEditForm(d));
+
+  // Entrants
+  const entrantsEl = document.getElementById('mEntrants');
+  if (entrantsEl && d.entrants.length) {
+    entrantsEl.innerHTML = d.entrants.map(e => `
+      <div class="lrow ${e.disqualified ? 'dq' : ''}">
+        <span class="nm">${e.disqualified ? '🚫 ' : ''}${esc(e.name)}${e.fake ? ' <span class="sub">test</span>' : ''}${e.checkedIn ? ' <span class="sub">✓ checked in</span>' : ''}</span>
+        ${d.can.removeEntrant ? `<button class="btn btn-danger btn-sm" data-remove="${esc(e.id)}">Remove</button>` : ''}
+        ${d.can.disqualify && !e.disqualified ? `<button class="btn btn-danger btn-sm" data-dq="${esc(e.id)}">DQ</button>` : ''}
+      </div>`).join('');
+
+    entrantsEl.querySelectorAll('[data-remove]').forEach(btn => armConfirm(btn, 'Remove', async () => {
+      const res = await api(`/admin/api/tournaments/${d.id}/remove-entrant`, { method: 'POST', body: { entrantId: btn.dataset.remove } });
+      if (!res.ok) return toast(res.error, true);
+      toast(`Removed ${res.data.name} (${res.data.remaining} left)`);
+      await refreshAfterAction();
+    }));
+    entrantsEl.querySelectorAll('[data-dq]').forEach(btn => armConfirm(btn, 'DQ', async () => {
+      const reason = prompt('Reason for the disqualification (optional):') || '';
+      const res = await api(`/admin/api/tournaments/${d.id}/disqualify`, { method: 'POST', body: { participantId: btn.dataset.dq, reason } });
+      if (!res.ok) return toast(res.error, true);
+      toast(`${res.data.name} disqualified — ${res.data.forfeited} match(es) forfeited`);
+      await refreshAfterAction();
+    }));
+  }
+
+  // Pending matches → report
+  const pendingEl = document.getElementById('mPending');
+  if (pendingEl && pending.length) {
+    pendingEl.innerHTML = pending.map(m => `
+      <div class="mrow" data-match="${m.matchNumber}">
+        <div class="mrow-head">
+          <span class="mnum">#${m.matchNumber}${m.roundName ? ` · ${esc(m.roundName)}` : m.round ? ` · R${m.round}` : ''}${m.section !== 'bracket' ? ` · ${esc(m.section.replace('_', ' '))}` : ''}</span>
+          <span>${esc(m.participant1.name)}</span><span class="vs">vs</span><span>${esc(m.participant2.name)}</span>
+          ${m.hasRoom ? '' : '<span class="sub" title="No match room">⚠ no room</span>'}
+        </div>
+        <div class="mrow-form">
+          <select data-winner>
+            <option value="">Winner…</option>
+            <option value="${esc(m.participant1.id)}">${esc(m.participant1.name)}</option>
+            <option value="${esc(m.participant2.id)}">${esc(m.participant2.name)}</option>
+          </select>
+          ${d.validScores
+            ? `<select data-score><option value="">Score…</option>${d.validScores.map(s => `<option>${s}</option>`).join('')}</select>`
+            : '<input type="text" data-score placeholder="Score (optional, e.g. 16-14)" size="18">'}
+          <button class="btn btn-accent btn-sm" data-report>Report</button>
+        </div>
+      </div>`).join('');
+
+    pendingEl.querySelectorAll('.mrow').forEach(row => {
+      row.querySelector('[data-report]').addEventListener('click', async () => {
+        const winnerId = row.querySelector('[data-winner]').value;
+        const score = row.querySelector('[data-score]').value.trim();
+        if (!winnerId) return toast('Pick the winner first', true);
+        if (d.validScores && !score) return toast(`Pick the series score (Bo${d.bestOf})`, true);
+        const btn = row.querySelector('[data-report]');
+        btn.disabled = true;
+        const res = await api(`/admin/api/tournaments/${d.id}/report`, {
+          method: 'POST',
+          body: { matchNumber: parseInt(row.dataset.match, 10), winnerId, score: score || null },
+        });
+        btn.disabled = false;
+        if (!res.ok) return toast(res.error, true);
+        let msg = `#${row.dataset.match}: ${res.data.winner} wins${res.data.score ? ` (${res.data.score})` : ''}`;
+        if (res.data.swissRoundStarted) msg += ` · Round ${res.data.swissRoundStarted} started`;
+        if (res.data.completed) msg += ` · 🏆 Tournament complete — champion ${res.data.champion}`;
+        toast(msg);
+        await refreshAfterAction();
+      });
+    });
+  }
+
+  // Decided matches → correct
+  const decidedEl = document.getElementById('mDecided');
+  if (decidedEl && decided.length) {
+    decidedEl.innerHTML = decided.map(m => {
+      const winnerName = m.winnerId === m.participant1?.id ? m.participant1?.name : m.participant2?.name;
+      const auto = m.isBye ? 'bye' : m.isWalkover ? 'walkover' : m.isDQ ? 'DQ' : null;
+      return `
+      <div class="mrow" data-match="${m.matchNumber}">
+        <div class="mrow-head">
+          <span class="mnum">#${m.matchNumber ?? '—'}</span>
+          <span class="${m.winnerId === m.participant1?.id ? 'win' : ''}">${esc(m.participant1?.name ?? 'BYE')}</span>
+          <span class="vs">vs</span>
+          <span class="${m.winnerId === m.participant2?.id ? 'win' : ''}">${esc(m.participant2?.name ?? 'BYE')}</span>
+          <span class="result">${esc(winnerName || '')} ✓${m.score ? ` ${esc(m.score)}` : ''}${auto ? ` · ${auto}` : ''}</span>
+          ${!auto && m.matchNumber ? '<button class="btn btn-ghost btn-sm" data-fix>Correct</button>' : ''}
+        </div>
+        <div class="mrow-form" data-fixform style="display:none">
+          <select data-winner>
+            <option value="${esc(m.participant1?.id)}">${esc(m.participant1?.name)}</option>
+            <option value="${esc(m.participant2?.id)}">${esc(m.participant2?.name)}</option>
+          </select>
+          ${d.validScores
+            ? `<select data-score><option value="">Score…</option>${d.validScores.map(s => `<option>${s}</option>`).join('')}</select>`
+            : '<input type="text" data-score placeholder="Score (optional)" size="14">'}
+          <button class="btn btn-accent btn-sm" data-save>Save correction</button>
+        </div>
+      </div>`;
+    }).join('');
+
+    decidedEl.querySelectorAll('.mrow').forEach(row => {
+      const fixBtn = row.querySelector('[data-fix]');
+      if (!fixBtn) return;
+      fixBtn.addEventListener('click', () => {
+        const f = row.querySelector('[data-fixform]');
+        f.style.display = f.style.display === 'none' ? 'flex' : 'none';
+      });
+      row.querySelector('[data-save]').addEventListener('click', async () => {
+        const winnerId = row.querySelector('[data-fixform] [data-winner]').value;
+        const score = row.querySelector('[data-fixform] [data-score]').value.trim();
+        if (d.validScores && !score) return toast(`Pick the corrected series score (Bo${d.bestOf})`, true);
+        const btn = row.querySelector('[data-save]');
+        btn.disabled = true;
+        const res = await api(`/admin/api/tournaments/${d.id}/correct`, {
+          method: 'POST',
+          body: { matchNumber: parseInt(row.dataset.match, 10), winnerId, score: score || null },
+        });
+        btn.disabled = false;
+        if (!res.ok) return toast(res.error, true);
+        toast(`#${row.dataset.match} corrected: ${res.data.newWinner} wins${res.data.score ? ` (${res.data.score})` : ''}`);
+        await refreshAfterAction();
+      });
+    });
+  }
+}
+
+// ── Edit form (registration/check-in) ────────────────────────────────────────
+function toDatetimeLocal(iso) {
+  const dt = new Date(iso);
+  if (isNaN(dt)) return '';
+  const pad = n => String(n).padStart(2, '0');
+  return `${dt.getFullYear()}-${pad(dt.getMonth() + 1)}-${pad(dt.getDate())}T${pad(dt.getHours())}:${pad(dt.getMinutes())}`;
+}
+
+function toggleEditForm(d) {
+  const holder = document.getElementById('mEditForm');
+  if (holder.style.display !== 'none') { holder.style.display = 'none'; holder.innerHTML = ''; return; }
+  holder.style.display = '';
+  holder.innerHTML = `
+    <div class="box">
+      <div class="box-title"><span>Edit tournament</span></div>
+      <div class="form-grid">
+        <div class="field full"><label>Title</label><input type="text" id="eTitle" maxlength="100" value="${esc(d.title)}"></div>
+        <div class="field"><label>Start time</label><input type="datetime-local" id="eStart" value="${toDatetimeLocal(d.startTime)}"></div>
+        <div class="field"><label>Max entrants</label><input type="number" id="eMax" min="2" max="512" value="${d.maxParticipants}"></div>
+        <div class="field"><label>Best of</label><input type="number" id="eBestOf" min="1" max="15" step="2" value="${d.bestOf}"></div>
+        <div class="field full"><label>Description</label><textarea id="eDesc" rows="2" maxlength="1000">${esc(d.description)}</textarea></div>
+      </div>
+      <div class="modal-foot">
+        <button class="btn btn-ghost btn-sm" id="eCancel">Discard</button>
+        <button class="btn btn-accent btn-sm" id="eSave">Save changes</button>
+      </div>
+    </div>`;
+  document.getElementById('eCancel').addEventListener('click', () => toggleEditForm(d));
+  document.getElementById('eSave').addEventListener('click', async () => {
+    const startVal = document.getElementById('eStart').value;
+    const res = await api(`/admin/api/tournaments/${d.id}`, {
+      method: 'PATCH',
+      body: {
+        title: document.getElementById('eTitle').value,
+        startTime: startVal ? new Date(startVal).toISOString() : undefined,
+        maxParticipants: document.getElementById('eMax').value,
+        bestOf: document.getElementById('eBestOf').value,
+        description: document.getElementById('eDesc').value,
+      },
+    });
+    if (!res.ok) return toast(res.error, true);
+    toast(res.data.changes.length ? `Saved: ${res.data.changes.join(', ')}` : 'No changes to save');
+    await refreshAfterAction();
+  });
+}
+
+// ── Create tournament ────────────────────────────────────────────────────────
+const createModal = document.getElementById('createModal');
+
+async function openCreate() {
+  if (!META) {
+    const res = await api('/admin/api/meta');
+    if (!res.ok) return toast(res.error, true);
+    META = res.data;
+  }
+  // populate games (featured first, then the rest alphabetically)
+  const games = [...META.games].sort((a, b) => (b.featured - a.featured) || a.name.localeCompare(b.name));
+  const gameSel = document.getElementById('cGame');
+  gameSel.innerHTML = games.map(g => `<option value="${esc(g.key)}">${esc(g.name)}</option>`).join('');
+
+  // channels for the active guild
+  const chSel = document.getElementById('cChannel');
+  chSel.innerHTML = '<option value="">Server default</option>';
+  const chRes = await api(`/admin/api/guilds/${encodeURIComponent(activeGuild)}/channels`);
+  if (chRes.ok) {
+    chSel.innerHTML += chRes.data.channels.map(c =>
+      `<option value="${esc(c.id)}"># ${esc(c.name)}${c.category ? ` — ${esc(c.category)}` : ''}</option>`).join('');
+  }
+
+  applyGamePreset();
+  // sensible default start: tomorrow 19:00 local
+  const t = new Date(); t.setDate(t.getDate() + 1); t.setHours(19, 0, 0, 0);
+  document.getElementById('cStart').value = toDatetimeLocal(t.toISOString());
+
+  createModal.classList.add('open');
+  createModal.setAttribute('aria-hidden', 'false');
+}
+
+function closeCreate() {
+  createModal.classList.remove('open');
+  createModal.setAttribute('aria-hidden', 'true');
+}
+document.getElementById('createCancel').addEventListener('click', closeCreate);
+// Close on backdrop click — but only when the press STARTED on the backdrop,
+// so drags (or a click racing the modal opening) can't dismiss the form.
+let backdropPress = false;
+createModal.addEventListener('mousedown', e => { backdropPress = e.target === createModal; });
+createModal.addEventListener('click', e => { if (e.target === createModal && backdropPress) closeCreate(); });
+
+function applyGamePreset() {
+  const key = document.getElementById('cGame').value;
+  const g = META.games.find(x => x.key === key);
+  if (!g) return;
+  document.getElementById('cGameNameField').style.display = key === 'custom' ? '' : 'none';
+  const fmt = document.getElementById('cFormat');
+  fmt.innerHTML = g.formatOptions.map(f => `<option value="${f}" ${f === g.defaultFormat ? 'selected' : ''}>${esc(META.formats[f] || f)}</option>`).join('');
+  const ts = document.getElementById('cTeamSize');
+  ts.innerHTML = g.teamSizeOptions.map(n => `<option value="${n}" ${n === g.defaultTeamSize ? 'selected' : ''}>${n === 1 ? 'Solo' : `${n}v${n}`}</option>`).join('');
+  const bo = document.getElementById('cBestOf');
+  bo.innerHTML = g.bestOfOptions.map(n => `<option value="${n}" ${n === g.defaultBestOf ? 'selected' : ''}>Bo${n}</option>`).join('');
+}
+document.getElementById('cGame').addEventListener('change', applyGamePreset);
+
+document.getElementById('createSubmit').addEventListener('click', async () => {
+  const btn = document.getElementById('createSubmit');
+  const startVal = document.getElementById('cStart').value;
+  btn.disabled = true;
+  const res = await api(`/admin/api/guilds/${encodeURIComponent(activeGuild)}/tournaments`, {
+    method: 'POST',
+    body: {
+      gamePreset: document.getElementById('cGame').value,
+      gameName: document.getElementById('cGameName').value,
+      title: document.getElementById('cTitle').value,
+      description: document.getElementById('cDesc').value,
+      startTime: startVal ? new Date(startVal).toISOString() : null,
+      maxParticipants: document.getElementById('cMax').value,
+      format: document.getElementById('cFormat').value,
+      teamSize: document.getElementById('cTeamSize').value,
+      bestOf: document.getElementById('cBestOf').value,
+      channelId: document.getElementById('cChannel').value || null,
+      publicBracket: document.getElementById('cPublic').checked,
+    },
+  });
+  btn.disabled = false;
+  if (!res.ok) return toast(res.error, true);
+  closeCreate();
+  toast(`Created "${res.data.title}" — announced in #${res.data.channel.name}`);
+  await reloadTournaments();
+});
 
 boot();
 </script>

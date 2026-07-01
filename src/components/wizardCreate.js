@@ -1,105 +1,35 @@
+// Final step of the advanced-creation wizard. The shared creation
+// orchestration (subscription checks, channel resolution, announcement,
+// reminders, usage accounting) lives in services/creationService.js — also
+// used by the simple modal and the web-admin dashboard.
+
 const { GAME_PRESETS } = require('../config/gamePresets');
-const { createTournament, updateTournament } = require('../services/tournamentService');
-const { createTournamentEmbed, createTournamentButtons, createParticipantListEmbed } = require('../utils/embedBuilder');
-const { getOrCreateAnnouncementChannel } = require('../services/announcementService');
-const { scheduleReminders } = require('../services/reminderService');
 const { deleteSession } = require('../data/wizardSessions');
-const { getTokenBalance } = require('../data/subscriptions');
-const {
-  checkConcurrentLimit,
-  checkTournamentLimit,
-  checkParticipantLimit,
-  checkFeature,
-  recordTournamentCreation,
-  getEffectiveTier,
-  getUpgradeEmbed,
-  getTokenPurchaseEmbed,
-  getBoostPurchaseEmbed,
-  TIER_LIMITS,
-} = require('../services/subscriptionService');
+const { runCreationChecks, resolveAnnouncementChannel, createAndAnnounce } = require('../services/creationService');
+const { checkFailureReply } = require('./simpleCreateModal');
 
 async function createTournamentFromWizard(interaction, session) {
   const { data } = session;
   const guildId = session.guildId;
   const preset = GAME_PRESETS[data.gamePreset];
 
-  // === Subscription checks ===
+  // Gated features picked in the wizard
+  const features = [];
+  if (data.checkinRequired) features.push('checkin');
+  if (data.seedingEnabled) features.push('seeding');
+  if (data.captainMode) features.push('captain_mode');
+  if (data.requiredRoles?.length > 0) features.push('required_roles');
+  if (data.publicBracket) features.push('public_bracket');
 
-  // 1. Check concurrent limit
-  const concurrentCheck = await checkConcurrentLimit(guildId);
-  if (!concurrentCheck.allowed) {
-    return interaction.update({
-      ...getUpgradeEmbed('concurrent', await getEffectiveTier(guildId), concurrentCheck.reason),
-      components: [],
-    });
+  // Subscription checks (concurrent / monthly / participant cap / features)
+  const checks = await runCreationChecks(guildId, { maxParticipants: data.maxParticipants, features });
+  if (!checks.ok) {
+    return interaction.update({ ...(await checkFailureReply(guildId, checks)), components: [] });
   }
 
-  // 2. Check tournament limit (may use token)
-  const limitCheck = await checkTournamentLimit(guildId);
-  if (!limitCheck.allowed) {
-    return interaction.update({
-      ...getTokenPurchaseEmbed(limitCheck),
-      components: [],
-    });
-  }
-
-  // 3. Check participant limit (and try to use a boost if available)
-  let boostToUse = null;
-  let participantCheck = await checkParticipantLimit(guildId, data.maxParticipants);
-
-  if (!participantCheck.allowed) {
-    // Check if we have an available boost that would cover it
-    const tier = await getEffectiveTier(guildId);
-    const baseMax = TIER_LIMITS[tier].maxParticipants;
-    const needed = data.maxParticipants - baseMax;
-    const tokenBalance = await getTokenBalance(guildId);
-
-    // Find smallest boost that covers the need
-    const availableBoosts = tokenBalance.participantBoosts
-      .filter(b => b.amount >= needed)
-      .sort((a, b) => a.amount - b.amount);
-
-    if (availableBoosts.length > 0) {
-      // Use the smallest sufficient boost
-      boostToUse = availableBoosts[0].amount;
-      participantCheck = await checkParticipantLimit(guildId, data.maxParticipants, boostToUse);
-      console.log(`[Subscription] Guild ${guildId} auto-applying +${boostToUse} participant boost`);
-    }
-
-    // If still not allowed (no suitable boost), show purchase prompt
-    if (!participantCheck.allowed) {
-      return interaction.update({
-        ...getBoostPurchaseEmbed(participantCheck),
-        components: [],
-      });
-    }
-  }
-
-  // 4. Check premium/pro features
-  const premiumFeaturesToCheck = [];
-  if (data.checkinRequired) premiumFeaturesToCheck.push('checkin');
-  if (data.seedingEnabled) premiumFeaturesToCheck.push('seeding');
-  if (data.captainMode) premiumFeaturesToCheck.push('captain_mode');
-  if (data.requiredRoles?.length > 0) premiumFeaturesToCheck.push('required_roles');
-  if (data.publicBracket) premiumFeaturesToCheck.push('public_bracket');
-
-  for (const feature of premiumFeaturesToCheck) {
-    const featureCheck = await checkFeature(guildId, feature);
-    if (!featureCheck.allowed) {
-      return interaction.update({
-        ...getUpgradeEmbed(feature, await getEffectiveTier(guildId)),
-        components: [],
-      });
-    }
-  }
-
-  // Log if using a token
-  if (limitCheck.usingToken) {
-    console.log(`[Subscription] Guild ${guildId} using tournament token`);
-  }
-
-  const announcementChannel = await getOrCreateAnnouncementChannel(interaction.guild, data.gamePreset);
-  const targetChannel = announcementChannel || interaction.channel;
+  // Announcement channel (per-game override aware)
+  const resolved = await resolveAnnouncementChannel(interaction.guild, data.gamePreset);
+  const targetChannel = resolved.channel || interaction.channel;
 
   let gameDisplayName = data.gameName || preset?.displayName;
   let gameShortName = preset?.shortName;
@@ -109,61 +39,43 @@ async function createTournamentFromWizard(interaction, session) {
     gameShortName = (data.gameName || data.title).substring(0, 4).toUpperCase();
   }
 
-  const tournament = await createTournament({
-    guildId: session.guildId,
-    channelId: targetChannel.id,
-    title: data.title,
-    description: data.description || undefined,
-    gamePreset: data.gamePreset,
-    gameDisplayName,
-    gameShortName,
-    maxParticipants: data.maxParticipants,
-    teamSize: data.teamSize,
-    format: data.format,
-    bestOf: data.bestOf,
-    checkinRequired: data.checkinRequired,
-    checkinWindow: data.checkinWindow,
-    seedingEnabled: data.seedingEnabled,
-    requireGameNick: data.requireGameNick,
-    captainMode: data.captainMode,
-    lobbySize: data.lobbySize,
-    gamesPerStage: data.gamesPerStage,
-    advancingPerGroup: data.advancingPerGroup,
-    requiredRoles: data.requiredRoles || [],
-    publicBracket: data.publicBracket ?? false,
-    thirdPlaceMatch: (data.format === 'single_elimination' && data.thirdPlaceMatch) || false,
-    startTime: new Date(data.datetime),
-    setupMode: 'advanced',
-    createdBy: session.userId,
-  });
-
-  const embed = await createTournamentEmbed(tournament);
-  const buttons = createTournamentButtons(tournament);
-  const participantEmbed = await createParticipantListEmbed(tournament);
-
+  // Ack inside the 3s window; the announcement posts right after.
   await interaction.update({
     content: `✅ Tournament **${data.title}** created! Announced in ${targetChannel}.`,
     components: [],
   });
 
-  const mainMessage = await targetChannel.send({ embeds: [embed], components: buttons });
-  const listMessage = await targetChannel.send({ embeds: [participantEmbed] });
-
-  await updateTournament(tournament.id, {
-    messageId: mainMessage.id,
-    participantListMessageId: listMessage.id,
+  await createAndAnnounce({
+    client: interaction.client,
+    guildId,
+    targetChannel,
+    boostToUse: checks.boostToUse,
+    data: {
+      title: data.title,
+      description: data.description || undefined,
+      gamePreset: data.gamePreset,
+      gameDisplayName,
+      gameShortName,
+      maxParticipants: data.maxParticipants,
+      teamSize: data.teamSize,
+      format: data.format,
+      bestOf: data.bestOf,
+      checkinRequired: data.checkinRequired,
+      checkinWindow: data.checkinWindow,
+      seedingEnabled: data.seedingEnabled,
+      requireGameNick: data.requireGameNick,
+      captainMode: data.captainMode,
+      lobbySize: data.lobbySize,
+      gamesPerStage: data.gamesPerStage,
+      advancingPerGroup: data.advancingPerGroup,
+      requiredRoles: data.requiredRoles || [],
+      publicBracket: data.publicBracket ?? false,
+      thirdPlaceMatch: (data.format === 'single_elimination' && data.thirdPlaceMatch) || false,
+      startTime: new Date(data.datetime),
+      setupMode: 'advanced',
+      createdBy: session.userId,
+    },
   });
-
-  scheduleReminders(tournament, interaction.client);
-
-  // Record usage (consumes token and/or boost if needed)
-  const { usedToken, usedBoost } = await recordTournamentCreation(guildId, boostToUse);
-  if (usedToken) {
-    console.log(`[Subscription] Guild ${guildId} consumed tournament token`);
-  }
-  if (usedBoost) {
-    console.log(`[Subscription] Guild ${guildId} consumed +${usedBoost} participant boost`);
-  }
 
   await deleteSession(session.id);
 }

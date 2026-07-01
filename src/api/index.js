@@ -76,6 +76,7 @@ app.use(publicBracketRouter);
 
 app.use(adminAuthRouter);
 app.use(adminDashboardRouter);
+app.use(require('./adminActions'));
 
 // ============================================================================
 // REST API v1 (requires auth)

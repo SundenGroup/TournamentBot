@@ -152,4 +152,70 @@ function requireGuildAdmin(req, res, next) {
   next();
 }
 
-module.exports = { router, requireSession, requireGuildAdmin, computeManageableGuilds };
+// ── CSRF ────────────────────────────────────────────────────────────────────
+// The session cookie is SameSite=Lax (cross-site POSTs never carry it), and on
+// top of that every mutating request must echo a per-session token in the
+// X-CSRF-Token header. The token is derived (HMAC) from the session — nothing
+// to store server-side. /admin/api/me hands it to the same-origin frontend.
+
+function csrfToken(sess) {
+  return crypto.createHmac('sha256', config.webAdmin.sessionSecret)
+    .update(`csrf:${sess.uid}:${sess.exp}`)
+    .digest('hex')
+    .slice(0, 32);
+}
+
+/** Require a valid CSRF token (and same-origin Origin when the browser sends one). */
+function requireCsrf(req, res, next) {
+  const origin = req.headers.origin;
+  if (origin && origin !== new URL(config.publicBaseUrl).origin && !origin.startsWith('http://localhost')) {
+    return res.status(403).json({ error: 'Cross-origin request rejected' });
+  }
+  const token = req.headers['x-csrf-token'];
+  const expected = csrfToken(req.session);
+  if (!token || token.length !== expected.length
+      || !crypto.timingSafeEqual(Buffer.from(token), Buffer.from(expected))) {
+    return res.status(403).json({ error: 'Invalid CSRF token — reload the page and try again' });
+  }
+  next();
+}
+
+// ── Mutation rate limit ─────────────────────────────────────────────────────
+// Per-user: 30 state-changing requests per minute is generous for a human
+// admin and a hard wall for anything automated.
+
+const mutationCounts = new Map(); // uid -> { count, windowStart }
+const MUTATION_WINDOW_MS = 60_000;
+const MUTATION_MAX = 30;
+
+function adminRateLimit(req, res, next) {
+  const now = Date.now();
+  let rec = mutationCounts.get(req.session.uid);
+  if (!rec || now - rec.windowStart >= MUTATION_WINDOW_MS) {
+    rec = { count: 0, windowStart: now };
+    mutationCounts.set(req.session.uid, rec);
+  }
+  if (++rec.count > MUTATION_MAX) {
+    const retryAfter = Math.ceil((rec.windowStart + MUTATION_WINDOW_MS - now) / 1000);
+    res.setHeader('Retry-After', retryAfter);
+    return res.status(429).json({ error: `Too many actions — try again in ${retryAfter}s` });
+  }
+  next();
+}
+
+setInterval(() => {
+  const now = Date.now();
+  for (const [uid, rec] of mutationCounts) {
+    if (now - rec.windowStart >= MUTATION_WINDOW_MS * 2) mutationCounts.delete(uid);
+  }
+}, 5 * 60_000).unref();
+
+module.exports = {
+  router,
+  requireSession,
+  requireGuildAdmin,
+  requireCsrf,
+  adminRateLimit,
+  csrfToken,
+  computeManageableGuilds,
+};

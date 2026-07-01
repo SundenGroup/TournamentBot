@@ -68,7 +68,9 @@ module.exports = {
       await finalizeMatchReport(interaction, tournament, match, winner, score);
     } catch (error) {
       console.error('Error reporting match with score:', error);
-      return interaction.reply({ content: `❌ Error: ${error.message}`, ephemeral: true }).catch(() => {});
+      // followUp works whether or not finalizeMatchReport already acknowledged
+      // the interaction via deferUpdate.
+      return interaction.followUp({ content: `❌ Error: ${error.message}`, ephemeral: true }).catch(() => {});
     }
   },
 };

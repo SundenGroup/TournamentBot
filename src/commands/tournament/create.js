@@ -1,10 +1,9 @@
 const { SlashCommandBuilder, ActionRowBuilder, StringSelectMenuBuilder, EmbedBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const { getPresetKeys, getFeaturedPresetKeys, getMenuEmoji, GAME_PRESETS } = require('../../config/gamePresets');
 const { getTournament, getActiveTournaments, updateTournament } = require('../../services/tournamentService');
-const { createBRGroupRoom, collectTournamentChannels, bulkCleanupChannels, clearBracketChannelIds } = require('../../services/channelService');
-const { getServerSettings } = require('../../data/serverSettings');
+const { createBRGroupRoom } = require('../../services/channelService');
 const { canManageTournaments } = require('../../utils/permissions');
-const { createTournamentEmbed, createTournamentButtons } = require('../../utils/embedBuilder');
+const { createTournamentEmbed } = require('../../utils/embedBuilder');
 const singleElim = require('../../services/singleEliminationService');
 const doubleElim = require('../../services/doubleEliminationService');
 const swiss = require('../../services/swissService');
@@ -665,6 +664,7 @@ async function handleInfo(interaction) {
 
 async function handleCancel(interaction) {
   const { canEditTournament } = require('../../utils/permissions');
+  const { cancelFlow } = require('../../services/lifecycleService');
 
   const tournamentId = interaction.options.getString('tournament');
   const tournament = await getTournament(tournamentId);
@@ -677,20 +677,14 @@ async function handleCancel(interaction) {
     return interaction.reply({ content: '❌ You do not have permission to cancel this tournament.', ephemeral: true });
   }
 
-  await updateTournament(tournamentId, { status: 'cancelled' });
-
-  // Trigger webhook
-  webhooks.onTournamentCancelled(tournament);
-
-  const { cancelReminders } = require('../../services/reminderService');
-  cancelReminders(tournamentId);
-
-  await interaction.reply({ content: `✅ Tournament **${tournament.title}** has been cancelled.` });
+  await interaction.deferReply();
+  await cancelFlow({ client: interaction.client, tournament });
+  await interaction.editReply({ content: `✅ Tournament **${tournament.title}** has been cancelled.` });
 }
 
 async function handleStart(interaction) {
   const { canEditTournament } = require('../../utils/permissions');
-  const { createMatchRoom } = require('../../services/channelService');
+  const { startTournamentFlow, buildStartEmbed } = require('../../services/lifecycleService');
 
   const tournamentId = interaction.options.getString('tournament');
   const tournament = await getTournament(tournamentId);
@@ -703,175 +697,27 @@ async function handleStart(interaction) {
     return interaction.reply({ content: '❌ You do not have permission to start this tournament.', ephemeral: true });
   }
 
+  // Fast-fail the common cases before deferring (the flow re-checks them)
   if (tournament.status !== 'registration' && tournament.status !== 'checkin') {
     return interaction.reply({ content: '❌ Tournament is not in registration/checkin phase.', ephemeral: true });
   }
-
   const isSolo = tournament.settings.teamSize === 1;
-  const participants = isSolo ? tournament.participants : tournament.teams;
-  const participantCount = participants.length;
-
-  if (participantCount < 2) {
+  if ((isSolo ? tournament.participants : tournament.teams).length < 2) {
     return interaction.reply({ content: '❌ Need at least 2 participants to start.', ephemeral: true });
   }
-
-  // Immediately mark as active to prevent concurrent starts. Remember the
-  // prior status so we can roll back if anything below fails — otherwise a
-  // failed start strands the tournament "active" with no bracket.
-  const previousStatus = tournament.status;
-  await updateTournament(tournamentId, { status: 'active' });
 
   await interaction.deferReply();
 
   try {
-    // Resolve pending team members (captain mode)
-    if (!isSolo && tournament.settings.captainMode) {
-      const { resolveTeamMembers } = require('../../services/tournamentService');
-      const { resolved, failed } = await resolveTeamMembers(interaction.guild, tournament);
-      if (resolved > 0 || failed > 0) {
-        console.log(`Captain mode resolution for "${tournament.title}": ${resolved} resolved, ${failed} failed`);
-      }
-      await updateTournament(tournamentId, { teams: tournament.teams });
-    }
-
-    const format = tournament.settings.format;
-    let service;
-    let bracket;
-
-    switch (format) {
-      case 'double_elimination':
-        service = doubleElim;
-        bracket = doubleElim.generateBracket(participants, tournament.settings);
-        break;
-      case 'swiss':
-        service = swiss;
-        bracket = swiss.generateBracket(participants, tournament.settings);
-        break;
-      case 'round_robin':
-        service = roundRobin;
-        bracket = roundRobin.generateBracket(participants, tournament.settings);
-        break;
-      case 'battle_royale':
-        service = battleRoyale;
-        bracket = battleRoyale.generateBracket(participants, tournament.settings);
-        break;
-      case 'single_elimination':
-      default:
-        service = singleElim;
-        bracket = singleElim.generateBracket(participants, tournament.settings);
-        break;
-    }
-
-    tournament.bracket = bracket;
-    tournament.status = 'active';
-
-    let roomsCreated = 0;
-    let roomsFailed = 0;
-    if (format === 'battle_royale') {
-      for (const g of bracket.groups) {
-        try {
-          const channel = await createBRGroupRoom(interaction.guild, g, tournament);
-          g.channelId = channel.id;
-          roomsCreated++;
-        } catch (error) {
-          console.error('Error creating BR group room:', error);
-          roomsFailed++;
-        }
-      }
-    } else {
-      const activeMatches = service.getActiveMatches(bracket);
-      const { createMatchRoom } = require('../../services/channelService');
-
-      for (const match of activeMatches) {
-        if (match.participant1 && match.participant2) {
-          try {
-            const channel = await createMatchRoom(interaction.guild, match, tournament);
-            match.channelId = channel.id;
-            roomsCreated++;
-          } catch (error) {
-            console.error('Error creating match room:', error);
-            roomsFailed++;
-          }
-        }
-      }
-    }
-
-    // DM players/teams that start with a bye (marks matches byeNotified,
-    // persisted by the update below)
-    const { notifyByesAndWalkovers, getStartByeSummary } = require('../../utils/byeNotifier');
-    await notifyByesAndWalkovers(interaction.client, tournament);
-
-    await updateTournament(tournamentId, { bracket, status: 'active' });
-
-    // Trigger webhook
-    webhooks.onTournamentStarted(tournament);
-
-    const embed = new EmbedBuilder()
-      .setTitle(`🚀 ${tournament.title} — Tournament Started!`)
-      .setColor(0x2ecc71);
-
-    if (tournament.game.logo) {
-      embed.setThumbnail(tournament.game.logo);
-    }
-
-    const formatNames = {
-      single_elimination: 'Single Elimination',
-      double_elimination: 'Double Elimination',
-      swiss: 'Swiss',
-      round_robin: 'Round Robin',
-      battle_royale: 'Battle Royale',
-    };
-
-    let desc = `**${participantCount}** ${isSolo ? 'players' : 'teams'} competing\n`;
-    desc += `**Format:** ${formatNames[format] || format}\n`;
-    if (format !== 'battle_royale') {
-      desc += `**Best of:** ${tournament.settings.bestOf}\n`;
-    }
-
-    if (format === 'swiss') {
-      desc += `**Rounds:** ${bracket.totalRounds}\n`;
-    } else if (format === 'round_robin') {
-      desc += `**Rounds:** ${bracket.totalRounds}\n`;
-      desc += `**Total Matches:** ${bracket.totalMatches}\n`;
-    } else if (format === 'battle_royale') {
-      desc += `**Groups:** ${bracket.groups.length}\n`;
-      desc += `**Games per Stage:** ${bracket.gamesPerStage}\n`;
-      desc += `**Teams to Finals:** ${bracket.totalAdvancing}\n`;
-    }
-
-    desc += `\n**${roomsCreated}** match rooms created.\n`;
-    if (roomsFailed > 0) {
-      desc += `⚠️ **${roomsFailed} room(s) failed** — run \`/tournament create-rooms\` to retry, and check the bot has Manage Channels + Manage Roles.\n`;
-    }
-    desc += `\n`;
-    desc += `Use \`/match list\` to see active matches.`;
-
-    if (format === 'swiss' || format === 'round_robin' || format === 'battle_royale') {
-      desc += `\nUse \`/match bracket\` to view standings.`;
-    }
-
-    const byeSummary = getStartByeSummary(tournament);
-    if (byeSummary) {
-      desc += `\n\n${byeSummary}\n*Players with a bye have been notified by DM.*`;
-    }
-
-    const { getBracketUrl } = require('../../utils/embedBuilder');
-    const startBracketUrl = getBracketUrl(tournament);
-    if (startBracketUrl) {
-      desc += `\n\n🌐 **Live web bracket:** ${startBracketUrl}`;
-    }
-
-    embed.setDescription(desc);
-
-    await interaction.editReply({ embeds: [embed] });
-
+    const { tournament: started, summary } = await startTournamentFlow({
+      client: interaction.client,
+      guild: interaction.guild,
+      tournamentId,
+    });
+    await interaction.editReply({ embeds: [buildStartEmbed(started, summary)] });
   } catch (error) {
-    console.error('Error starting tournament:', error);
-    try {
-      await updateTournament(tournamentId, { status: previousStatus, bracket: null });
-    } catch (rollbackError) {
-      console.error('Failed to roll back tournament status:', rollbackError);
-    }
+    // startTournamentFlow already rolled the tournament back to its previous
+    // status — just tell the admin.
     await interaction.editReply({ content: `❌ Error starting tournament: ${error.message}\n\nThe tournament has been returned to its previous state — you can try again.` });
   }
 }
@@ -967,44 +813,18 @@ async function handleDisqualify(interaction) {
 
   const tournament = await getTournament(tournamentId);
   if (!tournament) return interaction.editReply({ content: '❌ Tournament not found.' });
-  if (!tournament.bracket || tournament.status !== 'active') {
-    return interaction.editReply({ content: '❌ Disqualification only works on a running tournament. During registration, remove the entrant instead.' });
-  }
 
-  const isSolo = tournament.settings.teamSize === 1;
-  const entrant = (isSolo ? tournament.participants : tournament.teams).find(e => e.id === participantId);
-  if (!entrant) return interaction.editReply({ content: '❌ Participant not found in this tournament.' });
-  if (entrant.disqualified) return interaction.editReply({ content: '❌ Already disqualified.' });
-
-  const { disqualify } = require('../../services/disqualifyService');
+  const { disqualifyFlow } = require('../../services/lifecycleService');
   let result;
   try {
-    result = disqualify(tournament, participantId, reason);
+    result = await disqualifyFlow({ client: interaction.client, tournament, participantId, reason });
   } catch (error) {
     return interaction.editReply({ content: `❌ ${error.message}` });
   }
 
-  // DM opponents who advanced off the forfeits, persist everything
-  const { notifyByesAndWalkovers } = require('../../utils/byeNotifier');
-  await notifyByesAndWalkovers(interaction.client, tournament);
-  await updateTournament(tournamentId, {
-    bracket: tournament.bracket,
-    participants: tournament.participants,
-    teams: tournament.teams,
-  });
-  const { updateTournamentMessages } = require('../../utils/tournamentUpdater');
-  await updateTournamentMessages(interaction.client, tournament);
-
-  const name = isSolo ? entrant.username : entrant.name;
-  let response = `🚫 **${name}** has been disqualified from **${tournament.title}**` + (reason ? ` — ${reason}` : '') + '.';
-  if (result.forfeited > 0) response += `\n${result.forfeited} match${result.forfeited > 1 ? 'es' : ''} forfeited (opponent wins ${tournament.settings.bestOf > 1 ? `${Math.ceil(tournament.settings.bestOf / 2)}-0` : 'by walkover'}).`;
+  let response = `🚫 **${result.name}** has been disqualified from **${tournament.title}**` + (reason ? ` — ${reason}` : '') + '.';
+  if (result.forfeited > 0) response += `\n${result.forfeited} match${result.forfeited > 1 ? 'es' : ''} forfeited (opponent wins ${result.bestOf > 1 ? `${Math.ceil(result.bestOf / 2)}-0` : 'by walkover'}).`;
   if (result.pending > 0) response += `\n${result.pending} upcoming match will forfeit automatically when the opponent is decided.`;
-
-  // Tell the channel too — a DQ is tournament-relevant news
-  try {
-    const channel = await interaction.client.channels.fetch(tournament.channelId);
-    await channel.send(`🚫 **${name}** has been disqualified from **${tournament.title}**.`);
-  } catch {}
 
   return interaction.editReply({ content: response });
 }
@@ -1019,72 +839,21 @@ async function handleCorrect(interaction) {
 
   const tournament = await getTournament(tournamentId);
   if (!tournament) return interaction.editReply({ content: '❌ Tournament not found.' });
-  if (!tournament.bracket) return interaction.editReply({ content: '❌ Tournament has not started yet.' });
 
-  const bracket = tournament.bracket;
-  const service = getServiceForBracket(bracket);
-
-  // Locate by match number (same lookup as report, incl. third-place match)
-  let match = null;
-  if (bracket.type === 'double_elimination') {
-    for (const round of [...bracket.winnersRounds, ...bracket.losersRounds, ...bracket.grandFinalsRounds]) {
-      match = round.matches.find(m => m.matchNumber === matchNumber);
-      if (match) break;
-    }
-  } else {
-    for (const round of bracket.rounds) {
-      match = round.matches.find(m => m.matchNumber === matchNumber);
-      if (match) break;
-    }
-    if (!match && bracket.thirdPlaceMatch?.matchNumber === matchNumber) {
-      match = bracket.thirdPlaceMatch;
-    }
-  }
-  if (!match) return interaction.editReply({ content: '❌ Match not found.' });
-
-  // Series-score validation, mirroring report
-  let normalizedScore = score ? score.trim() : null;
-  const bestOfSetting = tournament.settings.bestOf || 1;
-  if (normalizedScore && !/^\d{1,3}-\d{1,3}$/.test(normalizedScore)) {
-    return interaction.editReply({ content: '❌ Invalid score format. Use format like `2-1`.' });
-  }
-  if (bestOfSetting > 1) {
-    const { validSeriesScores } = require('../../components/matchReport');
-    const valid = validSeriesScores(bestOfSetting);
-    if (!normalizedScore) {
-      return interaction.editReply({ content: `❌ This is a **Best of ${bestOfSetting}** — include the corrected series score: ${valid.map(s => `\`${s}\``).join(' or ')}` });
-    }
-    const [a, b] = normalizedScore.split('-').map(Number);
-    normalizedScore = `${Math.max(a, b)}-${Math.min(a, b)}`;
-    if (!valid.includes(normalizedScore)) {
-      return interaction.editReply({ content: `❌ \`${score}\` isn't a valid Best of ${bestOfSetting} result. Valid: ${valid.map(s => `\`${s}\``).join(', ')}` });
-    }
-  }
-
-  const isSolo = tournament.settings.teamSize === 1;
-  const getName = (p) => isSolo ? p?.username : p?.name;
-  const oldWinnerName = getName(match.winner);
-  const oldScore = match.score;
-
-  // Snapshot the bracket so a mid-correction throw can never leave a half-
-  // mutated bracket in the in-memory cache (the DB is only written on success).
-  const snapshot = JSON.parse(JSON.stringify(bracket));
+  const { correctMatchFlow } = require('../../services/lifecycleService');
+  let result;
   try {
-    service.correctResult(bracket, match.id, winnerId, normalizedScore);
+    result = await correctMatchFlow({ client: interaction.client, tournament, matchNumber, winnerId, score });
   } catch (error) {
-    tournament.bracket = snapshot;
     return interaction.editReply({ content: `❌ ${error.message}` });
   }
 
-  await updateTournament(tournamentId, { bracket });
-  const { updateTournamentMessages } = require('../../utils/tournamentUpdater');
-  await updateTournamentMessages(interaction.client, tournament);
-
-  const newWinnerName = getName(match.winner);
-  let response = `✏️ **Match #${matchNumber}** corrected: **${newWinnerName}** wins`;
-  if (normalizedScore) response += ` (${normalizedScore})`;
-  if (oldWinnerName !== newWinnerName) response += `\nPrevious result: ${oldWinnerName}${oldScore ? ` (${oldScore})` : ''}`;
-  if (tournament.status === 'completed') {
+  let response = `✏️ **Match #${matchNumber}** corrected: **${result.newWinnerName}** wins`;
+  if (result.normalizedScore) response += ` (${result.normalizedScore})`;
+  if (result.oldWinnerName !== result.newWinnerName) {
+    response += `\nPrevious result: ${result.oldWinnerName}${result.oldScore ? ` (${result.oldScore})` : ''}`;
+  }
+  if (result.wasCompleted) {
     response += '\n⚠️ The tournament was already completed — the original completion announcement is not reposted.';
   }
   return interaction.editReply({ content: response });
@@ -1221,35 +990,16 @@ async function handleRemoveEntrant(interaction) {
     return interaction.editReply({ content: '❌ This is a team tournament — use `/tournament remove-team`.' });
   }
 
-  const { adminRemoveEntrant } = require('../../services/tournamentService');
-  const result = await adminRemoveEntrant(tournamentId, entrantId);
-  if (!result.success) return interaction.editReply({ content: `❌ ${result.error}` });
-
-  const removed = result.removed;
-  const name = isSolo ? removed.username : removed.name;
-
-  const { updateTournamentMessages } = require('../../utils/tournamentUpdater');
-  await updateTournamentMessages(interaction.client, result.tournament);
-
-  // Let the removed player(s) know
-  const userIds = [];
-  if (isSolo) {
-    if (removed.id && !String(removed.id).startsWith('fake_')) userIds.push(removed.id);
-  } else {
-    for (const m of removed.members || []) {
-      if (m.id && !String(m.id).startsWith('fake_')) userIds.push(m.id);
-    }
-  }
-  for (const uid of userIds) {
-    try {
-      const u = await interaction.client.users.fetch(uid);
-      await u.send(`ℹ️ ${isSolo ? 'You have' : `Your team **${name}** has`} been removed from **${tournament.title}** by a tournament admin.`);
-    } catch {}
+  const { removeEntrantFlow } = require('../../services/lifecycleService');
+  let result;
+  try {
+    result = await removeEntrantFlow({ client: interaction.client, tournament, entrantId });
+  } catch (error) {
+    return interaction.editReply({ content: `❌ ${error.message}` });
   }
 
-  const count = isSolo ? result.tournament.participants.length : result.tournament.teams.length;
   return interaction.editReply({
-    content: `✅ Removed ${isSolo ? '**' + name + '**' : 'team **' + name + '**'} from **${tournament.title}**. (${count}/${tournament.settings.maxParticipants})`,
+    content: `✅ Removed ${isSolo ? '**' + result.name + '**' : 'team **' + result.name + '**'} from **${tournament.title}**. (${result.count}/${tournament.settings.maxParticipants})`,
   });
 }
 
@@ -1259,47 +1009,16 @@ async function handleCreateRooms(interaction) {
   const tournamentId = interaction.options.getString('tournament');
   const tournament = await getTournament(tournamentId);
   if (!tournament) return interaction.editReply({ content: '❌ Tournament not found.' });
-  if (!tournament.bracket || tournament.status !== 'active') {
-    return interaction.editReply({ content: '❌ This tournament is not running, so there are no match rooms to create.' });
+
+  const { createRoomsFlow } = require('../../services/lifecycleService');
+  let result;
+  try {
+    result = await createRoomsFlow({ guild: interaction.guild, tournament });
+  } catch (error) {
+    return interaction.editReply({ content: `❌ ${error.message}` });
   }
 
-  const bracket = tournament.bracket;
-  const { createMatchRoom, createBRGroupRoom } = require('../../services/channelService');
-
-  let created = 0, failed = 0, existing = 0;
-
-  if (bracket.type === 'battle_royale') {
-    for (const group of bracket.groups || []) {
-      if (group.channelId) { existing++; continue; }
-      try {
-        const channel = await createBRGroupRoom(interaction.guild, group, tournament);
-        group.channelId = channel.id;
-        created++;
-      } catch (error) {
-        console.error('create-rooms BR error:', error);
-        failed++;
-      }
-    }
-  } else {
-    const service = getServiceForBracket(bracket);
-    for (const match of service.getActiveMatches(bracket)) {
-      if (!match.participant1 || !match.participant2) continue;
-      if (match.channelId) { existing++; continue; }
-      try {
-        const channel = await createMatchRoom(interaction.guild, match, tournament);
-        match.channelId = channel.id;
-        created++;
-      } catch (error) {
-        console.error('create-rooms match error:', error);
-        failed++;
-      }
-    }
-  }
-
-  if (created > 0) {
-    await updateTournament(tournamentId, { bracket });
-  }
-
+  const { created, failed, existing } = result;
   let response = `🔧 **${tournament.title}** — match rooms:\n`;
   response += `• ${created} created\n`;
   if (existing > 0) response += `• ${existing} already existed\n`;
@@ -1315,22 +1034,7 @@ async function handleCreateRooms(interaction) {
 }
 
 // ─── Match Reporting (moved from /match) ────────────────────────────────────
-
-function getServiceForBracket(bracket) {
-  switch (bracket.type) {
-    case 'double_elimination':
-      return doubleElim;
-    case 'swiss':
-      return swiss;
-    case 'round_robin':
-      return roundRobin;
-    case 'battle_royale':
-      return battleRoyale;
-    case 'single_elimination':
-    default:
-      return singleElim;
-  }
-}
+// (getServiceForBracket lives in utils/matchUtils.js — shared everywhere.)
 
 async function handleReport(interaction) {
   await interaction.deferReply({ ephemeral: true });
@@ -1350,24 +1054,9 @@ async function handleReport(interaction) {
   }
 
   const bracket = tournament.bracket;
-  const service = getServiceForBracket(bracket);
 
-  let match = null;
-
-  if (bracket.type === 'double_elimination') {
-    for (const round of [...bracket.winnersRounds, ...bracket.losersRounds, ...bracket.grandFinalsRounds]) {
-      match = round.matches.find(m => m.matchNumber === matchNumber);
-      if (match) break;
-    }
-  } else {
-    for (const round of bracket.rounds) {
-      match = round.matches.find(m => m.matchNumber === matchNumber);
-      if (match) break;
-    }
-    if (!match && bracket.thirdPlaceMatch?.matchNumber === matchNumber) {
-      match = bracket.thirdPlaceMatch;
-    }
-  }
+  const { findMatchByNumber, normalizeSeriesScore } = require('../../utils/matchUtils');
+  const match = findMatchByNumber(bracket, matchNumber);
 
   if (!match) {
     return interaction.editReply({ content: '❌ Match not found.', ephemeral: true });
@@ -1386,88 +1075,45 @@ async function handleReport(interaction) {
 
   const isSolo = tournament.settings.teamSize === 1;
 
-  // Validate score format if provided (e.g., "2-1", "16-14", "3-0")
-  if (score && !/^\d{1,3}-\d{1,3}$/.test(score.trim())) {
-    return interaction.editReply({ content: '❌ Invalid score format. Use format like `2-1` or `16-14`.', ephemeral: true });
-  }
-
   // Bo3+ requires a valid series score (winner-first); Bo1 keeps the free-form
   // optional score (useful for map scores like 16-14).
-  let normalizedScore = score ? score.trim() : null;
-  const bestOfSetting = tournament.settings.bestOf || 1;
-  if (bestOfSetting > 1) {
-    const { validSeriesScores } = require('../../components/matchReport');
-    const valid = validSeriesScores(bestOfSetting);
-    if (!normalizedScore) {
-      return interaction.editReply({
-        content: `❌ This is a **Best of ${bestOfSetting}** — include the series score: \`score:\` ${valid.map(s => `\`${s}\``).join(' or ')}`,
-        ephemeral: true,
-      });
-    }
-    const [a, b] = normalizedScore.split('-').map(Number);
-    normalizedScore = `${Math.max(a, b)}-${Math.min(a, b)}`;
-    if (!valid.includes(normalizedScore)) {
-      return interaction.editReply({
-        content: `❌ \`${score}\` isn't a valid Best of ${bestOfSetting} result. Valid scores: ${valid.map(s => `\`${s}\``).join(', ')}`,
-        ephemeral: true,
-      });
-    }
+  const scoreResult = normalizeSeriesScore(score, tournament.settings.bestOf || 1);
+  if (!scoreResult.ok) {
+    return interaction.editReply({ content: `❌ ${scoreResult.error}`, ephemeral: true });
   }
 
   try {
-    service.advanceWinner(bracket, match.id, winnerId, normalizedScore);
-
-    const winner = winnerId === p1Id ? match.participant1 : match.participant2;
-    const loser = winnerId === p1Id ? match.participant2 : match.participant1;
-    const winnerName = isSolo ? winner?.username : winner?.name;
-    const loserName = isSolo ? loser?.username : loser?.name;
-
-    // Trigger webhook for match completion
-    webhooks.onMatchCompleted(tournament, {
-      ...match,
-      winner,
-      loser,
-      score: score || null,
+    const { applyMatchReport } = require('../../services/lifecycleService');
+    const result = await applyMatchReport({
+      client: interaction.client,
+      guild: interaction.guild,
+      tournament,
+      match,
+      winnerId,
+      score: scoreResult.score,
     });
 
-    let response = `✅ **Match #${matchNumber}** reported: **${winnerName}** defeats **${loserName}**`;
-    if (normalizedScore) response += ` (${normalizedScore})`;
+    const winnerName = isSolo ? result.winner?.username : result.winner?.name;
+    const loserName = isSolo ? result.loser?.username : result.loser?.name;
 
-    if (bracket.type === 'swiss' && service.isRoundComplete(bracket)) {
-      if (bracket.currentRound < bracket.totalRounds) {
-        service.generateNextRound(bracket);
-        response += `\n\n📋 **Round ${bracket.currentRound} started!** Use \`/match list\` to see new matches.`;
-      }
+    let response = `✅ **Match #${matchNumber}** reported: **${winnerName}** defeats **${loserName}**`;
+    if (scoreResult.score) response += ` (${scoreResult.score})`;
+
+    if (result.swissRoundStarted) {
+      response += `\n\n📋 **Round ${result.swissRoundStarted} started!** Use \`/match list\` to see new matches.`;
+    }
+    if (result.newRooms > 0) {
+      response += `\n🚪 ${result.newRooms} new match room${result.newRooms > 1 ? 's' : ''} created.`;
     }
 
-    // Forfeit any matches a disqualified player just arrived in
-    const { resolvePendingDQs } = require('../../services/disqualifyService');
-    resolvePendingDQs(tournament);
-
-    // DM anyone who advanced without playing — double-elim walkovers cascaded
-    // by this report, or a bye in a freshly generated Swiss round. The flags it
-    // sets are persisted by the update below.
-    const { notifyByesAndWalkovers } = require('../../utils/byeNotifier');
-    await notifyByesAndWalkovers(interaction.client, tournament);
-
-    await updateTournament(tournamentId, { bracket });
-
-    if (service.isComplete(bracket)) {
-      const results = service.getResults(bracket);
-      const champName = isSolo ? results.winner?.username : results.winner?.name;
+    if (result.completed) {
+      const champName = isSolo ? result.results.winner?.username : result.results.winner?.name;
       response += `\n\n🏆 **Tournament Complete!** Champion: **${champName}**`;
       const { getBracketUrl } = require('../../utils/embedBuilder');
       const finalBracketUrl = getBracketUrl(tournament);
       if (finalBracketUrl) {
         response += `\n🌐 Full bracket: ${finalBracketUrl}`;
       }
-      await updateTournament(tournamentId, { status: 'completed' });
-
-      // Trigger tournament completed webhook
-      webhooks.onTournamentCompleted(tournament, results.standings || [results.winner, results.runnerUp, results.thirdPlace].filter(Boolean));
-
-      await updateTournamentAnnouncement(interaction.client, tournament);
-      await triggerAutoCleanup(interaction.guild, tournament);
     }
 
     return interaction.editReply({ content: response });
@@ -1475,25 +1121,6 @@ async function handleReport(interaction) {
   } catch (error) {
     console.error('Error reporting match:', error);
     return interaction.editReply({ content: `❌ Error: ${error.message}`, ephemeral: true });
-  }
-}
-
-async function updateTournamentAnnouncement(client, tournament) {
-  try {
-    const channel = await client.channels.fetch(tournament.channelId);
-    if (!channel) return;
-
-    const message = await channel.messages.fetch(tournament.messageId);
-    if (!message) return;
-
-    tournament.status = 'completed';
-
-    const embed = await createTournamentEmbed(tournament);
-    const buttons = createTournamentButtons(tournament);
-
-    await message.edit({ embeds: [embed], components: buttons });
-  } catch (error) {
-    console.error('Error updating tournament announcement:', error);
   }
 }
 
@@ -1617,6 +1244,7 @@ async function handleBRReport(interaction) {
       response += `\n🏆 **Tournament Complete!** Champion: **${champName}**`;
       await updateTournament(tournamentId, { status: 'completed' });
 
+      const { updateTournamentAnnouncement } = require('../../services/lifecycleService');
       await updateTournamentAnnouncement(interaction.client, tournament);
     } else if (bracket.currentStage === 'finals') {
       const standings = battleRoyale.getStandings(bracket);
@@ -1645,6 +1273,7 @@ async function handleBRReport(interaction) {
 
     if (bracket.currentStage === 'complete' || (bracket.currentStage === 'finals' && battleRoyale.isComplete(bracket))) {
       await announceBRTournamentComplete(interaction.client, tournament, bracket);
+      const { triggerAutoCleanup } = require('../../services/lifecycleService');
       await triggerAutoCleanup(interaction.guild, tournament);
     }
 
@@ -1793,35 +1422,8 @@ async function announceBRTournamentComplete(client, tournament, bracket) {
   }
 }
 
-async function triggerAutoCleanup(guild, tournament) {
-  const settings = await getServerSettings(guild.id);
-  if (!settings.autoCleanup) return;
-
-  const channelIds = collectTournamentChannels(tournament.bracket);
-  if (channelIds.length === 0) return;
-
-  const mode = settings.autoCleanupMode || 'delete';
-  const action = mode === 'delete' ? 'Deleting' : 'Archiving';
-  console.log(`Auto-cleanup: ${action} ${channelIds.length} channels for "${tournament.title}" in 30s`);
-
-  setTimeout(async () => {
-    try {
-      const count = await bulkCleanupChannels(guild, channelIds, mode);
-      if (mode === 'delete') {
-        // Re-fetch the current bracket — an admin correction/report in the last
-        // 30s must not be overwritten by the snapshot captured at completion.
-        const fresh = await getTournament(tournament.id);
-        if (fresh?.bracket) {
-          clearBracketChannelIds(fresh.bracket);
-          await updateTournament(tournament.id, { bracket: fresh.bracket });
-        }
-      }
-      console.log(`Auto-cleanup complete: ${count}/${channelIds.length} channels processed for "${tournament.title}"`);
-    } catch (error) {
-      console.error('Auto-cleanup error:', error);
-    }
-  }, 30000);
-}
+// (triggerAutoCleanup and updateTournamentAnnouncement moved to
+// services/lifecycleService.js — shared with the buttons and the web admin.)
 
 // ─── Bracket Display (moved from /bracket) ──────────────────────────────────
 
