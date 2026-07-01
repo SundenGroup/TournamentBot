@@ -69,6 +69,7 @@
 <nav><div class="wrap">
   <a class="brand" href="/"><img class="mark" src="/clutch-icon.png" alt=""><img class="word" src="/clutch-wordmark.png" alt="CLUTCH"><span class="sub">Tournaments</span></a>
   <div class="links">
+    <a href="/admin">Dashboard</a>
     <a href="/admin-manual.html">Admin Guide</a>
     <a href="/user-guide">User Guide</a>
     <a href="/faq">FAQ</a>
@@ -120,6 +121,10 @@
   <details><summary>What is the live web bracket?</summary><div class="a">A shareable page on this site (tournaments.clutch.game) showing the full bracket or standings — entrants during registration, live results and scores during play (auto-refreshing every 15 seconds), and the podium when it's done. Available on Pro and Business plans.</div></details>
   <details><summary>Where do I find the link?</summary><div class="a">On the tournament announcement (the <strong>🌐 Live Bracket</strong> button), in the start and completion posts, and in <code>/match bracket</code>. The link works from registration onward.</div></details>
   <details><summary>Who can view it? Is it private?</summary><div class="a">Anyone with the link — no Discord account needed, which makes it perfect for spectators and streams. The URL is unguessable, only exists if the organizer enabled the Web Bracket toggle, and never exposes Discord IDs or member data — just display names, seeds and scores.</div></details>
+
+  <h2><span class="eyebrow">Web dashboard (admins)</span></h2>
+  <details><summary>Is there a web dashboard for organizers?</summary><div class="a">Yes — sign in with Discord at <a href="/admin"><strong>tournaments.clutch.game/admin</strong></a>. You'll see every server where you can manage tournaments, each server's tournaments with status at a glance, and the full live bracket for any of them — even if its public Web Bracket toggle is off. Read-only for now: actions still happen in Discord.</div></details>
+  <details><summary>Who can access the dashboard?</summary><div class="a">You only see servers where the bot is installed <strong>and</strong> you're the owner, have <strong>Administrator</strong> or <strong>Manage Server</strong>, or hold a tournament-admin role (<code>/admin set-role</code>) — the same permission check as in Discord, re-verified on every request. Sessions last 7 days; use Log out to end one sooner.</div></details>
 
   <h2><span class="eyebrow">Plans</span></h2>
   <details><summary>What do the paid tiers add?</summary><div class="a"><strong>Premium</strong>: check-in, seeding, captain mode, required roles, auto-cleanup, full reminders. <strong>Pro</strong>: live web brackets, tournament templates, analytics. <strong>Business</strong>: REST API, webhooks, white-label branding, multi-server. See <code>/subscribe plans</code> in Discord for details and current limits.</div></details>

@@ -534,6 +534,7 @@
     </a>
     <span class="header-badge">Admin Guide</span>
     <nav class="top-links">
+      <a href="/admin">Dashboard</a>
       <a href="/user-guide">User Guide</a>
       <a href="/faq">FAQ</a>
       <a href="/contact">Contact</a>
@@ -567,6 +568,10 @@
   <div class="sidebar-section">
     <div class="sidebar-section-title">Billing</div>
     <a href="#subscription">Subscription</a>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-section-title">Web</div>
+    <a href="#web-dashboard">Web Dashboard</a>
   </div>
   <div class="sidebar-section">
     <div class="sidebar-section-title">Reference</div>
@@ -875,10 +880,36 @@
   </section>
 
   <!-- ================================================================
-       13. Command Reference
+       11. Web Dashboard
+       ================================================================ -->
+  <section id="web-dashboard">
+    <h2>11. Web Dashboard</h2>
+    <p>Manage from the browser: sign in with Discord at <a href="/admin"><strong>tournaments.clutch.game/admin</strong></a> and every server where you can manage tournaments shows up — with its tournaments, entrants and live brackets in one place.</p>
+
+    <h3>Who can sign in</h3>
+    <p>Anyone can sign in, but you only see servers where the bot is installed <em>and</em> you're the owner, have <strong>Administrator</strong> or <strong>Manage Server</strong>, or hold a tournament-admin role (<code>/admin set-role</code>) — the same permission check as in Discord, re-verified on every request.</p>
+
+    <h3>What you can see</h3>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>View</th><th>Details</th></tr></thead>
+        <tbody>
+          <tr><td><strong>Your servers</strong></td><td>Every server you can manage, side by side</td></tr>
+          <tr><td><strong>Tournaments</strong></td><td>Each tournament with game, format, team size, best-of, entrants and live status</td></tr>
+          <tr><td><strong>Live bracket</strong></td><td>The full bracket / standings / roster view — including tournaments whose public Web Bracket toggle is off (this view is admin-only)</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>Read-only (for now)</h3>
+    <p>This first release is view-only — creating tournaments, reporting results and other actions still happen in Discord. Sessions last 7 days; use <strong>Log out</strong> (top right) to end one sooner.</p>
+  </section>
+
+  <!-- ================================================================
+       12. Command Reference
        ================================================================ -->
   <section id="commands">
-    <h2>11. Command Reference</h2>
+    <h2>12. Command Reference</h2>
 
     <h3>Tournament Management</h3>
     <div class="table-wrap">

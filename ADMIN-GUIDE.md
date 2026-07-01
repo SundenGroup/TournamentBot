@@ -166,6 +166,21 @@ unresolved members aren't added.
 
 ---
 
+## Web dashboard
+
+Sign in with Discord at **[tournaments.clutch.game/admin](https://tournaments.clutch.game/admin)**
+to manage from the browser. You'll see every server where the bot is installed
+*and* you can manage tournaments (same permission check as in Discord: owner,
+Administrator, Manage Server, or a tournament-admin role) — each server's
+tournaments with status at a glance, plus the full live bracket/standings/roster
+view for any of them, including tournaments whose public Web Bracket toggle is
+off (the dashboard view is admin-only).
+
+Read-only for now: creating tournaments, reporting results and other actions
+still happen in Discord. Sessions last 7 days; use **Log out** to end one sooner.
+
+---
+
 ## Command reference
 
 **Tournaments — `/tournament`** (admin)

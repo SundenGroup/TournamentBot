@@ -816,6 +816,11 @@ async function handleHelp(interaction) {
       inline: false,
     },
     {
+      name: 'Web Dashboard',
+      value: 'Sign in with Discord at https://tournaments.clutch.game/admin to browse your servers\' tournaments, entrants and live brackets from the web (read-only for now).',
+      inline: false,
+    },
+    {
       name: 'Tournament Formats',
       value: Object.values(FORMAT_INFO).map(f => `**${f.name}** — ${f.description}`).join('\n'),
       inline: false,
