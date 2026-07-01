@@ -3,7 +3,11 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Tournament Bot — Admin Manual</title>
+  <title>Admin Guide — CLUTCH Tournaments</title>
+  <link rel="icon" type="image/png" href="/clutch-icon.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
   <style>
     /* ====================================================================
        Reset & Base
@@ -11,25 +15,28 @@
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     :root {
-      --bg-primary: #0f1117;
-      --bg-secondary: #161922;
-      --bg-card: #1c1f2e;
-      --bg-code: #12141d;
-      --border: #2a2d3e;
-      --border-accent: #3d4160;
-      --text-primary: #e4e6f0;
-      --text-secondary: #9499b3;
-      --text-muted: #6b7094;
-      --accent: #5865f2;
-      --accent-hover: #4752c4;
-      --accent-glow: rgba(88, 101, 242, 0.15);
-      --green: #2ecc71;
-      --green-dim: rgba(46, 204, 113, 0.12);
-      --yellow: #f1c40f;
-      --yellow-dim: rgba(241, 196, 15, 0.12);
-      --red: #e74c3c;
+      /* CLUTCH family palette (matches index/faq/user-guide/bracket) */
+      --bg-primary: #0A0D12;
+      --bg-secondary: #0E121A;
+      --bg-card: #121620;
+      --bg-code: #05090E;
+      --border: #222938;
+      --border-accent: #313B4E;
+      --text-primary: #F5F7FA;
+      --text-secondary: #9BA3AF;
+      --text-muted: #6B7280;
+      --accent: #FF154D;
+      --accent-hover: #FF4D7A;
+      --accent-glow: rgba(255, 21, 77, 0.15);
+      --green: #34D399;
+      --green-dim: rgba(52, 211, 153, 0.12);
+      --yellow: #FBBF24;
+      --yellow-dim: rgba(251, 191, 36, 0.12);
+      --red: #F87171;
       --orange: #e67e22;
       --purple: #9b59b6;
+      --sans: 'DM Sans', system-ui, -apple-system, sans-serif;
+      --mono: 'JetBrains Mono', ui-monospace, monospace;
       --sidebar-width: 280px;
       --header-height: 64px;
       --radius: 8px;
@@ -39,7 +46,8 @@
     html { scroll-behavior: smooth; scroll-padding-top: calc(var(--header-height) + 24px); }
 
     body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      font-family: var(--sans);
+      font-feature-settings: "ss01", "cv11";
       background: var(--bg-primary);
       color: var(--text-primary);
       line-height: 1.7;
@@ -90,13 +98,24 @@
     .header-badge {
       background: var(--accent);
       color: #fff;
-      font-size: 11px;
+      font-family: var(--mono);
+      font-size: 10px;
       font-weight: 600;
-      padding: 2px 8px;
+      padding: 3px 8px;
       border-radius: 4px;
-      letter-spacing: 0.5px;
+      letter-spacing: 1px;
       text-transform: uppercase;
     }
+
+    .top-links {
+      margin-left: auto;
+      display: flex;
+      gap: 20px;
+      font-size: 13px;
+      font-weight: 500;
+    }
+    .top-links a { color: var(--text-secondary); text-decoration: none; }
+    .top-links a:hover { color: var(--text-primary); }
 
     .menu-toggle {
       display: none;
@@ -230,7 +249,7 @@
        Code
        ==================================================================== */
     code {
-      font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', Consolas, monospace;
+      font-family: var(--mono);
       font-size: 13px;
       background: var(--bg-code);
       border: 1px solid var(--border);
@@ -373,7 +392,7 @@
     }
 
     .tag-free { background: rgba(149, 165, 166, 0.15); color: #95a5a6; }
-    .tag-premium { background: rgba(88, 101, 242, 0.15); color: #7c8af2; }
+    .tag-premium { background: rgba(94, 107, 255, 0.15); color: #8f9bff; }
     .tag-pro { background: rgba(155, 89, 182, 0.15); color: #b07cd8; }
     .tag-business { background: rgba(241, 196, 15, 0.15); color: #f1c40f; }
 
@@ -485,6 +504,7 @@
         padding: 32px 20px 80px;
       }
       .menu-toggle { display: block; }
+      .top-links { display: none; }
     }
 
     @media (max-width: 600px) {
@@ -508,11 +528,16 @@
      ====================================================================== -->
 <header class="header">
   <div class="header-inner">
-    <a href="#" class="header-logo">
-      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-      Tournament <span>Bot</span>
+    <a href="/" class="header-logo">
+      <img src="/clutch-icon.png" alt="" width="26" height="26">
+      <img src="/clutch-wordmark.png" alt="CLUTCH" style="height:14px;display:block">
     </a>
-    <span class="header-badge">Admin Manual</span>
+    <span class="header-badge">Admin Guide</span>
+    <nav class="top-links">
+      <a href="/user-guide">User Guide</a>
+      <a href="/faq">FAQ</a>
+      <a href="/contact">Contact</a>
+    </nav>
     <button class="menu-toggle" onclick="document.querySelector('.sidebar').classList.toggle('open')" aria-label="Toggle menu">&#9776;</button>
   </div>
 </header>

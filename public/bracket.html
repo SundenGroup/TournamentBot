@@ -265,7 +265,7 @@ async function fetchData() {
     const data = await res.json();
     lastFetched = Date.now();
     render(data);
-    if (data.status === 'complete' || data.status === 'cancelled') {
+    if (data.status === 'completed' || data.status === 'cancelled') {
       clearInterval(pollTimer);
       document.getElementById('updated').textContent = '';
     }
@@ -293,7 +293,7 @@ function renderHeader(d) {
     registration: '<span class="pill reg">Registration open</span>',
     checkin: '<span class="pill reg">Check-in</span>',
     active: '<span class="pill live">● Live</span>',
-    complete: '<span class="pill final">Final</span>',
+    completed: '<span class="pill final">Final</span>',
     cancelled: '<span class="pill">Cancelled</span>',
   }[d.status] || '';
 

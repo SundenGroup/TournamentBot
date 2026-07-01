@@ -689,7 +689,7 @@ function correctResult(bracket, matchId, newWinnerId, newScore = null) {
   const match = findMatch(bracket, matchId);
   if (!match) throw new Error('Match not found');
   if (!match.winner) throw new Error('This match has no result yet — use the normal report instead');
-  if (match.isBye) throw new Error('Bye results cannot be corrected');
+    if (match.isBye || match.isWalkover || match.isDQ) throw new Error('This match was decided by a bye, walkover, or disqualification and cannot be corrected.');
 
   const p1 = match.participant1;
   const p2 = match.participant2;
@@ -772,6 +772,18 @@ function correctResult(bracket, matchId, newWinnerId, newScore = null) {
   }
 
   resolveWalkovers(bracket);
+
+  // Safeguard: a rewound walkover can leave a Grand Finals slot empty (GF is
+  // excluded from resolveWalkovers). Repopulate GF from the finals winners so
+  // the bracket can never deadlock after a correction.
+  const gf = bracket.grandFinalsRounds[0].matches[0];
+  if (!gf.winner) {
+    const wbF = findMatch(bracket, gf.sourceWbFinalsId);
+    const lbF = findMatch(bracket, gf.sourceLbFinalsId);
+    if (wbF?.winner && !gf.participant1) gf.participant1 = wbF.winner;
+    if (lbF?.winner && !gf.participant2) gf.participant2 = lbF.winner;
+  }
+
   return bracket;
 }
 

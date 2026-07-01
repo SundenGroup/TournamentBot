@@ -254,5 +254,45 @@ console.log('=== RESULT CORRECTION ===');
   console.log('  DE: winner/loser re-propagated ✓');
 }
 
+console.log('=== CORRECTION GUARDS + DE GF SAFEGUARD ===');
+{
+  // correction must refuse bye/walkover/DQ matches in every format
+  for (const [name, svc, n] of [['SE', single, 5], ['DE', double, 5], ['Swiss', swiss, 5], ['RR', rr, 4]]) {
+    const b = svc.generateBracket(makePlayers(n), { bestOf: 3 });
+    // find a bye/walkover match that has a winner
+    const all = [];
+    if (b.rounds) for (const r of b.rounds) all.push(...r.matches);
+    if (b.winnersRounds) for (const r of b.winnersRounds) all.push(...r.matches);
+    const forfeit = all.find(m => (m.isBye || m.isWalkover) && m.winner);
+    if (forfeit) {
+      let blocked = false;
+      try { svc.correctResult(b, forfeit.id, forfeit.winner.id, '2-0'); } catch { blocked = true; }
+      check(blocked, `${name}: correcting a bye/walkover must be blocked`);
+    }
+  }
+  console.log('  bye/walkover corrections blocked in all formats ✓');
+
+  // DE: correcting a WB result must not deadlock the grand finals
+  {
+    const b = double.generateBracket(makePlayers(4), { bestOf: 3 });
+    // play WB fully so both WB matches + the drop to LB happen
+    const wb1 = b.winnersRounds[0].matches[0];
+    const wb2 = b.winnersRounds[0].matches[1];
+    double.advanceWinner(b, wb1.id, wb1.participant1.id, '2-0');
+    double.advanceWinner(b, wb2.id, wb2.participant1.id, '2-0');
+    // correct wb1 winner — must re-propagate without leaving GF unreachable
+    double.correctResult(b, wb1.id, wb1.participant2.id, '2-1');
+    // now play everything out and confirm it completes
+    let guard = 0;
+    while (!double.isComplete(b) && guard++ < 200) {
+      const act = double.getActiveMatches(b);
+      if (!act.length) break;
+      for (const m of act) double.advanceWinner(b, m.id, m.participant1.id, '2-0');
+    }
+    check(double.isComplete(b), 'DE completes after a WB correction (no GF deadlock)');
+    console.log('  DE WB correction → tournament still completes ✓');
+  }
+}
+
 console.log('\n' + (failures === 0 ? '✅ ALL CHECKS PASSED' : `❌ ${failures} CHECK(S) FAILED`));
 process.exit(failures === 0 ? 0 : 1);

@@ -9,9 +9,20 @@
 
 const fs = require('node:fs');
 const path = require('node:path');
+const crypto = require('node:crypto');
 const express = require('express');
 const config = require('../config');
 const { getTournament } = require('../services/tournamentService');
+
+/**
+ * Opaque, stable key for a participant. The browser only needs to match a
+ * match's winner to a slot — it must NOT receive raw Discord user/team IDs.
+ * Hashing keeps matching working while never exposing snowflakes publicly.
+ */
+function opaqueId(id) {
+  if (id == null) return null;
+  return crypto.createHash('sha256').update(String(id)).digest('hex').slice(0, 12);
+}
 
 const singleElim = require('../services/singleEliminationService');
 const doubleElim = require('../services/doubleEliminationService');
@@ -38,7 +49,7 @@ const DROPPED_KEYS = new Set(['channelId', 'members', 'captain', 'memberCheckins
 function sanitizeParticipant(p) {
   if (!p) return null;
   return {
-    id: p.id ?? null,
+    id: opaqueId(p.id),
     name: p.name || p.displayName || p.username || 'TBD',
     seed: p.seed ?? null,
   };

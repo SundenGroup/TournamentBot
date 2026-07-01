@@ -715,7 +715,10 @@ async function handleStart(interaction) {
     return interaction.reply({ content: '❌ Need at least 2 participants to start.', ephemeral: true });
   }
 
-  // Immediately mark as active to prevent concurrent starts
+  // Immediately mark as active to prevent concurrent starts. Remember the
+  // prior status so we can roll back if anything below fails — otherwise a
+  // failed start strands the tournament "active" with no bracket.
+  const previousStatus = tournament.status;
   await updateTournament(tournamentId, { status: 'active' });
 
   await interaction.deferReply();
@@ -864,7 +867,12 @@ async function handleStart(interaction) {
 
   } catch (error) {
     console.error('Error starting tournament:', error);
-    await interaction.editReply({ content: `❌ Error starting tournament: ${error.message}` });
+    try {
+      await updateTournament(tournamentId, { status: previousStatus, bracket: null });
+    } catch (rollbackError) {
+      console.error('Failed to roll back tournament status:', rollbackError);
+    }
+    await interaction.editReply({ content: `❌ Error starting tournament: ${error.message}\n\nThe tournament has been returned to its previous state — you can try again.` });
   }
 }
 
@@ -1058,9 +1066,13 @@ async function handleCorrect(interaction) {
   const oldWinnerName = getName(match.winner);
   const oldScore = match.score;
 
+  // Snapshot the bracket so a mid-correction throw can never leave a half-
+  // mutated bracket in the in-memory cache (the DB is only written on success).
+  const snapshot = JSON.parse(JSON.stringify(bracket));
   try {
     service.correctResult(bracket, match.id, winnerId, normalizedScore);
   } catch (error) {
+    tournament.bracket = snapshot;
     return interaction.editReply({ content: `❌ ${error.message}` });
   }
 
@@ -1321,6 +1333,7 @@ function getServiceForBracket(bracket) {
 }
 
 async function handleReport(interaction) {
+  await interaction.deferReply({ ephemeral: true });
   const tournamentId = interaction.options.getString('tournament');
   const matchNumber = interaction.options.getInteger('match_number');
   const winnerId = interaction.options.getString('winner');
@@ -1329,11 +1342,11 @@ async function handleReport(interaction) {
   const tournament = await getTournament(tournamentId);
 
   if (!tournament) {
-    return interaction.reply({ content: '❌ Tournament not found.', ephemeral: true });
+    return interaction.editReply({ content: '❌ Tournament not found.', ephemeral: true });
   }
 
   if (!tournament.bracket) {
-    return interaction.reply({ content: '❌ Tournament has not started yet.', ephemeral: true });
+    return interaction.editReply({ content: '❌ Tournament has not started yet.', ephemeral: true });
   }
 
   const bracket = tournament.bracket;
@@ -1357,25 +1370,25 @@ async function handleReport(interaction) {
   }
 
   if (!match) {
-    return interaction.reply({ content: '❌ Match not found.', ephemeral: true });
+    return interaction.editReply({ content: '❌ Match not found.', ephemeral: true });
   }
 
   if (match.winner) {
-    return interaction.reply({ content: '❌ This match has already been reported.', ephemeral: true });
+    return interaction.editReply({ content: '❌ This match has already been reported.', ephemeral: true });
   }
 
   const p1Id = match.participant1?.id;
   const p2Id = match.participant2?.id;
 
   if (winnerId !== p1Id && winnerId !== p2Id) {
-    return interaction.reply({ content: '❌ Selected winner is not in this match.', ephemeral: true });
+    return interaction.editReply({ content: '❌ Selected winner is not in this match.', ephemeral: true });
   }
 
   const isSolo = tournament.settings.teamSize === 1;
 
   // Validate score format if provided (e.g., "2-1", "16-14", "3-0")
   if (score && !/^\d{1,3}-\d{1,3}$/.test(score.trim())) {
-    return interaction.reply({ content: '❌ Invalid score format. Use format like `2-1` or `16-14`.', ephemeral: true });
+    return interaction.editReply({ content: '❌ Invalid score format. Use format like `2-1` or `16-14`.', ephemeral: true });
   }
 
   // Bo3+ requires a valid series score (winner-first); Bo1 keeps the free-form
@@ -1386,7 +1399,7 @@ async function handleReport(interaction) {
     const { validSeriesScores } = require('../../components/matchReport');
     const valid = validSeriesScores(bestOfSetting);
     if (!normalizedScore) {
-      return interaction.reply({
+      return interaction.editReply({
         content: `❌ This is a **Best of ${bestOfSetting}** — include the series score: \`score:\` ${valid.map(s => `\`${s}\``).join(' or ')}`,
         ephemeral: true,
       });
@@ -1394,7 +1407,7 @@ async function handleReport(interaction) {
     const [a, b] = normalizedScore.split('-').map(Number);
     normalizedScore = `${Math.max(a, b)}-${Math.min(a, b)}`;
     if (!valid.includes(normalizedScore)) {
-      return interaction.reply({
+      return interaction.editReply({
         content: `❌ \`${score}\` isn't a valid Best of ${bestOfSetting} result. Valid scores: ${valid.map(s => `\`${s}\``).join(', ')}`,
         ephemeral: true,
       });
@@ -1457,11 +1470,11 @@ async function handleReport(interaction) {
       await triggerAutoCleanup(interaction.guild, tournament);
     }
 
-    return interaction.reply({ content: response });
+    return interaction.editReply({ content: response });
 
   } catch (error) {
     console.error('Error reporting match:', error);
-    return interaction.reply({ content: `❌ Error: ${error.message}`, ephemeral: true });
+    return interaction.editReply({ content: `❌ Error: ${error.message}`, ephemeral: true });
   }
 }
 
@@ -1795,9 +1808,14 @@ async function triggerAutoCleanup(guild, tournament) {
     try {
       const count = await bulkCleanupChannels(guild, channelIds, mode);
       if (mode === 'delete') {
-        clearBracketChannelIds(tournament.bracket);
+        // Re-fetch the current bracket — an admin correction/report in the last
+        // 30s must not be overwritten by the snapshot captured at completion.
+        const fresh = await getTournament(tournament.id);
+        if (fresh?.bracket) {
+          clearBracketChannelIds(fresh.bracket);
+          await updateTournament(tournament.id, { bracket: fresh.bracket });
+        }
       }
-      await updateTournament(tournament.id, { bracket: tournament.bracket });
       console.log(`Auto-cleanup complete: ${count}/${channelIds.length} channels processed for "${tournament.title}"`);
     } catch (error) {
       console.error('Auto-cleanup error:', error);

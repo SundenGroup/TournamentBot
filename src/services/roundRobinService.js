@@ -337,6 +337,7 @@ function correctResult(bracket, matchId, newWinnerId, newScore = null) {
   const match = findMatch(bracket, matchId);
   if (!match) throw new Error('Match not found');
   if (!match.winner) throw new Error('This match has no result yet — use the normal report instead');
+  if (match.isBye || match.isWalkover || match.isDQ) throw new Error('This match was decided by a bye, walkover, or disqualification and cannot be corrected.');
 
   const p1 = match.participant1;
   const p2 = match.participant2;

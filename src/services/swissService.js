@@ -385,7 +385,7 @@ function correctResult(bracket, matchId, newWinnerId, newScore = null) {
   });
   if (!match) throw new Error('Match not found');
   if (!match.winner) throw new Error('This match has no result yet — use the normal report instead');
-  if (match.isBye) throw new Error('Bye results cannot be corrected');
+    if (match.isBye || match.isWalkover || match.isDQ) throw new Error('This match was decided by a bye, walkover, or disqualification and cannot be corrected.');
   if (roundIndex < bracket.rounds.length - 1) {
     throw new Error('Only the current round can be corrected — later pairings already depend on this result.');
   }
