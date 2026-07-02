@@ -7,518 +7,153 @@
   <link rel="icon" type="image/png" href="/clutch-icon.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,400;0,500;0,600;0,700;0,800;1,800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
   <style>
-    /* ====================================================================
-       Reset & Base
-       ==================================================================== */
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     :root {
-      /* CLUTCH family palette (matches index/faq/user-guide/bracket) */
-      --bg-primary: #0A0D12;
-      --bg-secondary: #0E121A;
-      --bg-card: #121620;
-      --bg-code: #05090E;
-      --border: #222938;
-      --border-accent: #313B4E;
-      --text-primary: #F5F7FA;
-      --text-secondary: #9BA3AF;
-      --text-muted: #6B7280;
-      --accent: #FF154D;
-      --accent-hover: #FF4D7A;
-      --accent-glow: rgba(255, 21, 77, 0.15);
-      --green: #34D399;
-      --green-dim: rgba(52, 211, 153, 0.12);
-      --yellow: #FBBF24;
-      --yellow-dim: rgba(251, 191, 36, 0.12);
-      --red: #F87171;
-      --orange: #e67e22;
-      --purple: #9b59b6;
-      --sans: 'DM Sans', system-ui, -apple-system, sans-serif;
+      --bg: #0B0E14; --bg-sunken: #0D111A; --bg-card: #12161F; --bg-hover: #171C27;
+      --bg-table: #10141D; --bg-code: #0D111A; --bg-deep: #05090E;
+      --hairline: #1E2634; --border: #232B3A; --border-strong: #303A4D;
+      --text: #F5F7FA; --text-body: #C6CCD8; --text-2: #9BA3AF; --text-muted: #7C8698; --text-faint: #5B667A;
+      --accent: #FF154D; --accent-soft: #FF6B8E;
+      --code-param: #34D399; --code-value: #FBBF24; --code-text: #c8ccde;
+      --st-reg: #FF154D; --st-check: #FFC24B; --st-active: #2FD28A; --st-done: #7C8698;
+      --sans: 'DM Sans', system-ui, sans-serif;
       --mono: 'JetBrains Mono', ui-monospace, monospace;
-      --sidebar-width: 280px;
-      --header-height: 64px;
-      --radius: 8px;
-      --radius-lg: 12px;
+      --header-height: 60px; --sidebar-width: 264px;
     }
 
-    html { scroll-behavior: smooth; scroll-padding-top: calc(var(--header-height) + 24px); }
-
-    body {
-      font-family: var(--sans);
-      font-feature-settings: "ss01", "cv11";
-      background: var(--bg-primary);
-      color: var(--text-primary);
-      line-height: 1.7;
-      font-size: 15px;
-      -webkit-font-smoothing: antialiased;
-    }
-
-    /* ====================================================================
-       Header
-       ==================================================================== */
-    .header {
-      position: fixed;
-      top: 0;
-      left: 0;
-      right: 0;
-      height: var(--header-height);
-      background: rgba(15, 17, 23, 0.85);
-      backdrop-filter: blur(16px);
-      -webkit-backdrop-filter: blur(16px);
-      border-bottom: 1px solid var(--border);
-      z-index: 100;
-      display: flex;
-      align-items: center;
-      padding: 0 24px;
-    }
-
-    .header-inner {
-      display: flex;
-      align-items: center;
-      width: 100%;
-      max-width: 1400px;
-      margin: 0 auto;
-      gap: 16px;
-    }
-
-    .header-logo {
-      font-size: 20px;
-      font-weight: 700;
-      color: var(--text-primary);
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      text-decoration: none;
-    }
-
-    .header-logo span { color: var(--accent); }
-
-    .header-badge {
-      background: var(--accent);
-      color: #fff;
-      font-family: var(--mono);
-      font-size: 10px;
-      font-weight: 600;
-      padding: 3px 8px;
-      border-radius: 4px;
-      letter-spacing: 1px;
-      text-transform: uppercase;
-    }
-
-    .top-links {
-      margin-left: auto;
-      display: flex;
-      gap: 20px;
-      font-size: 13px;
-      font-weight: 500;
-    }
-    .top-links a { color: var(--text-secondary); text-decoration: none; }
-    .top-links a:hover { color: var(--text-primary); }
-
-    .menu-toggle {
-      display: none;
-      background: none;
-      border: 1px solid var(--border);
-      border-radius: 6px;
-      color: var(--text-primary);
-      padding: 6px 10px;
-      cursor: pointer;
-      font-size: 18px;
-      margin-left: auto;
-    }
-
-    /* ====================================================================
-       Layout
-       ==================================================================== */
-    .layout {
-      display: flex;
-      margin-top: var(--header-height);
-      min-height: calc(100vh - var(--header-height));
-    }
-
-    /* ====================================================================
-       Sidebar
-       ==================================================================== */
-    .sidebar {
-      position: fixed;
-      top: var(--header-height);
-      left: 0;
-      width: var(--sidebar-width);
-      height: calc(100vh - var(--header-height));
-      background: var(--bg-secondary);
-      border-right: 1px solid var(--border);
-      overflow-y: auto;
-      padding: 20px 0;
-      z-index: 50;
-    }
-
-    .sidebar::-webkit-scrollbar { width: 4px; }
-    .sidebar::-webkit-scrollbar-track { background: transparent; }
-    .sidebar::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
-
-    .sidebar-section {
-      padding: 0 16px;
-      margin-bottom: 8px;
-    }
-
-    .sidebar-section-title {
-      font-size: 11px;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 1px;
-      color: var(--text-muted);
-      padding: 8px 12px;
-    }
-
-    .sidebar a {
-      display: block;
-      padding: 7px 12px;
-      color: var(--text-secondary);
-      text-decoration: none;
-      font-size: 14px;
-      border-radius: 6px;
-      transition: all 0.15s;
-    }
-
-    .sidebar a:hover {
-      color: var(--text-primary);
-      background: rgba(88, 101, 242, 0.08);
-    }
-
-    .sidebar a.active {
-      color: var(--accent);
-      background: var(--accent-glow);
-    }
-
-    /* ====================================================================
-       Main content
-       ==================================================================== */
-    .main {
-      margin-left: var(--sidebar-width);
-      flex: 1;
-      padding: 40px 48px 80px;
-      max-width: 900px;
-    }
-
-    /* ====================================================================
-       Typography
-       ==================================================================== */
-    h1 {
-      font-size: 32px;
-      font-weight: 800;
-      margin-bottom: 8px;
-      color: #fff;
-      letter-spacing: -0.5px;
-    }
-
-    .subtitle {
-      font-size: 16px;
-      color: var(--text-secondary);
-      margin-bottom: 40px;
-    }
-
-    h2 {
-      font-size: 22px;
-      font-weight: 700;
-      margin-top: 56px;
-      margin-bottom: 20px;
-      padding-bottom: 10px;
-      border-bottom: 1px solid var(--border);
-      color: #fff;
-    }
-
-    h3 {
-      font-size: 17px;
-      font-weight: 600;
-      margin-top: 32px;
-      margin-bottom: 12px;
-      color: var(--text-primary);
-    }
-
-    p { margin-bottom: 14px; }
-    p + p { margin-top: 0; }
-
-    strong { color: #fff; font-weight: 600; }
-
+    html { scroll-behavior: smooth; }
+    body { background: var(--bg); color: var(--text-body); font-family: var(--sans); font-feature-settings: "ss01","cv11"; font-size: 15px; line-height: 1.7; }
     a { color: var(--accent); text-decoration: none; }
-    a:hover { text-decoration: underline; }
+    a:hover { color: var(--accent-soft); }
+    input:focus { outline: none; border-color: var(--accent) !important; }
+    input::placeholder { color: var(--text-faint); }
+    :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
-    /* ====================================================================
-       Code
-       ==================================================================== */
-    code {
-      font-family: var(--mono);
-      font-size: 13px;
-      background: var(--bg-code);
-      border: 1px solid var(--border);
-      padding: 2px 7px;
-      border-radius: 4px;
-      color: #d4d8f0;
-    }
+    /* ── Header ── */
+    .header { position: fixed; top: 0; left: 0; right: 0; height: var(--header-height); background: rgba(11,14,20,.88); backdrop-filter: blur(12px); border-bottom: 1px solid var(--hairline); z-index: 50; }
+    .header-inner { height: 100%; display: flex; align-items: center; gap: 14px; padding: 0 22px; }
+    .header-logo { display: flex; align-items: center; gap: 10px; }
+    .header-badge { font-family: var(--mono); font-size: 10px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: #fff; background: var(--accent); padding: 4px 10px; border-radius: 4px; }
+    .top-links { margin-left: auto; display: flex; gap: 18px; font-size: 13px; font-weight: 500; align-items: center; }
+    .top-links a { color: var(--text-2); }
+    .top-links a:hover { color: var(--text); }
+    .top-links a.dash-btn { background: var(--accent); color: #fff; font-weight: 700; padding: 7px 14px; border-radius: 8px; font-size: 12.5px; }
+    .top-links a.dash-btn:hover { background: #e01245; }
+    .menu-toggle { display: none; margin-left: auto; background: none; border: 1px solid var(--border-strong); color: var(--text); border-radius: 8px; width: 36px; height: 36px; cursor: pointer; font-size: 16px; }
 
-    pre {
-      background: var(--bg-code);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      padding: 16px 20px;
-      margin: 16px 0;
-      overflow-x: auto;
-      line-height: 1.6;
-    }
+    /* ── Sidebar ── */
+    .sidebar { position: fixed; top: var(--header-height); left: 0; bottom: 0; width: var(--sidebar-width); background: var(--bg-sunken); border-right: 1px solid var(--hairline); overflow-y: auto; padding: 16px 12px 40px; z-index: 40; }
+    .sidebar .nav-search { width: 100%; background: var(--bg-deep); border: 1px solid var(--border); color: var(--text); font-size: 12.5px; border-radius: 8px; padding: 8px 11px; margin-bottom: 14px; font-family: var(--sans); }
+    .sidebar-section { margin-bottom: 16px; }
+    .sidebar-section-title { font-family: var(--mono); font-size: 9.5px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; color: var(--text-faint); padding: 0 10px; margin-bottom: 5px; }
+    .sidebar a { display: flex; align-items: center; gap: 9px; padding: 6px 10px; border-radius: 7px; color: var(--text-2); font-size: 13px; font-weight: 500; }
+    .sidebar a .n { font-family: var(--mono); font-size: 10px; font-weight: 600; color: var(--text-faint); min-width: 20px; }
+    .sidebar a:hover { background: var(--bg-hover); color: var(--text); }
+    .sidebar a.active { background: rgba(255,21,77,.10); color: var(--accent); }
+    .sidebar a.active .n { color: var(--accent); }
+    .sidebar a.hidden, .sidebar-section.hidden { display: none; }
 
-    pre code {
-      background: none;
-      border: none;
-      padding: 0;
-      font-size: 13.5px;
-      color: #c8ccde;
-    }
+    /* ── Layout ── */
+    .layout { padding-top: var(--header-height); margin-left: var(--sidebar-width); }
+    .main { max-width: 860px; margin: 0 auto; padding: 34px 34px 90px; }
 
-    .cmd {
-      color: var(--accent);
-      font-weight: 500;
-    }
+    h1 { color: var(--text); font-size: 34px; font-weight: 800; font-style: italic; letter-spacing: -0.6px; margin-bottom: 6px; }
+    .subtitle { color: var(--text-muted); font-size: 15px; margin-bottom: 26px; }
+    section { margin-bottom: 46px; }
+    h2 { display: flex; align-items: baseline; gap: 12px; color: var(--text); font-size: 21px; font-weight: 800; font-style: italic; letter-spacing: -0.4px; margin: 0 0 16px; padding-bottom: 10px; border-bottom: 1px solid var(--hairline); }
+    h2 .secnum { font-family: var(--mono); font-size: 13px; font-weight: 700; font-style: normal; color: var(--accent); letter-spacing: .06em; }
+    h3 { color: var(--text); font-size: 15.5px; font-weight: 700; margin: 22px 0 8px; }
+    p { margin-bottom: 12px; }
+    ul, ol { margin: 0 0 14px 22px; }
+    li { margin-bottom: 6px; }
+    strong { color: var(--text); }
+    em { color: var(--text-2); }
 
-    .param {
-      color: var(--green);
-    }
+    /* ── Code ── */
+    pre { position: relative; background: var(--bg-code); border: 1px solid var(--hairline); border-radius: 10px; padding: 13px 15px; margin: 10px 0 14px; overflow-x: auto; }
+    pre code { font-family: var(--mono); font-size: 12.5px; color: var(--code-text); }
+    code { font-family: var(--mono); font-size: .88em; color: #E3E7F2; background: var(--bg-sunken); border: 1px solid var(--hairline); border-radius: 4px; padding: 1px 6px; }
+    pre code { background: none; border: 0; padding: 0; }
+    .cmd { color: var(--accent-soft); font-weight: 500; }
+    .param { color: var(--code-param); }
+    .value { color: var(--code-value); }
+    .copy-btn { position: absolute; top: 8px; right: 8px; font-family: var(--mono); font-size: 10px; font-weight: 600; letter-spacing: .06em; color: var(--text-2); background: var(--bg-card); border: 1px solid var(--border-strong); border-radius: 6px; padding: 4px 9px; cursor: pointer; }
+    .copy-btn:hover { border-color: var(--accent); color: #fff; }
+    .copy-btn.done { color: var(--st-active); border-color: rgba(47,210,138,.4); }
 
-    .value {
-      color: var(--yellow);
-    }
+    /* ── Quick start hero ── */
+    .qs-hero { background: linear-gradient(135deg, rgba(255,21,77,.12), transparent 55%), var(--bg-card); border: 1px solid rgba(255,21,77,.3); border-radius: 16px; padding: 22px 24px; margin-bottom: 40px; }
+    .qs-head { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; margin-bottom: 14px; }
+    .qs-head h2 { border: 0; padding: 0; margin: 0; font-size: 19px; }
+    .qs-head .eta { font-family: var(--mono); font-size: 10px; font-weight: 700; letter-spacing: .12em; color: var(--accent); text-transform: uppercase; margin-left: auto; }
+    .qs-row { display: flex; align-items: center; gap: 13px; padding: 9px 0; }
+    .qs-row + .qs-row { border-top: 1px solid rgba(255,21,77,.12); }
+    .qs-num { width: 22px; height: 22px; border-radius: 50%; background: var(--accent); color: #fff; display: grid; place-items: center; font-family: var(--mono); font-size: 11px; font-weight: 700; flex-shrink: 0; }
+    .qs-cmd { flex: 1; min-width: 0; }
+    .qs-cmd pre { margin: 0 0 3px; padding: 8px 12px; }
+    .qs-cmd .why { font-size: 12.5px; color: var(--text-muted); }
+    .qs-close { margin-top: 12px; font-size: 13px; color: var(--text-2); }
 
-    /* ====================================================================
-       Cards
-       ==================================================================== */
-    .card {
-      background: var(--bg-card);
-      border: 1px solid var(--border);
-      border-radius: var(--radius-lg);
-      padding: 24px;
-      margin: 20px 0;
-    }
+    /* ── Lifecycle pills ── */
+    .flow { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: 14px 0 20px; }
+    .flow .fpill { font-family: var(--mono); font-size: 10px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; padding: 6px 14px; border-radius: 999px; border: 1px solid; }
+    .flow .arr { color: var(--text-faint); font-size: 13px; }
+    .fpill.reg { color: var(--st-reg); border-color: rgba(255,21,77,.4); background: rgba(255,21,77,.10); }
+    .fpill.check { color: var(--st-check); border-color: rgba(255,194,75,.4); background: rgba(255,194,75,.10); }
+    .fpill.active { color: var(--st-active); border-color: rgba(47,210,138,.4); background: rgba(47,210,138,.10); }
+    .fpill.done { color: var(--st-done); border-color: var(--border-strong); background: transparent; }
 
-    .card-title {
-      font-size: 15px;
-      font-weight: 600;
-      color: #fff;
-      margin-bottom: 12px;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
+    /* ── Cards / callouts ── */
+    .card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 15px 17px; margin: 14px 0; }
+    .card.tip { border-left: 3px solid var(--st-active); }
+    .card.warning { border-left: 3px solid var(--st-check); }
+    .card-title { color: var(--text); font-weight: 700; font-size: 13.5px; margin-bottom: 5px; }
+    .card p:last-child { margin-bottom: 0; }
 
-    .tip {
-      border-left: 3px solid var(--accent);
-      background: var(--accent-glow);
-    }
+    /* ── Tables ── */
+    .table-wrap { border: 1px solid var(--border); border-radius: 10px; overflow-x: auto; background: var(--bg-table); margin: 12px 0 16px; }
+    table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+    th { text-align: left; font-family: var(--mono); font-size: 10.5px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--text-faint); background: var(--bg-sunken); padding: 9px 14px; white-space: nowrap; }
+    td { padding: 9px 14px; border-top: 1px solid var(--hairline); vertical-align: top; }
+    td code { white-space: nowrap; }
+    #tiers td:not(:first-child), #tiers th:not(:first-child) { text-align: center; font-family: var(--mono); font-size: 12.5px; }
+    .dim { color: #4A5468; }
 
-    .tip .card-title::before {
-      content: '💡';
-    }
+    /* ── Tier tags ── */
+    .tag { display: inline-block; font-family: var(--mono); font-size: 9.5px; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; padding: 2px 8px; border-radius: 4px; vertical-align: middle; }
+    .tag-free { background: rgba(149,165,166,.15); color: #95a5a6; }
+    .tag-premium { background: rgba(94,107,255,.15); color: #8f9bff; }
+    .tag-pro { background: rgba(155,89,182,.15); color: #b07cd8; }
+    .tag-business { background: rgba(241,196,15,.15); color: #f1c40f; }
 
-    .warning {
-      border-left: 3px solid var(--orange);
-      background: rgba(230, 126, 34, 0.08);
-    }
+    /* ── Steps ── */
+    .steps { counter-reset: step; list-style: none; margin-left: 0; }
+    .steps li { counter-increment: step; position: relative; padding-left: 36px; margin-bottom: 10px; }
+    .steps li::before { content: counter(step); position: absolute; left: 0; top: 2px; width: 22px; height: 22px; border-radius: 50%; background: var(--accent); color: #fff; display: grid; place-items: center; font-family: var(--mono); font-size: 11px; font-weight: 700; }
 
-    .warning .card-title::before {
-      content: '⚠️';
-    }
+    /* ── Command filter ── */
+    .cmd-filter { display: flex; align-items: baseline; gap: 14px; margin: 4px 0 14px; flex-wrap: wrap; }
+    .cmd-filter input { background: var(--bg-deep); border: 1px solid var(--border-strong); color: var(--text); font-family: var(--mono); font-size: 12px; border-radius: 8px; padding: 8px 12px; width: 260px; }
+    .cmd-filter .count { font-family: var(--mono); font-size: 10.5px; color: var(--text-faint); letter-spacing: .04em; }
+    .cmd-hidden { display: none !important; }
 
-    .success {
-      border-left: 3px solid var(--green);
-      background: var(--green-dim);
-    }
+    section[id] { scroll-margin-top: calc(var(--header-height) + 20px); }
 
-    .success .card-title::before {
-      content: '✅';
-    }
-
-    /* ====================================================================
-       Tables
-       ==================================================================== */
-    .table-wrap {
-      overflow-x: auto;
-      margin: 16px 0;
-      border-radius: var(--radius);
-      border: 1px solid var(--border);
-    }
-
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      font-size: 14px;
-    }
-
-    thead th {
-      background: var(--bg-code);
-      text-align: left;
-      padding: 10px 16px;
-      font-weight: 600;
-      color: var(--text-secondary);
-      font-size: 12px;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-      border-bottom: 1px solid var(--border);
-    }
-
-    tbody td {
-      padding: 10px 16px;
-      border-bottom: 1px solid var(--border);
-      vertical-align: top;
-    }
-
-    tbody tr:last-child td {
-      border-bottom: none;
-    }
-
-    tbody tr:hover {
-      background: rgba(88, 101, 242, 0.04);
-    }
-
-    /* ====================================================================
-       Tags / Badges
-       ==================================================================== */
-    .tag {
-      display: inline-block;
-      font-size: 11px;
-      font-weight: 600;
-      padding: 2px 8px;
-      border-radius: 4px;
-      letter-spacing: 0.3px;
-    }
-
-    .tag-free { background: rgba(149, 165, 166, 0.15); color: #95a5a6; }
-    .tag-premium { background: rgba(94, 107, 255, 0.15); color: #8f9bff; }
-    .tag-pro { background: rgba(155, 89, 182, 0.15); color: #b07cd8; }
-    .tag-business { background: rgba(241, 196, 15, 0.15); color: #f1c40f; }
-
-    /* ====================================================================
-       Steps
-       ==================================================================== */
-    .steps {
-      counter-reset: step;
-      list-style: none;
-      padding: 0;
-      margin: 16px 0;
-    }
-
-    .steps li {
-      counter-increment: step;
-      padding: 12px 0 12px 48px;
-      position: relative;
-      border-left: 2px solid var(--border);
-      margin-left: 16px;
-    }
-
-    .steps li:last-child {
-      border-left-color: transparent;
-    }
-
-    .steps li::before {
-      content: counter(step);
-      position: absolute;
-      left: -14px;
-      top: 10px;
-      width: 26px;
-      height: 26px;
-      background: var(--accent);
-      color: #fff;
-      border-radius: 50%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 13px;
-      font-weight: 700;
-    }
-
-    /* ====================================================================
-       Lifecycle flow
-       ==================================================================== */
-    .flow {
-      display: flex;
-      gap: 0;
-      margin: 24px 0;
-      overflow-x: auto;
-      padding-bottom: 8px;
-    }
-
-    .flow-step {
-      flex: 1;
-      min-width: 120px;
-      text-align: center;
-      position: relative;
-      padding: 0 8px;
-    }
-
-    .flow-step::after {
-      content: '→';
-      position: absolute;
-      right: -6px;
-      top: 16px;
-      color: var(--text-muted);
-      font-size: 18px;
-    }
-
-    .flow-step:last-child::after { display: none; }
-
-    .flow-icon {
-      width: 48px;
-      height: 48px;
-      border-radius: 12px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      margin: 0 auto 8px;
-      font-size: 22px;
-    }
-
-    .flow-icon.reg { background: var(--accent-glow); }
-    .flow-icon.check { background: var(--yellow-dim); }
-    .flow-icon.active { background: var(--green-dim); }
-    .flow-icon.done { background: rgba(155, 89, 182, 0.12); }
-
-    .flow-label {
-      font-size: 12px;
-      font-weight: 600;
-      color: var(--text-secondary);
-    }
-
-    /* ====================================================================
-       Responsive
-       ==================================================================== */
     @media (max-width: 900px) {
-      .sidebar {
-        transform: translateX(-100%);
-        transition: transform 0.25s ease;
-      }
-      .sidebar.open {
-        transform: translateX(0);
-        box-shadow: 4px 0 24px rgba(0,0,0,0.5);
-      }
-      .main {
-        margin-left: 0;
-        padding: 32px 20px 80px;
-      }
+      .layout { margin-left: 0; }
+      .sidebar { transform: translateX(-100%); transition: transform .2s; }
+      .sidebar.open { transform: none; }
       .menu-toggle { display: block; }
       .top-links { display: none; }
     }
-
     @media (max-width: 600px) {
-      h1 { font-size: 24px; }
-      h2 { font-size: 19px; }
-      .flow { flex-wrap: wrap; gap: 8px; }
-      .flow-step::after { display: none; }
-      .flow-step { min-width: 80px; }
+      h1 { font-size: 26px; }
+      h2 { font-size: 18px; }
+      .main { padding: 24px 18px 70px; }
     }
-
-    /* ====================================================================
-       Section targets (for sidebar highlighting)
-       ==================================================================== */
-    section[id] { scroll-margin-top: calc(var(--header-height) + 24px); }
   </style>
 </head>
 <body>
@@ -534,10 +169,10 @@
     </a>
     <span class="header-badge">Admin Guide</span>
     <nav class="top-links">
-      <a href="/admin">Dashboard</a>
       <a href="/user-guide">User Guide</a>
       <a href="/faq">FAQ</a>
       <a href="/contact">Contact</a>
+      <a class="dash-btn" href="/admin">Open dashboard</a>
     </nav>
     <button class="menu-toggle" onclick="document.querySelector('.sidebar').classList.toggle('open')" aria-label="Toggle menu">&#9776;</button>
   </div>
@@ -547,37 +182,39 @@
      Sidebar
      ====================================================================== -->
 <nav class="sidebar" id="sidebar">
+  <input class="nav-search" id="navSearch" type="text" placeholder="Search the guide…" aria-label="Search the guide">
   <div class="sidebar-section">
     <div class="sidebar-section-title">Getting Started</div>
-    <a href="#setup">Initial Setup</a>
-    <a href="#creating">Creating a Tournament</a>
-    <a href="#lifecycle">Tournament Lifecycle</a>
+    <a href="#quickstart"><span class="n">QS</span>Quick Start</a>
+    <a href="#setup"><span class="n">01</span>Initial Setup</a>
+    <a href="#creating"><span class="n">02</span>Creating a Tournament</a>
+    <a href="#lifecycle"><span class="n">03</span>Tournament Lifecycle</a>
   </div>
   <div class="sidebar-section">
     <div class="sidebar-section-title">Running Tournaments</div>
-    <a href="#reporting">Reporting Results</a>
-    <a href="#teams">Team Tournaments</a>
-    <a href="#seeding">Seeding</a>
+    <a href="#reporting"><span class="n">04</span>Reporting Results</a>
+    <a href="#teams"><span class="n">05</span>Team Tournaments</a>
+    <a href="#seeding"><span class="n">06</span>Seeding</a>
   </div>
   <div class="sidebar-section">
     <div class="sidebar-section-title">Server Config</div>
-    <a href="#settings">Server Settings</a>
-    <a href="#debug">Debug &amp; Testing</a>
-    <a href="#templates">Templates</a>
+    <a href="#settings"><span class="n">07</span>Server Settings</a>
+    <a href="#debug"><span class="n">08</span>Debug &amp; Testing</a>
+    <a href="#templates"><span class="n">09</span>Templates</a>
   </div>
   <div class="sidebar-section">
     <div class="sidebar-section-title">Billing</div>
-    <a href="#subscription">Subscription</a>
+    <a href="#subscription"><span class="n">10</span>Subscription</a>
   </div>
   <div class="sidebar-section">
     <div class="sidebar-section-title">Web</div>
-    <a href="#web-dashboard">Web Dashboard</a>
+    <a href="#web-dashboard"><span class="n">11</span>Web Dashboard</a>
   </div>
   <div class="sidebar-section">
     <div class="sidebar-section-title">Reference</div>
-    <a href="#commands">Command Reference</a>
-    <a href="#games">Supported Games</a>
-    <a href="#tiers">Tier Comparison</a>
+    <a href="#commands"><span class="n">12</span>Command Reference</a>
+    <a href="#games"><span class="n">13</span>Supported Games</a>
+    <a href="#tiers"><span class="n">14</span>Tier Comparison</a>
   </div>
 </nav>
 
@@ -591,10 +228,42 @@
   <p class="subtitle">Everything you need to run tournaments for your community.</p>
 
   <!-- ================================================================
+       Quick start
+       ================================================================ -->
+  <section id="quickstart">
+    <div class="qs-hero">
+      <div class="qs-head"><h2>Your first tournament in 3 commands</h2><span class="eta">~2 minutes</span></div>
+      <div class="qs-row">
+        <span class="qs-num">1</span>
+        <div class="qs-cmd">
+          <pre><code><span class="cmd">/admin set-announcement-channel</span> <span class="param">channel:</span><span class="value">#tournaments</span></code></pre>
+          <div class="why">Where signup embeds get posted (skip it and the bot creates a channel for you).</div>
+        </div>
+      </div>
+      <div class="qs-row">
+        <span class="qs-num">2</span>
+        <div class="qs-cmd">
+          <pre><code><span class="cmd">/tournament create</span></code></pre>
+          <div class="why">Pick a game, fill in title / date / size — the game's competitive defaults do the rest.</div>
+        </div>
+      </div>
+      <div class="qs-row">
+        <span class="qs-num">3</span>
+        <div class="qs-cmd">
+          <pre><code><span class="cmd">/tournament start</span></code></pre>
+          <div class="why">When everyone's in: bracket generated, match rooms created, players pinged.</div>
+        </div>
+      </div>
+      <div class="qs-close">Prefer a browser? The <a href="/admin">web dashboard</a> does all of this — and reporting — with clicks.</div>
+    </div>
+  </section>
+
+
+  <!-- ================================================================
        1. Initial Setup
        ================================================================ -->
   <section id="setup">
-    <h2>1. Initial Setup</h2>
+    <h2><span class="secnum">01</span>Initial Setup</h2>
     <p>Once the bot is added to your server, configure a few things before your first tournament.</p>
 
     <h3>Set an announcement channel</h3>
@@ -618,7 +287,7 @@
        2. Creating a Tournament
        ================================================================ -->
   <section id="creating">
-    <h2>2. Creating a Tournament</h2>
+    <h2><span class="secnum">02</span>Creating a Tournament</h2>
     <p>There are two creation modes: <strong>Simple</strong> and <strong>Advanced</strong>.</p>
 
     <h3>Simple Mode</h3>
@@ -661,25 +330,13 @@
        3. Tournament Lifecycle
        ================================================================ -->
   <section id="lifecycle">
-    <h2>3. Tournament Lifecycle</h2>
+    <h2><span class="secnum">03</span>Tournament Lifecycle</h2>
 
     <div class="flow">
-      <div class="flow-step">
-        <div class="flow-icon reg">📝</div>
-        <div class="flow-label">Registration</div>
-      </div>
-      <div class="flow-step">
-        <div class="flow-icon check">✋</div>
-        <div class="flow-label">Check-in</div>
-      </div>
-      <div class="flow-step">
-        <div class="flow-icon active">⚔️</div>
-        <div class="flow-label">Active</div>
-      </div>
-      <div class="flow-step">
-        <div class="flow-icon done">🏆</div>
-        <div class="flow-label">Completed</div>
-      </div>
+      <span class="fpill reg">Registration</span><span class="arr">→</span>
+      <span class="fpill check">Check-in</span><span class="arr">→</span>
+      <span class="fpill active">Active</span><span class="arr">→</span>
+      <span class="fpill done">Completed</span>
     </div>
 
     <h3>Registration</h3>
@@ -713,7 +370,7 @@
        4. Reporting Results
        ================================================================ -->
   <section id="reporting">
-    <h2>4. Reporting Results</h2>
+    <h2><span class="secnum">04</span>Reporting Results</h2>
 
     <h3>From match room channels</h3>
     <p>When a tournament starts, each match gets its own text channel (e.g. <code>#match-1-player-a-vs-player-b</code>). Inside, there are <strong>Player A Wins</strong> and <strong>Player B Wins</strong> buttons. Any admin can click to report the result. The bracket advances automatically.</p>
@@ -731,7 +388,7 @@
        5. Team Tournaments
        ================================================================ -->
   <section id="teams">
-    <h2>5. Team Tournaments</h2>
+    <h2><span class="secnum">05</span>Team Tournaments</h2>
     <p>When you create a tournament with a team size of 2 or more, the signup flow changes:</p>
     <ol class="steps">
       <li>Players click <strong>Register Team</strong> on the tournament embed.</li>
@@ -760,7 +417,7 @@
        7. Seeding
        ================================================================ -->
   <section id="seeding">
-    <h2>6. Seeding <span class="tag tag-premium">Premium</span></h2>
+    <h2><span class="secnum">06</span>Seeding <span class="tag tag-premium">Premium</span></h2>
     <p>Seeding must be enabled when creating the tournament (toggle it on in Advanced Mode).</p>
 
     <pre><code><span class="cmd">/tournament seed set</span> <span class="param">tournament:</span><span class="value">Friday Night Fights</span> <span class="param">participant:</span><span class="value">PlayerA</span> <span class="param">seed:</span><span class="value">1</span></code></pre>
@@ -783,7 +440,7 @@
        8. Server Settings
        ================================================================ -->
   <section id="settings">
-    <h2>7. Server Settings</h2>
+    <h2><span class="secnum">07</span>Server Settings</h2>
 
     <div class="table-wrap">
       <table>
@@ -811,7 +468,7 @@
        9. Debug & Testing
        ================================================================ -->
   <section id="debug">
-    <h2>8. Debug &amp; Testing Tools</h2>
+    <h2><span class="secnum">08</span>Debug &amp; Testing Tools</h2>
     <p>These add fake participants so you can test the full tournament flow without needing real players.</p>
 
     <div class="table-wrap">
@@ -842,7 +499,7 @@
        10. Templates
        ================================================================ -->
   <section id="templates">
-    <h2>9. Templates <span class="tag tag-pro">Pro</span></h2>
+    <h2><span class="secnum">09</span>Templates <span class="tag tag-pro">Pro</span></h2>
     <p>Save tournament configurations for reuse. Handy for weekly recurring events.</p>
 
     <h3>Save from an existing tournament</h3>
@@ -867,7 +524,7 @@
        12. Subscription Management
        ================================================================ -->
   <section id="subscription">
-    <h2>10. Subscription Management</h2>
+    <h2><span class="secnum">10</span>Subscription Management</h2>
 
     <div class="table-wrap">
       <table>
@@ -887,7 +544,7 @@
        11. Web Dashboard
        ================================================================ -->
   <section id="web-dashboard">
-    <h2>11. Web Dashboard</h2>
+    <h2><span class="secnum">11</span>Web Dashboard</h2>
     <p>Run tournaments from the browser: sign in with Discord at <a href="/admin"><strong>tournaments.clutch.game/admin</strong></a> and every server where you can manage tournaments shows up. The dashboard mirrors the whole Discord admin toolset — everything you do there posts to Discord exactly as if you'd used the commands (announcements, match rooms, DMs).</p>
 
     <h3>Who can sign in</h3>
@@ -912,7 +569,11 @@
        12. Command Reference
        ================================================================ -->
   <section id="commands">
-    <h2>12. Command Reference</h2>
+    <h2><span class="secnum">12</span>Command Reference</h2>
+    <div class="cmd-filter">
+      <input type="text" id="cmdFilter" placeholder="Filter commands… e.g. seed" aria-label="Filter commands">
+      <span class="count" id="cmdCount"></span>
+    </div>
 
     <h3>Tournament Management</h3>
     <div class="table-wrap">
@@ -1019,7 +680,7 @@
        Supported Games
        ================================================================ -->
   <section id="games">
-    <h2>Supported Games</h2>
+    <h2><span class="secnum">13</span>Supported Games</h2>
     <p>The bot includes presets with optimized defaults for 15 games, organized by category:</p>
     <div class="table-wrap">
       <table>
@@ -1041,7 +702,7 @@
        Tier Comparison
        ================================================================ -->
   <section id="tiers">
-    <h2>Tier Comparison</h2>
+    <h2><span class="secnum">14</span>Tier Comparison</h2>
 
     <div class="table-wrap">
       <table>
@@ -1081,29 +742,85 @@
      Sidebar active link tracking
      ====================================================================== -->
 <script>
-  // Highlight active sidebar link on scroll
-  const sections = document.querySelectorAll('section[id]');
-  const navLinks = document.querySelectorAll('.sidebar a');
-
-  const observer = new IntersectionObserver(entries => {
-    entries.forEach(entry => {
-      if (entry.isIntersecting) {
-        navLinks.forEach(link => link.classList.remove('active'));
-        const active = document.querySelector(`.sidebar a[href="#${entry.target.id}"]`);
-        if (active) active.classList.add('active');
-      }
-    });
-  }, { rootMargin: '-80px 0px -60% 0px', threshold: 0 });
-
-  sections.forEach(section => observer.observe(section));
-
-  // Close sidebar on mobile when link clicked
-  navLinks.forEach(link => {
-    link.addEventListener('click', () => {
-      document.querySelector('.sidebar').classList.remove('open');
-    });
+// ── COPY buttons on every command block ──────────────────────────────────────
+document.querySelectorAll('pre').forEach(pre => {
+  const btn = document.createElement('button');
+  btn.className = 'copy-btn';
+  btn.type = 'button';
+  btn.textContent = 'COPY';
+  btn.addEventListener('click', async () => {
+    try {
+      await navigator.clipboard.writeText(pre.querySelector('code').innerText.trim());
+      btn.textContent = '\u2713 COPIED';
+      btn.classList.add('done');
+      setTimeout(() => { btn.textContent = 'COPY'; btn.classList.remove('done'); }, 1600);
+    } catch { btn.textContent = 'FAILED'; setTimeout(() => { btn.textContent = 'COPY'; }, 1600); }
   });
-</script>
+  pre.appendChild(btn);
+});
 
+// ── Sidebar search (live-filters the nav) ───────────────────────────────────
+const navSearch = document.getElementById('navSearch');
+navSearch.addEventListener('input', () => {
+  const q = navSearch.value.trim().toLowerCase();
+  document.querySelectorAll('.sidebar-section').forEach(sec => {
+    let any = false;
+    sec.querySelectorAll('a').forEach(a => {
+      const hit = !q || a.textContent.toLowerCase().includes(q);
+      a.classList.toggle('hidden', !hit);
+      if (hit) any = true;
+    });
+    sec.classList.toggle('hidden', !any);
+  });
+});
+
+// ── Scroll-spy (scroll-position based — deterministic everywhere) ───────────
+const navLinks = [...document.querySelectorAll('.sidebar a[href^="#"]')];
+const byId = Object.fromEntries(navLinks.map(a => [a.getAttribute('href').slice(1), a]));
+const sections = [...document.querySelectorAll('section[id]')];
+let spyTick = false;
+function updateSpy() {
+  spyTick = false;
+  const line = window.scrollY + 100; // just under the fixed header
+  let current = sections[0];
+  for (const sec of sections) {
+    if (sec.offsetTop <= line) current = sec; else break;
+  }
+  navLinks.forEach(a => a.classList.remove('active'));
+  if (current) byId[current.id]?.classList.add('active');
+}
+window.addEventListener('scroll', () => {
+  if (!spyTick) { spyTick = true; requestAnimationFrame(updateSpy); }
+}, { passive: true });
+updateSpy();
+
+// ── Command-reference filter ─────────────────────────────────────────────────
+const cmdFilter = document.getElementById('cmdFilter');
+const cmdCount = document.getElementById('cmdCount');
+if (cmdFilter) {
+  const section = document.getElementById('commands');
+  const rows = [...section.querySelectorAll('tbody tr')];
+  const total = rows.length;
+  const update = () => {
+    const q = cmdFilter.value.trim().toLowerCase();
+    let shown = 0;
+    rows.forEach(tr => {
+      const hit = !q || tr.textContent.toLowerCase().includes(q);
+      tr.classList.toggle('cmd-hidden', !hit);
+      if (hit) shown++;
+    });
+    // hide group headings + tables that end up empty
+    section.querySelectorAll('.table-wrap').forEach(w => {
+      const empty = ![...w.querySelectorAll('tbody tr')].some(tr => !tr.classList.contains('cmd-hidden'));
+      w.classList.toggle('cmd-hidden', empty);
+      const h3 = w.previousElementSibling;
+      if (h3 && h3.tagName === 'H3') h3.classList.toggle('cmd-hidden', empty);
+    });
+    cmdCount.textContent = q ? shown + ' command' + (shown === 1 ? '' : 's') + ' match "' + cmdFilter.value.trim() + '"' : total + ' commands';
+  };
+  cmdFilter.addEventListener('input', update);
+  update();
+}
+</script>
 </body>
 </html>
