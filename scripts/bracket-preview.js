@@ -102,7 +102,29 @@ FIXTURES.reg = basePayload({ id: 'reg', title: 'Sunday Showdown', format: 'doubl
 
 { const b = playAll(doubleElim, doubleElim.generateBracket(players(8), {}));
   // results are computed by buildPayload itself (bracket is complete)
-  FIXTURES.done = basePayload({ id: 'done', title: 'Season Finale', format: 'double_elimination', count: 8, status: 'complete', bracket: b }); }
+  FIXTURES.done = basePayload({ id: 'done', title: 'Season Finale', format: 'double_elimination', count: 8, status: 'completed', bracket: b }); }
+
+// Big-bracket stress fixture for the v2 layout engine (256 players, mid-run)
+{ const many = Array.from({ length: 256 }, (_, i) => ({
+    id: `p${i + 1}`, username: `${NAMES[i % 16]}_${i + 1}`, displayName: `${NAMES[i % 16]}_${i + 1}`, seed: i + 1,
+  }));
+  const b = doubleElim.generateBracket(many, {});
+  let played = 0;
+  while (played < 300) {
+    const active = doubleElim.getActiveMatches(b);
+    if (!active.length) break;
+    const m = active[0];
+    doubleElim.advanceWinner(b, m.id, (Math.random() > 0.4 ? m.participant1 : m.participant2).id, '2-1');
+    played++;
+  }
+  const fakeBig = {
+    id: 'big', title: 'CLUTCH Open 2026', description: null, status: 'active',
+    startTime: new Date(Date.now() + 86400000),
+    game: { displayName: 'Counter-Strike 2', shortName: 'CS2', icon: '🎯', logo: 'https://cdn.discordapp.com/emojis/1514008006134599702.png?size=128' },
+    settings: { format: 'double_elimination', teamSize: 1, bestOf: 3, maxParticipants: 256, publicBracket: true },
+    participants: many, teams: [], bracket: b,
+  };
+  FIXTURES.big = buildPayload(fakeBig); }
 
 const template = fs.readFileSync(path.join(__dirname, '../public/bracket.html'), 'utf8');
 
@@ -113,7 +135,9 @@ const server = http.createServer((req, res) => {
     const id = urlPath.slice(3);
     const html = template
       .replaceAll('{{TITLE}}', 'Preview').replaceAll('{{DESCRIPTION}}', 'Preview')
-      .replaceAll('{{BASE}}', 'http://localhost:4100').replaceAll('{{TOURNAMENT_ID}}', id);
+      .replaceAll('{{BASE}}', 'http://localhost:4100')
+      .replaceAll('{{DATA_URL}}', `/api/public/brackets/${id}`)
+      .replaceAll('{{TOURNAMENT_ID}}', id);
     res.writeHead(200, { 'Content-Type': 'text/html' });
     return res.end(html);
   }
