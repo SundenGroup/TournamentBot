@@ -4,239 +4,266 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Admin Dashboard — CLUTCH Tournaments</title>
-<meta name="description" content="Manage your CLUTCH tournaments from the web. Sign in with Discord to view your servers, tournaments and live brackets.">
+<meta name="description" content="Run your CLUTCH tournaments from the web. Sign in with Discord to create, start, report and correct — with live brackets.">
 <meta name="robots" content="noindex">
 <link rel="icon" type="image/png" href="/clutch-icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,400;0,500;0,600;0,700;0,800;1,800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
   :root {
-    --bg: #0A0D12; --bg-elev: #121620; --bg-sunken: #05090E; --bg-hover: #1A2030;
-    --fg: #F5F7FA; --fg-muted: #9BA3AF; --fg-subtle: #6B7280;
-    --border: #222938; --border-strong: #313B4E;
-    --accent: #FF154D; --accent-soft: #FF4D7A; --accent-wash: rgba(255,21,77,.12);
-    --ok: #4ade80; --warn: #ffd36e;
-    --r-sm: 6px; --r-md: 10px; --r-lg: 14px;
+    --bg: #0B0E14; --bg-sunken: #0D111A; --bg-card: #12161F; --bg-hover: #171C27; --bg-deep: #05090E;
+    --hairline: #1E2634; --border: #232B3A; --border-strong: #303A4D;
+    --text: #F5F7FA; --text-2: #9BA3AF; --text-muted: #7C8698; --text-faint: #5B667A;
+    --accent: #FF154D; --accent-hover: #e01245; --accent-soft: #ff7d9c;
+    --st-reg: #58B9FF; --st-check: #FFC24B; --st-live: #FF154D; --st-done: #7C8698; --ok: #2FD28A;
+    --discord: #5865F2;
     --sans: 'DM Sans', system-ui, sans-serif;
     --mono: 'JetBrains Mono', ui-monospace, monospace;
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { background: var(--bg); color: var(--fg); font-family: var(--sans); font-feature-settings: "ss01","cv11"; line-height: 1.6; min-height: 100vh; display: flex; flex-direction: column; }
-  a { color: var(--accent); text-decoration: none; }
-  a:hover { color: var(--accent-soft); }
+  body { background: var(--bg); color: var(--text); font-family: var(--sans); font-feature-settings: "ss01","cv11"; line-height: 1.55; min-height: 100vh; display: flex; flex-direction: column; }
+  a { color: inherit; text-decoration: none; }
+  select, input, textarea, button { font-family: inherit; }
+  input:focus, select:focus, textarea:focus { outline: none; border-color: var(--accent) !important; }
+  input::placeholder, textarea::placeholder { color: var(--text-faint); }
   :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-  .wrap { max-width: 1060px; margin: 0 auto; padding: 0 28px; width: 100%; }
-  .eyebrow { font-family: var(--mono); font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: .14em; color: var(--fg-subtle); }
-
-  nav { border-bottom: 1px solid var(--border); background: rgba(10,13,18,.85); backdrop-filter: blur(12px); position: sticky; top: 0; z-index: 40; height: 52px; display: flex; align-items: center; }
-  nav .wrap { display: flex; align-items: center; gap: 12px; }
-  .brand { display: flex; align-items: center; gap: 10px; color: var(--fg); }
-  .brand img.mark { width: 24px; height: 24px; }
-  .brand img.word { height: 14px; display: block; }
-  .brand .sub { font-family: var(--mono); font-size: 10px; font-weight: 600; letter-spacing: .14em; color: var(--fg-subtle); border-left: 1px solid var(--border-strong); padding-left: 10px; text-transform: uppercase; }
-  nav .links { margin-left: auto; display: flex; gap: 20px; font-size: 13px; font-weight: 500; align-items: center; }
-  nav .links a { color: var(--fg-muted); }
-  nav .links a:hover { color: var(--fg); }
-
-  .userchip { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; color: var(--fg); }
-  .userchip img { width: 22px; height: 22px; border-radius: 50%; border: 1px solid var(--border-strong); }
-
-  header { background: radial-gradient(ellipse 60% 100% at 20% 0%, var(--accent-wash), transparent), linear-gradient(180deg, #0D1018, var(--bg)); border-bottom: 1px solid var(--border); padding: 40px 0 32px; }
-  header .eyebrow { display: block; margin-bottom: 10px; color: var(--accent); }
-  h1 { font-size: 28px; font-weight: 700; letter-spacing: -0.02em; }
-  header p { color: var(--fg-muted); margin-top: 8px; font-size: 15px; }
-
-  main { padding: 32px 0 60px; flex: 1; }
-
-  .btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; font-family: var(--sans); font-weight: 600; font-size: 14px; padding: 10px 16px; border-radius: var(--r-md); border: 1px solid transparent; cursor: pointer; transition: background .12s, border-color .12s, opacity .12s; }
-  .btn:disabled { opacity: .45; cursor: not-allowed; }
-  .btn-discord { background: #5865F2; color: #fff; }
-  .btn-discord:hover { background: #4954da; color: #fff; }
-  .btn-ghost { background: var(--bg-elev); color: var(--fg); border-color: var(--border); }
-  .btn-ghost:hover:not(:disabled) { background: var(--bg-hover); border-color: var(--border-strong); }
-  .btn-accent { background: var(--accent); color: #fff; }
-  .btn-accent:hover:not(:disabled) { background: #e01245; color: #fff; }
-  .btn-danger { background: transparent; color: #ff7d9c; border-color: rgba(255,21,77,.4); }
-  .btn-danger:hover:not(:disabled) { background: var(--accent-wash); border-color: var(--accent); color: #ff9db5; }
-  .btn-sm { padding: 5px 10px; font-size: 12px; border-radius: var(--r-sm); }
-
-  .card { background: var(--bg-elev); border: 1px solid var(--border); border-radius: var(--r-lg); }
-
-  .signin { max-width: 460px; margin: 20px auto; text-align: center; padding: 40px 32px; }
-  .signin h2 { font-size: 20px; font-weight: 700; margin-bottom: 8px; }
-  .signin p { color: var(--fg-muted); font-size: 14px; margin-bottom: 22px; }
-
-  .grid { display: grid; grid-template-columns: 260px 1fr; gap: 22px; align-items: start; }
-  @media (max-width: 780px) { .grid { grid-template-columns: 1fr; } }
-
-  .side-title { margin: 0 0 10px; }
-  .guilds { display: flex; flex-direction: column; gap: 6px; }
-  .guild { display: flex; align-items: center; gap: 11px; padding: 10px 12px; border-radius: var(--r-md); border: 1px solid var(--border); background: var(--bg-elev); cursor: pointer; text-align: left; width: 100%; color: var(--fg); font-family: var(--sans); font-size: 14px; font-weight: 600; transition: background .12s, border-color .12s; }
-  .guild:hover { background: var(--bg-hover); border-color: var(--border-strong); }
-  .guild.active { border-color: var(--accent); background: var(--accent-wash); }
-  .guild .gicon { width: 30px; height: 30px; border-radius: 8px; flex-shrink: 0; background: var(--bg-sunken); display: grid; place-items: center; font-family: var(--mono); font-weight: 700; color: var(--fg-muted); overflow: hidden; }
-  .guild .gicon img { width: 100%; height: 100%; object-fit: cover; }
-  .guild .gname { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-
-  .panel { min-height: 240px; }
-  .panel-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; gap: 12px; }
-  .panel-head h2 { font-size: 17px; font-weight: 700; }
-
-  .tlist { display: flex; flex-direction: column; gap: 8px; }
-  .trow { display: flex; align-items: center; gap: 13px; padding: 13px 15px; border-radius: var(--r-md); border: 1px solid var(--border); background: var(--bg-elev); cursor: pointer; transition: background .12s, border-color .12s; }
-  .trow:hover { background: var(--bg-hover); border-color: var(--border-strong); }
-  .tlogo { width: 34px; height: 34px; border-radius: 8px; flex-shrink: 0; background: var(--bg-sunken); display: grid; place-items: center; overflow: hidden; }
-  .tlogo img { width: 100%; height: 100%; object-fit: contain; }
-  .tmain { flex: 1; min-width: 0; }
-  .tname { font-weight: 700; font-size: 15px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .tmeta { font-size: 12px; color: var(--fg-muted); margin-top: 2px; display: flex; flex-wrap: wrap; gap: 6px 12px; }
-  .tmeta .mono, .mono { font-family: var(--mono); }
-  .arrow { color: var(--fg-subtle); font-size: 18px; flex-shrink: 0; }
-
-  .pill { display: inline-flex; align-items: center; gap: 5px; font-family: var(--mono); font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; padding: 3px 8px; border-radius: 999px; border: 1px solid var(--border-strong); color: var(--fg-muted); white-space: nowrap; }
-  .pill.registration { color: #6ee7ff; border-color: rgba(110,231,255,.35); }
-  .pill.checkin { color: var(--warn); border-color: rgba(255,211,110,.35); }
-  .pill.active { color: var(--ok); border-color: rgba(74,222,128,.4); }
-  .pill.completed { color: var(--fg-muted); }
-  .pill.cancelled { color: var(--fg-subtle); }
-
-  .muted { color: var(--fg-muted); font-size: 14px; }
-  .empty { padding: 40px 20px; text-align: center; color: var(--fg-muted); font-size: 14px; }
-  .empty strong { color: var(--fg); display: block; margin-bottom: 4px; font-size: 15px; }
-  .skel { height: 60px; border-radius: var(--r-md); background: linear-gradient(90deg, var(--bg-elev), var(--bg-hover), var(--bg-elev)); background-size: 200% 100%; animation: sh 1.2s infinite; }
+  @keyframes pulse { 0%,100% { box-shadow: 0 0 0 0 rgba(255,21,77,.45); } 50% { box-shadow: 0 0 0 6px rgba(255,21,77,0); } }
+  @keyframes blink { 0%,100% { opacity: 1; } 50% { opacity: .35; } }
   @keyframes sh { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
 
-  /* Detail overlay (bracket + manage) */
-  .detail { position: fixed; inset: 0; z-index: 60; background: rgba(5,9,14,.72); backdrop-filter: blur(6px); display: none; flex-direction: column; }
-  .detail.open { display: flex; }
-  .detail-bar { display: flex; align-items: center; gap: 14px; padding: 10px 18px; border-bottom: 1px solid var(--border); background: var(--bg); flex-wrap: wrap; }
-  .detail-bar h3 { font-size: 15px; font-weight: 700; flex: 1; min-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .detail-bar .close { background: none; border: 1px solid var(--border-strong); color: var(--fg); border-radius: var(--r-sm); width: 30px; height: 30px; cursor: pointer; font-size: 16px; line-height: 1; flex-shrink: 0; }
-  .detail-bar .close:hover { background: var(--bg-hover); }
-  .tabs { display: flex; gap: 4px; background: var(--bg-elev); border: 1px solid var(--border); border-radius: var(--r-md); padding: 3px; }
-  .tab { border: 0; background: none; color: var(--fg-muted); font-family: var(--sans); font-size: 13px; font-weight: 600; padding: 6px 14px; border-radius: 7px; cursor: pointer; }
-  .tab.active { background: var(--accent); color: #fff; }
-  .detail-body { flex: 1; min-height: 0; display: flex; }
-  .detail iframe { flex: 1; width: 100%; border: 0; background: var(--bg); }
+  .wrap { max-width: 1160px; margin: 0 auto; padding: 0 28px; width: 100%; }
+  .mono { font-family: var(--mono); }
+  .microlabel { font-family: var(--mono); font-size: 10px; font-weight: 700; letter-spacing: .16em; text-transform: uppercase; }
+  .skel { height: 60px; border-radius: 12px; background: linear-gradient(90deg, var(--bg-card), var(--bg-hover), var(--bg-card)); background-size: 200% 100%; animation: sh 1.2s infinite; }
 
-  /* Manage pane */
-  .manage { flex: 1; overflow-y: auto; padding: 22px; background: var(--bg); }
-  .manage-inner { max-width: 1060px; margin: 0 auto; display: flex; flex-direction: column; gap: 18px; }
-  .actionbar { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
-  .actionbar .spacer { flex: 1; }
-  .mgrid { display: grid; grid-template-columns: 320px 1fr; gap: 18px; align-items: start; }
-  @media (max-width: 860px) { .mgrid { grid-template-columns: 1fr; } }
-  .box { background: var(--bg-elev); border: 1px solid var(--border); border-radius: var(--r-lg); padding: 16px; }
-  .box-title { font-family: var(--mono); font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: .14em; color: var(--fg-subtle); margin-bottom: 12px; display: flex; justify-content: space-between; align-items: baseline; }
-  .lrow { display: flex; align-items: center; gap: 10px; padding: 7px 8px; border-radius: var(--r-sm); font-size: 13px; }
-  .lrow:hover { background: var(--bg-hover); }
-  .lrow .nm { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
-  .lrow .sub { color: var(--fg-subtle); font-size: 11px; font-family: var(--mono); }
-  .lrow.dq .nm { color: var(--fg-subtle); text-decoration: line-through; }
-  .mrow { border: 1px solid var(--border); border-radius: var(--r-md); padding: 10px 12px; margin-bottom: 8px; background: var(--bg-sunken); }
-  .mrow-head { display: flex; align-items: center; gap: 10px; font-size: 13px; font-weight: 600; flex-wrap: wrap; }
-  .mrow-head .mnum { font-family: var(--mono); color: var(--fg-subtle); font-size: 11px; }
-  .mrow-head .vs { color: var(--fg-subtle); font-weight: 400; }
-  .mrow-head .win { color: var(--ok); }
-  .mrow-form { display: flex; gap: 8px; margin-top: 9px; flex-wrap: wrap; align-items: center; }
-  .mrow .result { margin-left: auto; font-family: var(--mono); font-size: 12px; color: var(--fg-muted); }
+  /* ── Nav ── */
+  nav { border-bottom: 1px solid var(--hairline); background: rgba(11,14,20,.85); backdrop-filter: blur(12px); position: sticky; top: 0; z-index: 40; height: 54px; display: flex; align-items: center; }
+  nav .wrap { display: flex; align-items: center; gap: 14px; }
+  .brand { display: flex; align-items: center; gap: 10px; }
+  .brand img.mark { width: 24px; height: 24px; }
+  .brand img.word { height: 13px; display: block; }
+  .brand .sub { font-family: var(--mono); font-size: 10px; font-weight: 600; letter-spacing: .16em; color: var(--text-faint); border-left: 1px solid var(--border-strong); padding-left: 10px; text-transform: uppercase; }
+  .switcher { position: relative; margin-left: 6px; }
+  .switcher-btn { display: flex; align-items: center; gap: 9px; padding: 6px 12px 6px 7px; border-radius: 8px; border: 1px solid var(--border); background: var(--bg-card); cursor: pointer; color: var(--text); font-size: 13px; font-weight: 600; }
+  .switcher-btn:hover { border-color: var(--border-strong); background: var(--bg-hover); }
+  .gtile { width: 22px; height: 22px; border-radius: 6px; background: var(--bg-deep); display: grid; place-items: center; font-family: var(--mono); font-weight: 700; color: var(--text-2); font-size: 11px; overflow: hidden; flex-shrink: 0; }
+  .gtile img { width: 100%; height: 100%; object-fit: cover; }
+  .switcher-caret { color: var(--text-faint); font-size: 10px; }
+  .switcher-menu { position: absolute; top: calc(100% + 6px); left: 0; min-width: 240px; background: var(--bg-card); border: 1px solid var(--border-strong); border-radius: 10px; padding: 5px; z-index: 50; box-shadow: 0 14px 40px rgba(0,0,0,.5); }
+  .switcher-item { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 7px; border: 0; background: transparent; cursor: pointer; width: 100%; text-align: left; color: var(--text); font-size: 13px; font-weight: 600; }
+  .switcher-item:hover { background: var(--bg-hover); }
+  .switcher-item .gtile { width: 24px; height: 24px; }
+  .switcher-item .nm { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .switcher-item .check { font-family: var(--mono); font-size: 10px; color: var(--accent); }
+  .navlinks { margin-left: auto; display: flex; gap: 18px; font-size: 13px; font-weight: 500; align-items: center; }
+  .navlinks a { color: var(--text-2); }
+  .navlinks a:hover { color: var(--text); }
+  .navlinks a.logout { color: var(--text-faint); }
+  .navlinks a.logout:hover { color: var(--accent); }
+  .userchip { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; }
+  .userchip .av { width: 22px; height: 22px; border-radius: 50%; background: var(--discord); display: grid; place-items: center; font-size: 10px; font-weight: 700; overflow: hidden; }
+  .userchip .av img { width: 100%; height: 100%; object-fit: cover; }
 
-  select, input[type=text], input[type=number], input[type=datetime-local], textarea {
-    background: var(--bg-sunken); border: 1px solid var(--border-strong); color: var(--fg);
-    font-family: var(--sans); font-size: 13px; border-radius: var(--r-sm); padding: 7px 10px;
-  }
-  select:focus, input:focus, textarea:focus { outline: none; border-color: var(--accent); }
-  .field { display: flex; flex-direction: column; gap: 5px; }
-  .field label { font-size: 12px; font-weight: 600; color: var(--fg-muted); }
-  .field .hint { font-size: 11px; color: var(--fg-subtle); }
-  .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
-  .form-grid .full { grid-column: 1 / -1; }
-  @media (max-width: 640px) { .form-grid { grid-template-columns: 1fr; } }
+  /* ── Header ── */
+  header.page { background: radial-gradient(ellipse 50% 140% at 10% 0%, rgba(255,21,77,.10), transparent), var(--bg); border-bottom: 1px solid var(--hairline); padding: 34px 0 26px; }
+  header.page .wrap { display: flex; align-items: flex-end; gap: 20px; flex-wrap: wrap; }
+  header.page .eyebrow { display: block; margin-bottom: 8px; font-family: var(--mono); font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: .16em; color: var(--accent); }
+  header.page h1 { font-size: 30px; font-weight: 800; font-style: italic; letter-spacing: -0.5px; }
+  header.page p { color: var(--text-muted); margin-top: 6px; font-size: 14px; }
 
-  /* Create-form overlay */
-  .modal { position: fixed; inset: 0; z-index: 70; background: rgba(5,9,14,.72); backdrop-filter: blur(6px); display: none; align-items: flex-start; justify-content: center; overflow-y: auto; padding: 40px 16px; }
+  .btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; font-weight: 600; font-size: 13px; padding: 9px 15px; border-radius: 8px; border: 1px solid var(--border); cursor: pointer; background: var(--bg-card); color: var(--text); transition: background .12s, border-color .12s, opacity .12s; }
+  .btn:hover:not(:disabled) { background: var(--bg-hover); }
+  .btn:disabled { opacity: .45; cursor: not-allowed; }
+  .btn-accent { background: var(--accent); color: #fff; border-color: transparent; font-weight: 700; }
+  .btn-accent:hover:not(:disabled) { background: var(--accent-hover); }
+  .btn-danger { background: transparent; color: var(--accent-soft); border-color: rgba(255,21,77,.4); }
+  .btn-danger:hover:not(:disabled) { background: rgba(255,21,77,.12); border-color: var(--accent); }
+  .btn-big { font-size: 14px; padding: 11px 20px; border-radius: 10px; }
+  .btn-sm { font-size: 11px; padding: 4px 9px; border-radius: 6px; }
+
+  main { padding: 26px 0 60px; flex: 1; }
+  main .wrap { display: flex; flex-direction: column; gap: 22px; }
+
+  /* ── Attention ── */
+  .attn-label { font-family: var(--mono); font-size: 10px; font-weight: 700; letter-spacing: .16em; text-transform: uppercase; color: var(--accent); display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+  .attn-label .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--accent); animation: blink 1.4s infinite; }
+  .attn-card { display: flex; align-items: center; gap: 14px; padding: 14px 18px; border-radius: 12px; border: 1px solid rgba(255,21,77,.35); background: linear-gradient(90deg, rgba(255,21,77,.08), var(--bg-card) 55%); margin-bottom: 8px; }
+  .attn-card img { width: 34px; height: 34px; border-radius: 8px; object-fit: contain; background: var(--bg-deep); padding: 3px; }
+  .attn-card .t { font-weight: 700; font-size: 15px; }
+  .attn-card .r { font-size: 12.5px; color: var(--text-muted); margin-top: 1px; }
+
+  /* ── Filters + rows ── */
+  .filters { display: flex; gap: 6px; margin-bottom: 14px; flex-wrap: wrap; }
+  .fpill { border: 1px solid var(--border-strong); background: transparent; color: var(--text-2); font-family: var(--mono); font-size: 10px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; padding: 6px 13px; border-radius: 999px; cursor: pointer; }
+  .fpill.on { border-color: var(--accent); background: rgba(255,21,77,.16); color: #fff; }
+  .tlist { display: grid; grid-template-columns: 1fr; gap: 10px; }
+  .trow { display: flex; align-items: center; gap: 14px; padding: 15px 18px 15px 15px; border-radius: 12px; border: 1px solid var(--border); background: var(--bg-card); cursor: pointer; border-left: 3px solid var(--st-done); }
+  .trow:hover { background: var(--bg-hover); border-color: var(--border-strong); }
+  .trow img.logo { width: 38px; height: 38px; border-radius: 9px; object-fit: contain; background: var(--bg-deep); padding: 3px; flex-shrink: 0; }
+  .trow .t { font-weight: 700; font-size: 15px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .trow .m { font-family: var(--mono); font-size: 10.5px; letter-spacing: .04em; color: var(--text-muted); margin-top: 3px; text-transform: uppercase; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .tstatus { display: inline-flex; align-items: center; gap: 6px; font-family: var(--mono); font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: .08em; white-space: nowrap; }
+  .tstatus .dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+  .empty-card { background: var(--bg-card); border: 1px dashed var(--border-strong); border-radius: 14px; padding: 48px 20px; text-align: center; color: var(--text-muted); font-size: 14px; }
+  .empty-card strong { color: var(--text); display: block; margin-bottom: 4px; font-size: 15px; }
+
+  /* ── Sign-in ── */
+  .signin { max-width: 440px; margin: 30px auto; text-align: center; padding: 40px 32px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 16px; }
+  .signin h2 { font-size: 20px; font-weight: 800; font-style: italic; margin-bottom: 8px; }
+  .signin p { color: var(--text-muted); font-size: 14px; margin-bottom: 22px; }
+  .btn-discord { background: var(--discord); color: #fff; border-color: transparent; font-weight: 600; font-size: 14px; padding: 11px 18px; border-radius: 10px; }
+  .btn-discord:hover:not(:disabled) { background: #4954da; }
+
+  footer { border-top: 1px solid var(--hairline); padding: 20px 0; color: var(--text-faint); font-size: 13px; }
+  footer .wrap { display: flex; gap: 18px; flex-direction: row; }
+  footer a { color: var(--text-2); }
+
+  /* ── Run view ── */
+  .run { position: fixed; inset: 0; z-index: 60; background: var(--bg); display: none; flex-direction: column; }
+  .run.open { display: flex; }
+  .run-bar { display: flex; align-items: center; gap: 14px; padding: 10px 18px; border-bottom: 1px solid var(--hairline); background: var(--bg); flex-wrap: wrap; }
+  .run-bar h3 { font-size: 15px; font-weight: 800; font-style: italic; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .run-bar .titlebox { flex: 1; min-width: 160px; }
+  .run-bar .titlerow { display: flex; align-items: center; gap: 10px; }
+  .run-bar .meta { font-family: var(--mono); font-size: 10px; letter-spacing: .06em; color: var(--text-faint); text-transform: uppercase; margin-top: 2px; }
+  .run-pill { font-family: var(--mono); font-size: 9px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; padding: 3px 9px; border-radius: 4px; border: 1px solid transparent; white-space: nowrap; }
+  .run-body { flex: 1; min-height: 0; display: flex; }
+  .run-left { width: 400px; flex-shrink: 0; overflow-y: auto; border-right: 1px solid var(--hairline); padding: 18px; display: flex; flex-direction: column; gap: 16px; background: var(--bg-sunken); }
+  .run-right { flex: 1; min-width: 0; display: flex; }
+  .run-right iframe { flex: 1; width: 100%; border: 0; background: var(--bg); }
+  .run-empty { flex: 1; display: grid; place-items: center; color: var(--text-muted); font-size: 14px; text-align: center; padding: 40px; }
+  .run-empty strong { color: var(--text); display: block; margin-bottom: 4px; }
+  .run-empty .big { font-size: 34px; margin-bottom: 10px; }
+  @media (max-width: 900px) { .run-left { width: 100%; } .run-right { display: none; } }
+
+  .qlabel { font-family: var(--mono); font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .16em; color: var(--text-faint); margin-bottom: 10px; }
+  .qlabel.red { color: var(--accent); }
+  .qlabel.blue { color: var(--st-reg); }
+  .rep-card { border: 1px solid var(--border); border-radius: 12px; padding: 13px 14px; background: var(--bg-card); margin-bottom: 10px; }
+  .rep-card .lbl { font-family: var(--mono); color: var(--text-faint); font-size: 10px; letter-spacing: .08em; text-transform: uppercase; margin-bottom: 9px; }
+  .rep-vs { display: flex; gap: 8px; margin-bottom: 9px; align-items: stretch; }
+  .rep-vs .vs { align-self: center; font-family: var(--mono); font-size: 10px; color: var(--text-faint); }
+  .wbtn { flex: 1; min-width: 0; padding: 10px 8px; border-radius: 8px; border: 1px solid var(--border-strong); background: transparent; color: var(--text); font-weight: 700; font-size: 13.5px; cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .wbtn:hover { border-color: var(--accent); }
+  .wbtn.on { border-color: var(--accent); background: rgba(255,21,77,.16); color: #fff; }
+  .rep-score { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .rep-score .slbl { font-family: var(--mono); font-size: 10px; color: var(--text-faint); letter-spacing: .06em; }
+  .schip { padding: 6px 13px; border-radius: 6px; border: 1px solid var(--border-strong); background: transparent; color: var(--text-2); font-family: var(--mono); font-weight: 700; font-size: 12px; cursor: pointer; }
+  .schip.on { border-color: var(--accent); background: rgba(255,21,77,.16); color: #fff; }
+  .rep-score input.free { background: var(--bg-deep); border: 1px solid var(--border-strong); color: var(--text); font-family: var(--mono); font-size: 12px; border-radius: 6px; padding: 6px 9px; width: 110px; }
+  .rep-go { margin-left: auto; padding: 7px 16px; border-radius: 8px; border: 1px solid transparent; background: var(--accent); color: #fff; font-weight: 700; font-size: 12.5px; cursor: pointer; }
+  .rep-go:hover { background: var(--accent-hover); }
+  .rep-go.dim { opacity: .45; }
+  .caught-up { border: 1px dashed var(--border-strong); border-radius: 12px; padding: 18px; color: var(--text-muted); font-size: 13px; text-align: center; }
+
+  .dec-row { border: 1px solid var(--hairline); border-radius: 10px; background: #10141D; margin-bottom: 6px; }
+  .dec-head { display: flex; align-items: center; gap: 9px; padding: 9px 12px; font-size: 12.5px; width: 100%; background: none; border: 0; color: var(--text); cursor: pointer; text-align: left; font-family: var(--sans); }
+  .dec-head:hover { background: var(--bg-hover); }
+  .dec-head .n { font-family: var(--mono); color: var(--text-faint); font-size: 10px; min-width: 26px; }
+  .dec-head .who { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .dec-head .who b { font-weight: 700; }
+  .dec-head .who .d { color: var(--text-faint); }
+  .dec-head .who .l { color: var(--text-muted); }
+  .dec-head .sc { font-family: var(--mono); font-size: 11px; color: var(--text-muted); }
+  .dec-fix { display: none; gap: 7px; align-items: center; padding: 0 12px 11px; flex-wrap: wrap; }
+  .dec-fix.open { display: flex; }
+  .dec-fix .wsm { padding: 6px 12px; border-radius: 6px; border: 1px solid var(--border-strong); background: transparent; color: var(--text-2); font-weight: 600; font-size: 12px; cursor: pointer; max-width: 130px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .dec-fix .wsm.on { border-color: var(--accent); background: rgba(255,21,77,.16); color: #fff; }
+  .dec-fix .save { margin-left: auto; padding: 6px 13px; border-radius: 6px; border: 1px solid transparent; background: var(--accent); color: #fff; font-weight: 700; font-size: 11.5px; cursor: pointer; }
+  .dec-fix .save:hover { background: var(--accent-hover); }
+
+  .start-card { border: 1px solid var(--border); border-radius: 12px; padding: 16px; background: var(--bg-card); }
+  .start-card .row { display: flex; gap: 8px; align-items: center; font-size: 13px; color: var(--text-2); margin-bottom: 7px; }
+  .start-card .row:last-child { margin-bottom: 0; }
+  .start-card .ok { color: var(--ok); font-family: var(--mono); font-size: 11px; }
+  .start-card .nn { color: var(--text-faint); font-family: var(--mono); font-size: 11px; }
+
+  .ent-row { display: flex; align-items: center; gap: 10px; padding: 7px 9px; border-radius: 7px; font-size: 13px; }
+  .ent-row:hover { background: var(--bg-hover); }
+  .ent-row .nm { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
+  .ent-row .nm .sub { color: var(--text-faint); font-size: 10.5px; font-family: var(--mono); }
+  .ent-row.dq .nm { color: var(--text-faint); text-decoration: line-through; }
+
+  .edit-card { border: 1px solid var(--border); border-radius: 12px; padding: 16px; background: var(--bg-card); }
+  .field { display: flex; flex-direction: column; gap: 5px; margin-bottom: 11px; }
+  .field label { font-size: 12px; font-weight: 600; color: var(--text-2); }
+  .field input, .field select, .field textarea { background: var(--bg-deep); border: 1px solid var(--border-strong); color: var(--text); font-size: 13px; border-radius: 8px; padding: 9px 12px; color-scheme: dark; }
+
+  /* ── Create modal ── */
+  .modal { position: fixed; inset: 0; z-index: 70; background: rgba(5,9,14,.74); backdrop-filter: blur(6px); display: none; align-items: flex-start; justify-content: center; overflow-y: auto; padding: 48px 16px; }
   .modal.open { display: flex; }
-  .modal-card { background: var(--bg-elev); border: 1px solid var(--border-strong); border-radius: var(--r-lg); width: 100%; max-width: 640px; padding: 24px; }
-  .modal-card h3 { font-size: 17px; font-weight: 700; margin-bottom: 4px; }
-  .modal-card .sub { color: var(--fg-muted); font-size: 13px; margin-bottom: 18px; }
-  .modal-foot { display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; }
+  .modal-card { background: var(--bg-card); border: 1px solid var(--border-strong); border-radius: 16px; width: 100%; max-width: 620px; overflow: hidden; }
+  .modal-head { padding: 20px 24px 0; display: flex; align-items: baseline; gap: 12px; }
+  .modal-head h3 { font-size: 18px; font-weight: 800; font-style: italic; }
+  .modal-head .step { font-family: var(--mono); font-size: 10px; color: var(--text-faint); letter-spacing: .1em; }
+  .modal-head .close { margin-left: auto; background: none; border: 1px solid var(--border-strong); color: var(--text); border-radius: 6px; width: 28px; height: 28px; cursor: pointer; font-size: 14px; line-height: 1; }
+  .modal-head .close:hover { background: var(--bg-hover); }
+  .modal-body { padding: 16px 24px 24px; }
+  .modal-sub { color: var(--text-muted); font-size: 13px; margin-bottom: 16px; }
+  .tiles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+  @media (max-width: 560px) { .tiles { grid-template-columns: repeat(2, 1fr); } }
+  .tile { display: flex; flex-direction: column; align-items: center; gap: 9px; padding: 16px 10px 13px; border-radius: 12px; border: 1px solid var(--border); background: var(--bg-sunken); cursor: pointer; color: var(--text); }
+  .tile:hover { border-color: var(--accent); background: var(--bg-hover); }
+  .tile img, .tile .ph { width: 40px; height: 40px; border-radius: 9px; object-fit: contain; background: var(--bg-deep); padding: 3px; }
+  .tile .ph { display: grid; place-items: center; font-family: var(--mono); font-size: 18px; color: var(--text-muted); padding: 0; }
+  .tile .nm { font-size: 12.5px; font-weight: 700; text-align: center; }
+  .tile .df { font-family: var(--mono); font-size: 9px; color: var(--text-faint); letter-spacing: .05em; text-transform: uppercase; text-align: center; }
+  .picked-bar { display: flex; align-items: center; gap: 10px; padding: 10px 13px; border-radius: 10px; background: var(--bg-sunken); border: 1px solid var(--hairline); margin-bottom: 16px; }
+  .picked-bar img, .picked-bar .ph { width: 26px; height: 26px; border-radius: 6px; object-fit: contain; background: var(--bg-deep); padding: 2px; }
+  .picked-bar .ph { display: grid; place-items: center; font-family: var(--mono); font-size: 13px; color: var(--text-muted); padding: 0; }
+  .picked-bar .nm { font-weight: 700; font-size: 13px; }
+  .picked-bar .df { font-family: var(--mono); font-size: 10px; color: var(--text-faint); text-transform: uppercase; letter-spacing: .05em; }
+  .picked-bar .change { margin-left: auto; background: none; border: 0; color: var(--accent); font-size: 12px; font-weight: 600; cursor: pointer; }
+  .cgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 13px; }
+  .cgrid .full { grid-column: 1 / -1; }
+  @media (max-width: 560px) { .cgrid { grid-template-columns: 1fr; } }
+  .cgrid .field { margin-bottom: 0; }
+  .protag { font-family: var(--mono); font-size: 9px; color: #b07cd8; background: rgba(155,89,182,.15); padding: 2px 7px; border-radius: 4px; letter-spacing: .05em; }
+  .modal-foot { display: flex; justify-content: space-between; gap: 10px; margin-top: 20px; padding: 14px 24px; border-top: 1px solid var(--hairline); background: var(--bg-sunken); }
 
-  /* Toast */
-  .toast { position: fixed; left: 50%; bottom: 26px; transform: translateX(-50%) translateY(20px); z-index: 90; background: var(--bg-elev); border: 1px solid var(--border-strong); border-left: 3px solid var(--ok); border-radius: var(--r-md); padding: 11px 18px; font-size: 13px; font-weight: 600; opacity: 0; pointer-events: none; transition: opacity .18s, transform .18s; max-width: min(520px, 90vw); }
+  /* ── Toast ── */
+  .toast { position: fixed; left: 50%; bottom: 26px; transform: translateX(-50%) translateY(20px); z-index: 90; background: var(--bg-card); border: 1px solid var(--border-strong); border-left: 3px solid var(--ok); border-radius: 10px; padding: 11px 18px; font-size: 13px; font-weight: 600; opacity: 0; pointer-events: none; transition: opacity .18s, transform .18s; max-width: min(520px, 90vw); box-shadow: 0 10px 30px rgba(0,0,0,.45); }
   .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
   .toast.err { border-left-color: var(--accent); }
 
-  footer { border-top: 1px solid var(--border); padding: 22px 0; color: var(--fg-subtle); font-size: 13px; }
-  footer .wrap { display: flex; gap: 18px; }
-  footer a { color: var(--fg-muted); }
   @media (max-width: 640px) { .wrap { padding: 0 16px; } .brand .sub { display: none; } }
 </style>
 </head>
 <body>
 
 <nav><div class="wrap">
-  <a class="brand" href="/"><img class="mark" src="/clutch-icon.png" alt=""><img class="word" src="/clutch-wordmark.png" alt="CLUTCH"><span class="sub">Admin</span></a>
-  <div class="links">
+  <a class="brand" href="/">
+    <img class="mark" src="/clutch-icon.png" alt="">
+    <img class="word" src="/clutch-wordmark.png" alt="CLUTCH">
+    <span class="sub">Admin</span>
+  </a>
+  <div class="switcher" id="switcher" style="display:none">
+    <button class="switcher-btn" id="switcherBtn">
+      <span class="gtile" id="switcherIcon">?</span>
+      <span id="switcherName">Server</span>
+      <span class="switcher-caret">▾</span>
+    </button>
+    <div class="switcher-menu" id="switcherMenu" style="display:none"></div>
+  </div>
+  <div class="navlinks">
     <a href="/admin-manual.html">Admin Guide</a>
-    <a href="/faq">FAQ</a>
     <span id="navUser"></span>
   </div>
 </div></nav>
 
-<header><div class="wrap">
-  <span class="eyebrow">Admin dashboard</span>
-  <h1>Your tournaments</h1>
-  <p>Create, run and follow your tournaments from the browser. Signed in with Discord — you see only the servers you can manage.</p>
+<header class="page"><div class="wrap">
+  <div>
+    <span class="eyebrow">Admin dashboard</span>
+    <h1 id="pageTitle">Your tournaments</h1>
+    <p id="pageSub">Sign in to run tournaments from the browser.</p>
+  </div>
+  <button class="btn btn-accent btn-big" id="newBtn" style="margin-left:auto;display:none">＋ New tournament</button>
 </div></header>
 
 <main><div class="wrap" id="app">
-  <div class="empty"><div class="skel" style="max-width:360px;margin:0 auto"></div></div>
+  <div class="skel" style="max-width:420px"></div>
 </div></main>
-
-<!-- Detail overlay: bracket + manage tabs -->
-<div class="detail" id="detail" aria-hidden="true">
-  <div class="detail-bar">
-    <h3 id="detailTitle">Tournament</h3>
-    <div class="tabs" role="tablist">
-      <button class="tab active" id="tabBracket" role="tab">Bracket</button>
-      <button class="tab" id="tabManage" role="tab">Manage</button>
-    </div>
-    <a id="detailOpen" class="btn btn-ghost btn-sm" target="_blank" rel="noopener">Open in new tab ↗</a>
-    <button class="close" id="detailClose" aria-label="Close">✕</button>
-  </div>
-  <div class="detail-body">
-    <iframe id="detailFrame" title="Live bracket"></iframe>
-    <div class="manage" id="managePane" style="display:none"><div class="manage-inner" id="manageInner"></div></div>
-  </div>
-</div>
-
-<!-- Create tournament overlay -->
-<div class="modal" id="createModal" aria-hidden="true">
-  <div class="modal-card">
-    <h3>New tournament</h3>
-    <p class="sub">Creates and announces the tournament in Discord — signups happen there as usual.</p>
-    <div class="form-grid" id="createForm">
-      <div class="field"><label for="cGame">Game</label><select id="cGame"></select></div>
-      <div class="field"><label for="cChannel">Announcement channel</label><select id="cChannel"><option value="">Server default</option></select><span class="hint">Pick a channel to give this tournament its own — e.g. a region channel.</span></div>
-      <div class="field" id="cGameNameField" style="display:none"><label for="cGameName">Game name</label><input type="text" id="cGameName" maxlength="60" placeholder="e.g. Fortnite"></div>
-      <div class="field full"><label for="cTitle">Title</label><input type="text" id="cTitle" maxlength="100" placeholder="e.g. EU Summer Cup #1"></div>
-      <div class="field"><label for="cStart">Start time</label><input type="datetime-local" id="cStart"></div>
-      <div class="field"><label for="cMax">Max entrants</label><input type="number" id="cMax" min="2" max="512" value="16"></div>
-      <div class="field"><label for="cFormat">Format</label><select id="cFormat"></select></div>
-      <div class="field"><label for="cTeamSize">Team size</label><select id="cTeamSize"></select></div>
-      <div class="field"><label for="cBestOf">Best of</label><select id="cBestOf"></select></div>
-      <div class="field"><label style="display:flex;align-items:center;gap:8px;margin-top:22px;cursor:pointer"><input type="checkbox" id="cPublic" checked style="accent-color:var(--accent)"> Live web bracket <span class="hint">(Pro)</span></label></div>
-      <div class="field full"><label for="cDesc">Description <span class="hint">(optional)</span></label><textarea id="cDesc" rows="2" maxlength="1000" placeholder="Rules, prize, notes…"></textarea></div>
-    </div>
-    <div class="modal-foot">
-      <button class="btn btn-ghost" id="createCancel">Cancel</button>
-      <button class="btn btn-accent" id="createSubmit">Create &amp; announce</button>
-    </div>
-  </div>
-</div>
-
-<div class="toast" id="toast"></div>
 
 <footer><div class="wrap">
   <span>© CLUTCH</span>
@@ -245,27 +272,74 @@
   <a href="/contact">Contact</a>
 </div></footer>
 
+<!-- ══ Run view ══ -->
+<div class="run" id="run" aria-hidden="true">
+  <div class="run-bar">
+    <button class="btn" id="runBack">← Back</button>
+    <div class="titlebox">
+      <div class="titlerow">
+        <h3 id="runTitle">Tournament</h3>
+        <span class="run-pill" id="runPill"></span>
+      </div>
+      <div class="meta" id="runMeta"></div>
+    </div>
+    <span id="runActions" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"></span>
+    <a class="btn" id="runPublic" target="_blank" rel="noopener">Public page ↗</a>
+  </div>
+  <div class="run-body">
+    <div class="run-left" id="runLeft"></div>
+    <div class="run-right" id="runRight"></div>
+  </div>
+</div>
+
+<!-- ══ Create modal ══ -->
+<div class="modal" id="createModal" aria-hidden="true">
+  <div class="modal-card">
+    <div class="modal-head">
+      <h3>New tournament</h3>
+      <span class="step" id="createStepLabel">Step 1 of 2</span>
+      <button class="close" id="createClose" aria-label="Close">✕</button>
+    </div>
+    <div id="createBody"></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
 <script>
-const app = document.getElementById('app');
-const navUser = document.getElementById('navUser');
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const $ = id => document.getElementById(id);
 
 const FORMAT_NAMES = {
   single_elimination: 'Single Elim', double_elimination: 'Double Elim',
   swiss: 'Swiss', round_robin: 'Round Robin', battle_royale: 'Battle Royale',
 };
-const STATUS_LABEL = {
-  registration: 'Registration', checkin: 'Check-in', active: 'Live',
-  completed: 'Final', cancelled: 'Cancelled',
+const STATUS = {
+  registration: { label: 'Registration', color: 'var(--st-reg)' },
+  checkin:      { label: 'Check-in',     color: 'var(--st-check)' },
+  active:       { label: 'Live',         color: 'var(--st-live)' },
+  completed:    { label: 'Final',        color: 'var(--st-done)' },
+  cancelled:    { label: 'Cancelled',    color: 'var(--st-done)' },
+};
+const RUN_PILL = {
+  active:       'background:var(--accent);color:#fff;border-color:transparent',
+  registration: 'background:rgba(88,185,255,.14);color:var(--st-reg);border-color:rgba(88,185,255,.4)',
+  checkin:      'background:rgba(255,194,75,.14);color:var(--st-check);border-color:rgba(255,194,75,.4)',
+  completed:    'background:transparent;color:var(--text-muted);border-color:var(--border-strong)',
+  cancelled:    'background:transparent;color:var(--text-muted);border-color:var(--border-strong)',
 };
 
-let ME = null;
-let META = null;
+let ME = null, META = null;
 let activeGuild = null;
-let currentTournament = null;   // { id, title }
+let TOURNEYS = [];
+let FILTER = 'all';
+let runTournament = null;      // { id, title, publicBracket }
 let manageData = null;
+let SEL = {};                  // matchNumber -> { winner, score }
+let openFix = null;
+let editOpen = false;
 
-// ── API helper ───────────────────────────────────────────────────────────────
+// ── helpers (api / toast / armConfirm) ──────────────────────────────────────
 async function api(path, { method = 'GET', body } = {}) {
   const headers = {};
   if (method !== 'GET') {
@@ -285,10 +359,9 @@ async function api(path, { method = 'GET', body } = {}) {
   return { ok: true, status: res.status, data };
 }
 
-// ── Toast ────────────────────────────────────────────────────────────────────
 let toastTimer = null;
 function toast(msg, isErr = false) {
-  const el = document.getElementById('toast');
+  const el = $('toast');
   el.textContent = msg;
   el.classList.toggle('err', isErr);
   el.classList.add('show');
@@ -296,25 +369,53 @@ function toast(msg, isErr = false) {
   toastTimer = setTimeout(() => el.classList.remove('show'), isErr ? 6000 : 3500);
 }
 
-// ── Boot / auth states ───────────────────────────────────────────────────────
+/** Two-step confirm: first click arms ("Sure?"), second fires; 3.5s revert. */
+function armConfirm(btn, label, armedLabel, fn) {
+  btn.addEventListener('click', async () => {
+    if (btn.dataset.armed) {
+      delete btn.dataset.armed;
+      btn.textContent = label;
+      btn.disabled = true;
+      await fn();
+      btn.disabled = false;
+      return;
+    }
+    btn.dataset.armed = '1';
+    btn.textContent = armedLabel;
+    setTimeout(() => { if (btn.dataset.armed) { delete btn.dataset.armed; btn.textContent = label; } }, 3500);
+  });
+}
+
+function toDatetimeLocal(iso) {
+  if (!iso) return '';
+  const dt = new Date(iso);
+  if (isNaN(dt)) return '';
+  const pad = n => String(n).padStart(2, '0');
+  return `${dt.getFullYear()}-${pad(dt.getMonth() + 1)}-${pad(dt.getDate())}T${pad(dt.getHours())}:${pad(dt.getMinutes())}`;
+}
+
+// ── Boot / auth ─────────────────────────────────────────────────────────────
 async function boot() {
   let res;
   try { res = await fetch('/admin/api/me', { cache: 'no-store' }); }
   catch { return renderError(); }
   if (res.status === 401) return renderSignedOut();
   if (!res.ok) return renderError();
-
   ME = await res.json();
   renderNavUser();
   renderShell();
 }
 
 function renderSignedOut() {
-  navUser.innerHTML = '';
-  app.innerHTML = `
-    <div class="card signin">
-      <h2>Sign in to manage your tournaments</h2>
-      <p>Log in with Discord to see the servers you administer and their tournaments, brackets and results.</p>
+  $('navUser').innerHTML = '';
+  $('switcher').style.display = 'none';
+  $('newBtn').style.display = 'none';
+  $('pageTitle').textContent = 'Your tournaments';
+  $('pageSub').textContent = 'Sign in to run tournaments from the browser.';
+  $('app').innerHTML = `
+    <div class="signin">
+      <h2>Sign in to run your tournaments</h2>
+      <p>Log in with Discord to create, start, report and correct — with live brackets, from any browser.</p>
       <a class="btn btn-discord" href="/admin/login">
         <svg width="18" height="18" viewBox="0 0 127 96" fill="currentColor" aria-hidden="true"><path d="M107.7 8.07A105.15 105.15 0 0 0 81.47 0a72.06 72.06 0 0 0-3.36 6.83 97.68 97.68 0 0 0-29.11 0A72.37 72.37 0 0 0 45.64 0a105.89 105.89 0 0 0-26.25 8.09C2.79 32.65-1.71 56.6.54 80.21a105.73 105.73 0 0 0 32.17 16.15 77.7 77.7 0 0 0 6.89-11.11 68.42 68.42 0 0 1-10.85-5.18c.91-.66 1.8-1.34 2.66-2a75.57 75.57 0 0 0 64.32 0c.87.71 1.76 1.39 2.66 2a68.68 68.68 0 0 1-10.87 5.19 77 77 0 0 0 6.89 11.1 105.25 105.25 0 0 0 32.19-16.14c2.64-27.38-4.51-51.11-18.9-72.15ZM42.45 65.69C36.18 65.69 31 60 31 53s5-12.74 11.43-12.74S54 46 53.89 53s-5.05 12.69-11.44 12.69Zm42.24 0C78.41 65.69 73.25 60 73.25 53s5-12.74 11.44-12.74S96.23 46 96.12 53s-5.04 12.69-11.43 12.69Z"/></svg>
         Sign in with Discord
@@ -323,439 +424,493 @@ function renderSignedOut() {
 }
 
 function renderError() {
-  navUser.innerHTML = '';
-  app.innerHTML = `<div class="card empty"><strong>Something went wrong</strong>Couldn't reach the server. <a href="/admin">Try again</a>.</div>`;
+  $('app').innerHTML = `<div class="empty-card"><strong>Something went wrong</strong>Couldn't reach the server. <a href="/admin" style="color:var(--accent)">Try again</a>.</div>`;
 }
 
 function renderNavUser() {
-  navUser.innerHTML = `<span class="userchip">${ME.user.avatar ? `<img src="${esc(ME.user.avatar)}" alt="">` : ''}${esc(ME.user.username)}</span> <a href="/admin/logout" style="margin-left:14px">Log out</a>`;
+  const av = ME.user.avatar ? `<img src="${esc(ME.user.avatar)}" alt="">` : esc((ME.user.username || '?').slice(0, 1).toUpperCase());
+  $('navUser').innerHTML = `<span class="userchip"><span class="av">${av}</span>${esc(ME.user.username)}</span> <a class="logout" href="/admin/logout" style="margin-left:14px">Log out</a>`;
 }
 
-// ── Shell: guilds + tournament list ─────────────────────────────────────────
+// ── Server switcher ─────────────────────────────────────────────────────────
+function renderSwitcher() {
+  const sw = $('switcher');
+  if (!ME.guilds.length) { sw.style.display = 'none'; return; }
+  sw.style.display = '';
+  const g = ME.guilds.find(x => x.id === activeGuild) || ME.guilds[0];
+  $('switcherIcon').innerHTML = g.icon ? `<img src="${esc(g.icon)}" alt="">` : esc((g.name || '?').slice(0, 1).toUpperCase());
+  $('switcherName').textContent = g.name;
+  $('switcherMenu').innerHTML = ME.guilds.map(x => `
+    <button class="switcher-item" data-id="${esc(x.id)}">
+      <span class="gtile">${x.icon ? `<img src="${esc(x.icon)}" alt="">` : esc((x.name || '?').slice(0, 1).toUpperCase())}</span>
+      <span class="nm">${esc(x.name)}</span>
+      <span class="check">${x.id === activeGuild ? '✓' : ''}</span>
+    </button>`).join('');
+  $('switcherMenu').querySelectorAll('.switcher-item').forEach(btn => {
+    btn.addEventListener('click', () => { closeSwitcher(); selectGuild(btn.dataset.id); });
+  });
+}
+function closeSwitcher() { $('switcherMenu').style.display = 'none'; }
+$('switcherBtn').addEventListener('click', e => {
+  e.stopPropagation();
+  const m = $('switcherMenu');
+  m.style.display = m.style.display === 'none' ? '' : 'none';
+});
+document.addEventListener('click', e => { if (!$('switcher').contains(e.target)) closeSwitcher(); });
+
+// ── Shell / list ────────────────────────────────────────────────────────────
 function renderShell() {
   if (!ME.guilds.length) {
-    app.innerHTML = `<div class="card empty"><strong>No manageable servers</strong>You're not an admin on any server that has the CLUTCH bot. <a href="/">Add the bot</a> or ask a server admin for a tournament-admin role.</div>`;
+    $('app').innerHTML = `<div class="empty-card"><strong>No manageable servers</strong>You're not an admin on any server that has the CLUTCH bot. <a href="/" style="color:var(--accent)">Add the bot</a> or ask a server admin for a tournament-admin role.</div>`;
     return;
   }
-  app.innerHTML = `
-    <div class="grid">
-      <aside>
-        <div class="eyebrow side-title">Your servers</div>
-        <div class="guilds" id="guilds"></div>
-      </aside>
-      <section class="panel">
-        <div class="panel-head">
-          <h2 id="panelTitle">Tournaments</h2>
-          <button class="btn btn-accent btn-sm" id="newBtn" disabled>＋ New tournament</button>
-        </div>
-        <div id="tourneys"><div class="muted">Select a server to view its tournaments.</div></div>
-      </section>
-    </div>`;
-
-  const guildsEl = document.getElementById('guilds');
-  guildsEl.innerHTML = ME.guilds.map(g => `
-    <button class="guild" data-id="${esc(g.id)}">
-      <span class="gicon">${g.icon ? `<img src="${esc(g.icon)}" alt="">` : esc((g.name || '?').slice(0,1).toUpperCase())}</span>
-      <span class="gname">${esc(g.name)}</span>
-    </button>`).join('');
-
-  guildsEl.querySelectorAll('.guild').forEach(btn => {
-    btn.addEventListener('click', () => selectGuild(btn.dataset.id, btn));
-  });
-  document.getElementById('newBtn').addEventListener('click', openCreate);
-
-  const first = guildsEl.querySelector('.guild');
-  if (first) selectGuild(first.dataset.id, first);
+  activeGuild = ME.guilds[0].id;
+  $('newBtn').style.display = '';
+  renderSwitcher();
+  selectGuild(activeGuild);
 }
 
-async function selectGuild(guildId, btn) {
+async function selectGuild(guildId) {
   activeGuild = guildId;
-  document.querySelectorAll('.guild').forEach(b => b.classList.toggle('active', b === btn));
-  const guild = ME.guilds.find(g => g.id === guildId);
-  document.getElementById('panelTitle').textContent = guild ? guild.name : 'Tournaments';
-  document.getElementById('newBtn').disabled = false;
+  FILTER = 'all';
+  renderSwitcher();
+  const g = ME.guilds.find(x => x.id === guildId);
+  $('pageTitle').textContent = g ? g.name : 'Your tournaments';
+  $('pageSub').textContent = 'Loading…';
   await reloadTournaments();
 }
 
 async function reloadTournaments() {
-  const box = document.getElementById('tourneys');
-  if (!box) return;
-  box.innerHTML = '<div class="tlist"><div class="skel"></div><div class="skel"></div><div class="skel"></div></div>';
   const guildId = activeGuild;
+  $('app').innerHTML = '<div style="display:flex;flex-direction:column;gap:10px"><div class="skel"></div><div class="skel"></div><div class="skel"></div></div>';
   const res = await api(`/admin/api/guilds/${encodeURIComponent(guildId)}/tournaments`);
-  if (guildId !== activeGuild) return; // a newer selection won
-  if (!res.ok) { box.innerHTML = `<div class="empty">Couldn't load tournaments.</div>`; return; }
-  renderTournaments(box, res.data.tournaments || []);
+  if (guildId !== activeGuild) return;
+  if (!res.ok) { $('app').innerHTML = `<div class="empty-card">Couldn't load tournaments.</div>`; return; }
+  TOURNEYS = res.data.tournaments || [];
+  renderList();
+  loadAttention(guildId);
 }
 
-function renderTournaments(box, list) {
-  if (!list.length) {
-    box.innerHTML = `<div class="empty"><strong>No tournaments yet</strong>Create one with the ＋ button above, or in Discord with <span class="mono">/tournament create</span>.</div>`;
-    return;
+function statusKey(s) { return s === 'registration' || s === 'checkin' ? 'upcoming' : s === 'active' ? 'active' : 'completed'; }
+
+function renderList() {
+  const counts = { all: TOURNEYS.length, active: 0, upcoming: 0, completed: 0 };
+  for (const t of TOURNEYS) counts[statusKey(t.status)]++;
+
+  $('pageSub').textContent = `${counts.all} tournament${counts.all === 1 ? '' : 's'}` + (counts.active ? ` · ${counts.active} live` : '');
+
+  const filtered = TOURNEYS.filter(t => FILTER === 'all' ? true : statusKey(t.status) === FILTER);
+
+  let html = `<div id="attention"></div><div>
+    <div class="filters">${[
+      ['all', `All · ${counts.all}`], ['active', `Live · ${counts.active}`],
+      ['upcoming', `Upcoming · ${counts.upcoming}`], ['completed', `Done · ${counts.completed}`],
+    ].map(([k, l]) => `<button class="fpill ${FILTER === k ? 'on' : ''}" data-f="${k}">${l}</button>`).join('')}</div>`;
+
+  if (!filtered.length) {
+    html += `<div class="empty-card"><strong>${TOURNEYS.length ? 'Nothing here' : 'No tournaments yet'}</strong>${TOURNEYS.length ? 'No tournaments match this filter.' : 'Create one with the ＋ button above, or in Discord with <span class="mono">/tournament create</span>.'}</div>`;
+  } else {
+    html += `<div class="tlist">${filtered.map(t => {
+      const st = STATUS[t.status] || STATUS.completed;
+      const teamMode = t.teamSize > 1 ? `${t.teamSize}v${t.teamSize}` : 'Solo';
+      const meta = [t.game, FORMAT_NAMES[t.format] || t.format, teamMode,
+        t.format !== 'battle_royale' && t.bestOf > 1 ? `Bo${t.bestOf}` : '',
+        `${t.entrants}/${t.maxParticipants}`].filter(Boolean).join(' · ');
+      const action = t.status === 'active' ? 'Run' : (t.status === 'completed' || t.status === 'cancelled') ? 'Results' : 'Manage';
+      const accent = t.status === 'active';
+      return `<div class="trow" data-id="${esc(t.id)}" style="border-left-color:${st.color}">
+        <img class="logo" src="${esc(t.gameLogo || '/clutch-icon.png')}" alt="">
+        <div style="flex:1;min-width:0"><div class="t">${esc(t.title)}</div><div class="m">${esc(meta)}</div></div>
+        <span class="tstatus" style="color:${st.color}"><span class="dot"></span>${st.label}</span>
+        <button class="btn ${accent ? 'btn-accent' : ''}" data-open="${esc(t.id)}" style="flex-shrink:0;font-size:12.5px;padding:7px 14px">${action}</button>
+      </div>`;
+    }).join('')}</div>`;
   }
-  box.innerHTML = `<div class="tlist">${list.map(rowHtml).join('')}</div>`;
-  box.querySelectorAll('.trow').forEach(row => {
-    row.addEventListener('click', () => openDetail(row.dataset.id, row.dataset.title, row.dataset.status));
-  });
+  html += '</div>';
+  $('app').innerHTML = html;
+
+  $('app').querySelectorAll('.fpill').forEach(b => b.addEventListener('click', () => { FILTER = b.dataset.f; renderList(); loadAttention(activeGuild); }));
+  $('app').querySelectorAll('.trow').forEach(row => row.addEventListener('click', () => openRun(row.dataset.id)));
 }
 
-function rowHtml(t) {
-  const teamMode = t.teamSize > 1 ? `${t.teamSize}v${t.teamSize}` : 'Solo';
-  const meta = [
-    `<span class="mono">${esc(t.game)}</span>`,
-    esc(FORMAT_NAMES[t.format] || t.format),
-    teamMode,
-    t.format !== 'battle_royale' && t.bestOf > 1 ? `Bo${t.bestOf}` : '',
-    `${t.entrants}/${t.maxParticipants} entrants`,
-  ].filter(Boolean).map(m => `<span>${m}</span>`).join('');
-  const statusCls = t.status || 'registration';
-  return `
-    <div class="trow" data-id="${esc(t.id)}" data-title="${esc(t.title)}" data-status="${esc(t.status)}">
-      <span class="tlogo">${t.gameLogo ? `<img src="${esc(t.gameLogo)}" alt="">` : ''}</span>
-      <div class="tmain">
-        <div class="tname">${esc(t.title)}</div>
-        <div class="tmeta">${meta}</div>
-      </div>
-      <span class="pill ${statusCls}">${esc(STATUS_LABEL[t.status] || t.status)}</span>
-      <span class="arrow">›</span>
-    </div>`;
+// "Needs your attention": live tournaments with pending results (max 3 probes)
+async function loadAttention(guildId) {
+  const holder = $('attention');
+  if (!holder) return;
+  const actives = TOURNEYS.filter(t => t.status === 'active').slice(0, 3);
+  if (!actives.length) { holder.innerHTML = ''; return; }
+  const probes = await Promise.all(actives.map(t =>
+    api(`/admin/api/tournaments/${encodeURIComponent(t.id)}/manage`).then(r => ({ t, r }))));
+  if (guildId !== activeGuild) return;
+  const holder2 = $('attention');
+  if (!holder2) return;
+
+  const cards = [];
+  let waiting = 0;
+  for (const { t, r } of probes) {
+    if (!r.ok || !r.data.counts.pending) continue;
+    waiting += r.data.counts.pending;
+    const pend = r.data.matches.filter(m => !m.winnerId && m.participant1 && m.participant2);
+    const where = pend[0]?.roundName || (pend[0]?.round ? `Round ${pend[0].round}` : '');
+    cards.push(`<div class="attn-card">
+      <img src="${esc(t.gameLogo || '/clutch-icon.png')}" alt="">
+      <div style="flex:1;min-width:0"><div class="t">${esc(t.title)}</div>
+      <div class="r">${r.data.counts.pending} match result${r.data.counts.pending === 1 ? '' : 's'} pending${where ? ` · ${esc(where)} in progress` : ''}</div></div>
+      <button class="btn btn-accent" data-open="${esc(t.id)}">Report results →</button>
+    </div>`);
+  }
+  if (!cards.length) { holder2.innerHTML = ''; return; }
+  holder2.innerHTML = `<div class="attn-label"><span class="dot"></span>Needs your attention</div>${cards.join('')}`;
+  holder2.querySelectorAll('[data-open]').forEach(b => b.addEventListener('click', e => { e.stopPropagation(); openRun(b.dataset.open); }));
+  $('pageSub').textContent = `${TOURNEYS.length} tournament${TOURNEYS.length === 1 ? '' : 's'} · ${waiting} result${waiting === 1 ? '' : 's'} waiting on you`;
 }
 
-// ── Detail overlay (Bracket / Manage tabs) ──────────────────────────────────
-const detail = document.getElementById('detail');
-const detailFrame = document.getElementById('detailFrame');
-const managePane = document.getElementById('managePane');
-const manageInner = document.getElementById('manageInner');
-const tabBracket = document.getElementById('tabBracket');
-const tabManage = document.getElementById('tabManage');
-
-function openDetail(id, title, status) {
-  currentTournament = { id, title };
-  document.getElementById('detailTitle').textContent = title || 'Tournament';
-  const url = `/admin/b/${encodeURIComponent(id)}`;
-  document.getElementById('detailOpen').href = url;
-  detailFrame.src = url;
-  detail.classList.add('open');
-  detail.setAttribute('aria-hidden', 'false');
+// ── Run view ────────────────────────────────────────────────────────────────
+function openRun(id) {
+  const t = TOURNEYS.find(x => x.id === id);
+  runTournament = t ? { id: t.id, title: t.title, publicBracket: !!t.publicBracket } : { id, title: 'Tournament', publicBracket: false };
+  SEL = {}; openFix = null; editOpen = false;
+  $('run').classList.add('open');
+  $('run').setAttribute('aria-hidden', 'false');
   document.body.style.overflow = 'hidden';
-  // Registration-phase tournaments open on Manage (that's where the work is);
-  // running/finished ones open on the bracket.
-  switchTab(status === 'registration' || status === 'checkin' ? 'manage' : 'bracket');
+  $('runTitle').textContent = runTournament.title;
+  $('runPill').textContent = '';
+  $('runMeta').textContent = '';
+  $('runLeft').innerHTML = '<div class="skel"></div>';
+  $('runRight').innerHTML = '';
+  loadRun();
 }
 
-function switchTab(which) {
-  const bracket = which === 'bracket';
-  tabBracket.classList.toggle('active', bracket);
-  tabManage.classList.toggle('active', !bracket);
-  detailFrame.style.display = bracket ? '' : 'none';
-  managePane.style.display = bracket ? 'none' : '';
-  if (!bracket) loadManage();
-}
-tabBracket.addEventListener('click', () => switchTab('bracket'));
-tabManage.addEventListener('click', () => switchTab('manage'));
-
-function closeDetail() {
-  detail.classList.remove('open');
-  detail.setAttribute('aria-hidden', 'true');
-  detailFrame.src = 'about:blank';
-  manageInner.innerHTML = '';
-  currentTournament = null;
+function closeRun() {
+  $('run').classList.remove('open');
+  $('run').setAttribute('aria-hidden', 'true');
+  $('runRight').innerHTML = '';
+  runTournament = null; manageData = null;
   document.body.style.overflow = '';
   reloadTournaments();
 }
-document.getElementById('detailClose').addEventListener('click', closeDetail);
+$('runBack').addEventListener('click', closeRun);
 document.addEventListener('keydown', e => {
   if (e.key !== 'Escape') return;
-  if (document.getElementById('createModal').classList.contains('open')) return closeCreate();
-  if (detail.classList.contains('open')) closeDetail();
+  if ($('createModal').classList.contains('open')) return closeCreate();
+  if ($('run').classList.contains('open')) closeRun();
 });
 
-// ── Manage tab ───────────────────────────────────────────────────────────────
-async function loadManage() {
-  if (!currentTournament) return;
-  const id = currentTournament.id;
-  manageInner.innerHTML = '<div class="skel"></div>';
+async function loadRun() {
+  if (!runTournament) return;
+  const id = runTournament.id;
   const res = await api(`/admin/api/tournaments/${encodeURIComponent(id)}/manage`);
-  // Discard stale responses: overlay closed or switched tournaments mid-fetch
-  if (currentTournament?.id !== id) return;
-  if (!res.ok) { manageInner.innerHTML = `<div class="empty">${esc(res.error)}</div>`; return; }
+  if (runTournament?.id !== id) return;         // closed/switched mid-fetch
+  if (!res.ok) { $('runLeft').innerHTML = `<div class="caught-up">${esc(res.error)}</div>`; return; }
   manageData = res.data;
-  renderManage(manageData);
+  renderRun();
 }
 
-async function refreshAfterAction() {
-  detailFrame.src = detailFrame.src; // reload the bracket iframe
-  await loadManage();
+async function refreshRun() {
+  const iframe = $('runRight').querySelector('iframe');
+  if (iframe) iframe.src = iframe.src;
+  await loadRun();
 }
 
-/** Two-step confirm: first click arms the button, second click fires. */
-function armConfirm(btn, label, fn) {
-  btn.addEventListener('click', async () => {
-    if (btn.dataset.armed) {
-      btn.disabled = true;
-      await fn();
-      btn.disabled = false;
-      delete btn.dataset.armed;
-      btn.textContent = label;
-      return;
+function renderRun() {
+  const d = manageData;
+  runTournament.title = d.title;
+  $('runTitle').textContent = d.title;
+
+  const st = STATUS[d.status] || STATUS.completed;
+  const pill = $('runPill');
+  pill.textContent = st.label;
+  pill.style.cssText = RUN_PILL[d.status] || RUN_PILL.completed;
+
+  const teamMode = d.teamSize > 1 ? `${d.teamSize}v${d.teamSize}` : 'Solo';
+  $('runMeta').textContent = [FORMAT_NAMES[d.format] || d.format, teamMode,
+    d.bestOf > 1 ? `Bo${d.bestOf}` : '', `${d.counts.entrants}/${d.maxParticipants} entrants`].filter(Boolean).join(' · ');
+
+  $('runPublic').href = runTournament.publicBracket ? `/b/${encodeURIComponent(d.id)}` : `/admin/b/${encodeURIComponent(d.id)}`;
+
+  // bar actions
+  const actions = $('runActions');
+  actions.innerHTML = '';
+  if (d.can.edit) {
+    const b = document.createElement('button');
+    b.className = 'btn'; b.textContent = '✏️ Edit';
+    b.addEventListener('click', () => { editOpen = !editOpen; renderRunLeft(); });
+    actions.appendChild(b);
+  }
+  if (d.can.createRooms) {
+    const b = document.createElement('button');
+    b.className = 'btn'; b.textContent = 'Create missing rooms';
+    b.addEventListener('click', async () => {
+      b.disabled = true;
+      const r = await api(`/admin/api/tournaments/${d.id}/create-rooms`, { method: 'POST', body: {} });
+      b.disabled = false;
+      if (!r.ok) return toast(r.error, true);
+      toast(`Rooms: ${r.data.created} created, ${r.data.existing} already existed${r.data.failed ? `, ${r.data.failed} failed` : ''}`, false);
+      refreshRun();
+    });
+    actions.appendChild(b);
+  }
+  if (d.can.start) {
+    const b = document.createElement('button');
+    b.className = 'btn btn-accent'; b.textContent = '🚀 Start tournament';
+    armConfirm(b, '🚀 Start tournament', 'Really start now?', async () => {
+      toast('Starting… creating match rooms');
+      const r = await api(`/admin/api/tournaments/${d.id}/start`, { method: 'POST', body: {} });
+      if (!r.ok) return toast(r.error, true);
+      toast(`Started — ${r.data.roomsCreated} rooms created${r.data.roomsFailed ? `, ${r.data.roomsFailed} failed` : ''}`);
+      refreshRun();
+    });
+    actions.appendChild(b);
+  }
+  if (d.can.cancel) {
+    const b = document.createElement('button');
+    b.className = 'btn btn-danger'; b.textContent = 'Cancel';
+    armConfirm(b, 'Cancel', 'Really cancel?', async () => {
+      const r = await api(`/admin/api/tournaments/${d.id}/cancel`, { method: 'POST', body: {} });
+      if (!r.ok) return toast(r.error, true);
+      toast('Tournament cancelled');
+      closeRun();
+    });
+    actions.appendChild(b);
+  }
+
+  renderRunLeft();
+
+  // right pane
+  const right = $('runRight');
+  const showBracket = d.status === 'active' || d.status === 'completed' || d.status === 'cancelled';
+  if (showBracket) {
+    if (!right.querySelector('iframe')) {
+      right.innerHTML = `<iframe src="/admin/b/${encodeURIComponent(d.id)}" title="Live bracket"></iframe>`;
     }
-    btn.dataset.armed = '1';
-    btn.textContent = `Really ${label.replace(/^[^\p{L}]+\s*/u, '').toLowerCase()}?`;
-    setTimeout(() => { if (btn.dataset.armed) { delete btn.dataset.armed; btn.textContent = label; } }, 3500);
-  });
+  } else {
+    right.innerHTML = `<div class="run-empty"><div><div class="big">🏆</div><strong>Bracket appears when the tournament starts</strong>Seeds lock in and match rooms are created at start.</div></div>`;
+  }
 }
 
-function renderManage(d) {
+function renderRunLeft() {
+  const d = manageData;
+  const left = $('runLeft');
   const pending = d.matches.filter(m => !m.winnerId && m.participant1 && m.participant2);
   const decided = d.matches.filter(m => m.winnerId);
+  const isBR = d.format === 'battle_royale';
 
-  manageInner.innerHTML = `
-    <div class="actionbar">
-      <span class="pill ${esc(d.status)}">${esc(STATUS_LABEL[d.status] || d.status)}</span>
-      <span class="muted">${d.counts.entrants}/${d.maxParticipants} entrants${d.bestOf > 1 ? ` · Bo${d.bestOf}` : ''} · ${esc(FORMAT_NAMES[d.format] || d.format)}</span>
-      <span class="spacer"></span>
-      ${d.can.edit ? '<button class="btn btn-ghost btn-sm" id="mEdit">✏️ Edit</button>' : ''}
-      ${d.can.createRooms ? '<button class="btn btn-ghost btn-sm" id="mRooms">Create missing rooms</button>' : ''}
-      ${d.can.start ? '<button class="btn btn-accent btn-sm" id="mStart">🚀 Start tournament</button>' : ''}
-      ${d.can.cancel ? '<button class="btn btn-danger btn-sm" id="mCancel">Cancel tournament</button>' : ''}
-    </div>
-    <div id="mEditForm" style="display:none"></div>
-    <div class="mgrid">
-      <div class="box">
-        <div class="box-title"><span>Entrants (${d.counts.entrants})</span></div>
-        <div id="mEntrants">${d.entrants.length ? '' : '<div class="muted">No entrants yet.</div>'}</div>
-      </div>
-      <div>
-        ${d.status === 'active' && d.format !== 'battle_royale' ? `
-        <div class="box" style="margin-bottom:18px">
-          <div class="box-title"><span>Report a result (${pending.length} pending)</span></div>
-          <div id="mPending">${pending.length ? '' : '<div class="muted">No matches waiting for a result.</div>'}</div>
-        </div>` : ''}
-        ${d.can.correct && decided.length ? `
-        <div class="box">
-          <div class="box-title"><span>Decided matches — correct a mistake</span></div>
-          <div id="mDecided"></div>
-        </div>` : ''}
-        ${d.format === 'battle_royale' ? '<div class="box"><div class="muted">Battle Royale results are reported in Discord with <span class="mono">/tournament br-report</span>.</div></div>' : ''}
-        ${d.status !== 'active' && !decided.length && d.format !== 'battle_royale' ? '<div class="box"><div class="muted">Match reporting appears here once the tournament starts.</div></div>' : ''}
-      </div>
+  let html = '';
+
+  // edit card
+  if (editOpen && d.can.edit) {
+    html += `<div class="edit-card"><div class="qlabel">Edit tournament</div>
+      <div class="field"><label>Title</label><input type="text" id="eTitle" maxlength="100" value="${esc(d.title)}"></div>
+      <div class="field"><label>Start time</label><input type="datetime-local" id="eStart" value="${toDatetimeLocal(d.startTime)}"></div>
+      <div style="display:flex;gap:10px"><div class="field" style="flex:1"><label>Max entrants</label><input type="number" id="eMax" min="2" max="512" value="${d.maxParticipants}"></div>
+      <div class="field" style="flex:1"><label>Best of</label><input type="number" id="eBestOf" min="1" max="15" step="2" value="${d.bestOf}"></div></div>
+      <div class="field"><label>Description</label><textarea id="eDesc" rows="2" maxlength="1000">${esc(d.description)}</textarea></div>
+      <div style="display:flex;justify-content:flex-end;gap:8px"><button class="btn btn-sm" id="eCancel">Discard</button><button class="btn btn-accent btn-sm" id="eSave">Save changes</button></div>
     </div>`;
-
-  // Action bar
-  const startBtn = document.getElementById('mStart');
-  if (startBtn) armConfirm(startBtn, '🚀 Start tournament', async () => {
-    toast('Starting… creating match rooms');
-    const res = await api(`/admin/api/tournaments/${d.id}/start`, { method: 'POST', body: {} });
-    if (!res.ok) return toast(res.error, true);
-    toast(`Started — ${res.data.roomsCreated} rooms created${res.data.roomsFailed ? `, ${res.data.roomsFailed} failed` : ''}`);
-    await refreshAfterAction();
-  });
-
-  const cancelBtn = document.getElementById('mCancel');
-  if (cancelBtn) armConfirm(cancelBtn, 'Cancel tournament', async () => {
-    const res = await api(`/admin/api/tournaments/${d.id}/cancel`, { method: 'POST', body: {} });
-    if (!res.ok) return toast(res.error, true);
-    toast('Tournament cancelled');
-    await refreshAfterAction();
-  });
-
-  const roomsBtn = document.getElementById('mRooms');
-  if (roomsBtn) roomsBtn.addEventListener('click', async () => {
-    roomsBtn.disabled = true;
-    const res = await api(`/admin/api/tournaments/${d.id}/create-rooms`, { method: 'POST', body: {} });
-    roomsBtn.disabled = false;
-    if (!res.ok) return toast(res.error, true);
-    toast(`Rooms: ${res.data.created} created, ${res.data.existing} already existed${res.data.failed ? `, ${res.data.failed} failed` : ''}`);
-    await refreshAfterAction();
-  });
-
-  const editBtn = document.getElementById('mEdit');
-  if (editBtn) editBtn.addEventListener('click', () => toggleEditForm(d));
-
-  // Entrants
-  const entrantsEl = document.getElementById('mEntrants');
-  if (entrantsEl && d.entrants.length) {
-    entrantsEl.innerHTML = d.entrants.map(e => `
-      <div class="lrow ${e.disqualified ? 'dq' : ''}">
-        <span class="nm">${e.disqualified ? '🚫 ' : ''}${esc(e.name)}${e.fake ? ' <span class="sub">test</span>' : ''}${e.checkedIn ? ' <span class="sub">✓ checked in</span>' : ''}</span>
-        ${d.can.removeEntrant ? `<button class="btn btn-danger btn-sm" data-remove="${esc(e.id)}">Remove</button>` : ''}
-        ${d.can.disqualify && !e.disqualified ? `<button class="btn btn-danger btn-sm" data-dq="${esc(e.id)}">DQ</button>` : ''}
-      </div>`).join('');
-
-    entrantsEl.querySelectorAll('[data-remove]').forEach(btn => armConfirm(btn, 'Remove', async () => {
-      const res = await api(`/admin/api/tournaments/${d.id}/remove-entrant`, { method: 'POST', body: { entrantId: btn.dataset.remove } });
-      if (!res.ok) return toast(res.error, true);
-      toast(`Removed ${res.data.name} (${res.data.remaining} left)`);
-      await refreshAfterAction();
-    }));
-    entrantsEl.querySelectorAll('[data-dq]').forEach(btn => armConfirm(btn, 'DQ', async () => {
-      const reason = prompt('Reason for the disqualification (optional):');
-      if (reason === null) return; // Cancel aborts the DQ
-      const res = await api(`/admin/api/tournaments/${d.id}/disqualify`, { method: 'POST', body: { participantId: btn.dataset.dq, reason } });
-      if (!res.ok) return toast(res.error, true);
-      toast(`${res.data.name} disqualified — ${res.data.forfeited} match(es) forfeited`);
-      await refreshAfterAction();
-    }));
   }
 
-  // Pending matches → report
-  const pendingEl = document.getElementById('mPending');
-  if (pendingEl && pending.length) {
-    pendingEl.innerHTML = pending.map(m => `
-      <div class="mrow" data-match="${m.matchNumber}">
-        <div class="mrow-head">
-          <span class="mnum">#${m.matchNumber}${m.roundName ? ` · ${esc(m.roundName)}` : m.round ? ` · R${m.round}` : ''}${m.section !== 'bracket' ? ` · ${esc(m.section.replace('_', ' '))}` : ''}</span>
-          <span>${esc(m.participant1.name)}</span><span class="vs">vs</span><span>${esc(m.participant2.name)}</span>
-          ${m.hasRoom ? '' : '<span class="sub" title="No match room">⚠ no room</span>'}
-        </div>
-        <div class="mrow-form">
-          <select data-winner>
-            <option value="">Winner…</option>
-            <option value="${esc(m.participant1.id)}">${esc(m.participant1.name)}</option>
-            <option value="${esc(m.participant2.id)}">${esc(m.participant2.name)}</option>
-          </select>
-          ${d.validScores
-            ? `<select data-score><option value="">Score…</option>${d.validScores.map(s => `<option>${s}</option>`).join('')}</select>`
-            : '<input type="text" data-score placeholder="Score (optional, e.g. 16-14)" size="18">'}
-          <button class="btn btn-accent btn-sm" data-report>Report</button>
-        </div>
-      </div>`).join('');
-
-    pendingEl.querySelectorAll('.mrow').forEach(row => {
-      row.querySelector('[data-report]').addEventListener('click', async () => {
-        const winnerId = row.querySelector('[data-winner]').value;
-        const score = row.querySelector('[data-score]').value.trim();
-        if (!winnerId) return toast('Pick the winner first', true);
-        if (d.validScores && !score) return toast(`Pick the series score (Bo${d.bestOf})`, true);
-        const btn = row.querySelector('[data-report]');
-        btn.disabled = true;
-        const res = await api(`/admin/api/tournaments/${d.id}/report`, {
-          method: 'POST',
-          body: { matchNumber: parseInt(row.dataset.match, 10), winnerId, score: score || null },
-        });
-        btn.disabled = false;
-        if (!res.ok) return toast(res.error, true);
-        let msg = `#${row.dataset.match}: ${res.data.winner} wins${res.data.score ? ` (${res.data.score})` : ''}`;
-        if (res.data.swissRoundStarted) msg += ` · Round ${res.data.swissRoundStarted} started`;
-        if (res.data.completed) msg += ` · 🏆 Tournament complete — champion ${res.data.champion}`;
-        toast(msg);
-        await refreshAfterAction();
-      });
-    });
+  if (d.status === 'active' && !isBR) {
+    html += `<div><div class="qlabel red">Report a result · ${pending.length} pending</div>`;
+    if (pending.length) {
+      html += pending.map(m => {
+        const sel = SEL[m.matchNumber] || {};
+        const label = `#${m.matchNumber}${m.roundName ? ` · ${esc(m.roundName)}` : m.round ? ` · Round ${m.round}` : ''}${m.section !== 'bracket' ? ` · ${esc(m.section.replace('_', ' '))}` : ''}${m.hasRoom ? '' : ' · ⚠ no room'}`;
+        const scoreUi = d.validScores
+          ? `<span class="slbl">SCORE</span>` + d.validScores.map(s =>
+              `<button class="schip ${sel.score === s ? 'on' : ''}" data-score="${s}">${s}</button>`).join('')
+          : `<span class="slbl">SCORE</span><input class="free" data-freescore placeholder="optional" value="${esc(sel.score || '')}">`;
+        const ready = sel.winner && (d.validScores ? sel.score : true);
+        return `<div class="rep-card" data-match="${m.matchNumber}">
+          <div class="lbl">${label}</div>
+          <div class="rep-vs">
+            <button class="wbtn ${sel.winner === m.participant1.id ? 'on' : ''}" data-win="${esc(m.participant1.id)}" title="${esc(m.participant1.name)}">${esc(m.participant1.name)}</button>
+            <span class="vs">VS</span>
+            <button class="wbtn ${sel.winner === m.participant2.id ? 'on' : ''}" data-win="${esc(m.participant2.id)}" title="${esc(m.participant2.name)}">${esc(m.participant2.name)}</button>
+          </div>
+          <div class="rep-score">${scoreUi}<button class="rep-go ${ready ? '' : 'dim'}" data-report>Report</button></div>
+        </div>`;
+      }).join('');
+    } else {
+      html += `<div class="caught-up">All caught up — waiting on matches to finish.</div>`;
+    }
+    html += '</div>';
   }
 
-  // Decided matches → correct
-  const decidedEl = document.getElementById('mDecided');
-  if (decidedEl && decided.length) {
-    decidedEl.innerHTML = decided.map(m => {
-      const winnerName = m.winnerId === m.participant1?.id ? m.participant1?.name : m.participant2?.name;
+  if (isBR) {
+    html += `<div class="caught-up">Battle Royale results are reported in Discord with <span class="mono">/tournament br-report</span>.</div>`;
+  }
+
+  if (d.can.correct && decided.length && !isBR) {
+    html += `<div><div class="qlabel">Decided · tap to correct</div>`;
+    html += decided.map(m => {
+      const winner = m.winnerId === m.participant1?.id ? m.participant1 : m.participant2;
+      const loser = m.winnerId === m.participant1?.id ? m.participant2 : m.participant1;
       const auto = m.isBye ? 'bye' : m.isWalkover ? 'walkover' : m.isDQ ? 'DQ' : null;
-      return `
-      <div class="mrow" data-match="${m.matchNumber}">
-        <div class="mrow-head">
-          <span class="mnum">#${m.matchNumber ?? '—'}</span>
-          <span class="${m.winnerId === m.participant1?.id ? 'win' : ''}">${esc(m.participant1?.name ?? 'BYE')}</span>
-          <span class="vs">vs</span>
-          <span class="${m.winnerId === m.participant2?.id ? 'win' : ''}">${esc(m.participant2?.name ?? 'BYE')}</span>
-          <span class="result">${esc(winnerName || '')} ✓${m.score ? ` ${esc(m.score)}` : ''}${auto ? ` · ${auto}` : ''}</span>
-          ${!auto && m.matchNumber ? '<button class="btn btn-ghost btn-sm" data-fix>Correct</button>' : ''}
-        </div>
-        <div class="mrow-form" data-fixform style="display:none">
-          <select data-winner>
-            <option value="${esc(m.participant1?.id)}" ${m.winnerId === m.participant1?.id ? 'selected' : ''}>${esc(m.participant1?.name)}</option>
-            <option value="${esc(m.participant2?.id)}" ${m.winnerId === m.participant2?.id ? 'selected' : ''}>${esc(m.participant2?.name)}</option>
-          </select>
-          ${d.validScores
-            ? `<select data-score><option value="">Score…</option>${d.validScores.map(s => `<option>${s}</option>`).join('')}</select>`
-            : '<input type="text" data-score placeholder="Score (optional)" size="14">'}
-          <button class="btn btn-accent btn-sm" data-save>Save correction</button>
+      const fixable = !auto && m.matchNumber != null && m.participant1 && m.participant2;
+      const fix = openFix === m.matchNumber ? (SEL['fix' + m.matchNumber] || {}) : {};
+      const head = `<span class="n">#${m.matchNumber ?? '—'}</span>
+        <span class="who"><b>${esc(winner?.name ?? '?')}</b> <span class="d">def.</span> <span class="l">${esc(loser?.name ?? (auto || '—'))}</span></span>
+        <span class="sc">${esc(m.score || '')}${auto ? ` · ${auto}` : ''}</span>`;
+      if (!fixable) return `<div class="dec-row"><div class="dec-head" style="cursor:default">${head}</div></div>`;
+      const fw = fix.winner || m.winnerId;
+      const scoreChips = d.validScores
+        ? d.validScores.map(s => `<button class="schip ${fix.score === s ? 'on' : ''}" data-fscore="${s}" style="font-size:11px;padding:6px 10px">${s}</button>`).join('')
+        : `<input class="free" data-ffree placeholder="score" value="${esc(fix.score || '')}" style="width:80px">`;
+      return `<div class="dec-row" data-fix="${m.matchNumber}">
+        <button class="dec-head" data-toggle>${head}</button>
+        <div class="dec-fix ${openFix === m.matchNumber ? 'open' : ''}">
+          <button class="wsm ${fw === m.participant1.id ? 'on' : ''}" data-fwin="${esc(m.participant1.id)}">${esc(m.participant1.name)}</button>
+          <button class="wsm ${fw === m.participant2.id ? 'on' : ''}" data-fwin="${esc(m.participant2.id)}">${esc(m.participant2.name)}</button>
+          ${scoreChips}
+          <button class="save" data-save>Save</button>
         </div>
       </div>`;
     }).join('');
+    html += '</div>';
+  }
 
-    decidedEl.querySelectorAll('.mrow').forEach(row => {
-      const fixBtn = row.querySelector('[data-fix]');
-      if (!fixBtn) return;
-      fixBtn.addEventListener('click', () => {
-        const f = row.querySelector('[data-fixform]');
-        f.style.display = f.style.display === 'none' ? 'flex' : 'none';
+  if (d.status === 'registration' || d.status === 'checkin') {
+    html += `<div class="start-card"><div class="qlabel blue" style="margin-bottom:10px">Before you start</div>
+      <div class="row"><span class="${d.counts.entrants >= 2 ? 'ok' : 'nn'}">${d.counts.entrants >= 2 ? '✓' : '·'}</span> ${d.counts.entrants} of ${d.maxParticipants} ${d.isSolo ? 'players' : 'teams'} signed up${d.status === 'checkin' ? ' · check-in open' : ''}</div>
+      <div class="row"><span class="ok">✓</span> Announcement posted in Discord</div>
+      <div class="row"><span class="nn">·</span> Starting generates the bracket &amp; match rooms</div>
+    </div>`;
+  }
+
+  html += `<div><div class="qlabel">Entrants · ${d.counts.entrants}</div><div>`;
+  html += d.entrants.map(e => `
+    <div class="ent-row ${e.disqualified ? 'dq' : ''}">
+      <span class="nm">${e.disqualified ? '🚫 ' : ''}${esc(e.name)} <span class="sub">${e.checkedIn ? '✓ in' : ''}${e.fake ? ' test' : ''}</span></span>
+      ${d.can.removeEntrant ? `<button class="btn btn-danger btn-sm" data-remove="${esc(e.id)}">Remove</button>` : ''}
+      ${d.can.disqualify && !e.disqualified ? `<button class="btn btn-danger btn-sm" data-dq="${esc(e.id)}">DQ</button>` : ''}
+    </div>`).join('') || '<div class="caught-up">No entrants yet.</div>';
+  html += '</div></div>';
+
+  left.innerHTML = html;
+  wireRunLeft(d, left);
+}
+
+function wireRunLeft(d, left) {
+  // edit card
+  const eSave = left.querySelector('#eSave');
+  if (eSave) {
+    left.querySelector('#eCancel').addEventListener('click', () => { editOpen = false; renderRunLeft(); });
+    eSave.addEventListener('click', async () => {
+      const startVal = left.querySelector('#eStart').value;
+      eSave.disabled = true;
+      const r = await api(`/admin/api/tournaments/${d.id}`, {
+        method: 'PATCH',
+        body: {
+          title: left.querySelector('#eTitle').value,
+          startTime: startVal ? new Date(startVal).toISOString() : undefined,
+          maxParticipants: left.querySelector('#eMax').value,
+          bestOf: left.querySelector('#eBestOf').value,
+          description: left.querySelector('#eDesc').value,
+        },
       });
-      row.querySelector('[data-save]').addEventListener('click', async () => {
-        const winnerId = row.querySelector('[data-fixform] [data-winner]').value;
-        const score = row.querySelector('[data-fixform] [data-score]').value.trim();
-        if (d.validScores && !score) return toast(`Pick the corrected series score (Bo${d.bestOf})`, true);
-        const btn = row.querySelector('[data-save]');
-        btn.disabled = true;
-        const res = await api(`/admin/api/tournaments/${d.id}/correct`, {
-          method: 'POST',
-          body: { matchNumber: parseInt(row.dataset.match, 10), winnerId, score: score || null },
-        });
-        btn.disabled = false;
-        if (!res.ok) return toast(res.error, true);
-        toast(`#${row.dataset.match} corrected: ${res.data.newWinner} wins${res.data.score ? ` (${res.data.score})` : ''}`);
-        await refreshAfterAction();
-      });
+      eSave.disabled = false;
+      if (!r.ok) return toast(r.error, true);
+      toast(r.data.changes.length ? `Saved: ${r.data.changes.join(', ')}` : 'No changes to save');
+      editOpen = false;
+      refreshRun();
     });
   }
-}
 
-// ── Edit form (registration/check-in) ────────────────────────────────────────
-function toDatetimeLocal(iso) {
-  if (!iso) return ''; // new Date(null) is the epoch, not invalid
-  const dt = new Date(iso);
-  if (isNaN(dt)) return '';
-  const pad = n => String(n).padStart(2, '0');
-  return `${dt.getFullYear()}-${pad(dt.getMonth() + 1)}-${pad(dt.getDate())}T${pad(dt.getHours())}:${pad(dt.getMinutes())}`;
-}
-
-function toggleEditForm(d) {
-  const holder = document.getElementById('mEditForm');
-  if (holder.style.display !== 'none') { holder.style.display = 'none'; holder.innerHTML = ''; return; }
-  holder.style.display = '';
-  holder.innerHTML = `
-    <div class="box">
-      <div class="box-title"><span>Edit tournament</span></div>
-      <div class="form-grid">
-        <div class="field full"><label>Title</label><input type="text" id="eTitle" maxlength="100" value="${esc(d.title)}"></div>
-        <div class="field"><label>Start time</label><input type="datetime-local" id="eStart" value="${toDatetimeLocal(d.startTime)}"></div>
-        <div class="field"><label>Max entrants</label><input type="number" id="eMax" min="2" max="512" value="${d.maxParticipants}"></div>
-        <div class="field"><label>Best of</label><input type="number" id="eBestOf" min="1" max="15" step="2" value="${d.bestOf}"></div>
-        <div class="field full"><label>Description</label><textarea id="eDesc" rows="2" maxlength="1000">${esc(d.description)}</textarea></div>
-      </div>
-      <div class="modal-foot">
-        <button class="btn btn-ghost btn-sm" id="eCancel">Discard</button>
-        <button class="btn btn-accent btn-sm" id="eSave">Save changes</button>
-      </div>
-    </div>`;
-  document.getElementById('eCancel').addEventListener('click', () => toggleEditForm(d));
-  document.getElementById('eSave').addEventListener('click', async () => {
-    const btn = document.getElementById('eSave');
-    const startVal = document.getElementById('eStart').value;
-    const newTitle = document.getElementById('eTitle').value;
-    btn.disabled = true;
-    const res = await api(`/admin/api/tournaments/${d.id}`, {
-      method: 'PATCH',
-      body: {
-        title: newTitle,
-        startTime: startVal ? new Date(startVal).toISOString() : undefined,
-        maxParticipants: document.getElementById('eMax').value,
-        bestOf: document.getElementById('eBestOf').value,
-        description: document.getElementById('eDesc').value,
-      },
+  // report cards
+  left.querySelectorAll('.rep-card').forEach(card => {
+    const n = Number(card.dataset.match);
+    card.querySelectorAll('[data-win]').forEach(b => b.addEventListener('click', () => {
+      SEL[n] = { ...(SEL[n] || {}), winner: b.dataset.win };
+      renderRunLeft();
+    }));
+    card.querySelectorAll('[data-score]').forEach(b => b.addEventListener('click', () => {
+      SEL[n] = { ...(SEL[n] || {}), score: b.dataset.score };
+      renderRunLeft();
+    }));
+    const free = card.querySelector('[data-freescore]');
+    if (free) free.addEventListener('input', () => { SEL[n] = { ...(SEL[n] || {}), score: free.value }; });
+    card.querySelector('[data-report]').addEventListener('click', async ev => {
+      const sel = SEL[n] || {};
+      if (!sel.winner) return toast('Tap the winner first', true);
+      if (d.validScores && !sel.score) return toast(`Pick the series score (Bo${d.bestOf})`, true);
+      ev.target.disabled = true;
+      const r = await api(`/admin/api/tournaments/${d.id}/report`, {
+        method: 'POST',
+        body: { matchNumber: n, winnerId: sel.winner, score: (sel.score || '').trim() || null },
+      });
+      ev.target.disabled = false;
+      if (!r.ok) return toast(r.error, true);
+      delete SEL[n];
+      let msg = `#${n}: ${r.data.winner} wins${r.data.score ? ` (${r.data.score})` : ''} — bracket advanced`;
+      if (r.data.swissRoundStarted) msg += ` · Round ${r.data.swissRoundStarted} started`;
+      if (r.data.completed) msg += ` · 🏆 Champion: ${r.data.champion}`;
+      toast(msg);
+      refreshRun();
     });
-    btn.disabled = false;
-    if (!res.ok) return toast(res.error, true);
-    toast(res.data.changes.length ? `Saved: ${res.data.changes.join(', ')}` : 'No changes to save');
-    if (currentTournament) {
-      currentTournament.title = res.data.title || newTitle;
-      document.getElementById('detailTitle').textContent = currentTournament.title;
-    }
-    await refreshAfterAction();
   });
+
+  // corrections
+  left.querySelectorAll('.dec-row[data-fix]').forEach(row => {
+    const n = Number(row.dataset.fix);
+    row.querySelector('[data-toggle]').addEventListener('click', () => {
+      openFix = openFix === n ? null : n;
+      renderRunLeft();
+    });
+    row.querySelectorAll('[data-fwin]').forEach(b => b.addEventListener('click', () => {
+      SEL['fix' + n] = { ...(SEL['fix' + n] || {}), winner: b.dataset.fwin };
+      renderRunLeft();
+    }));
+    row.querySelectorAll('[data-fscore]').forEach(b => b.addEventListener('click', () => {
+      SEL['fix' + n] = { ...(SEL['fix' + n] || {}), score: b.dataset.fscore };
+      renderRunLeft();
+    }));
+    const ff = row.querySelector('[data-ffree]');
+    if (ff) ff.addEventListener('input', () => { SEL['fix' + n] = { ...(SEL['fix' + n] || {}), score: ff.value }; });
+    const save = row.querySelector('[data-save]');
+    if (save) save.addEventListener('click', async () => {
+      const fix = SEL['fix' + n] || {};
+      const m = d.matches.find(x => x.matchNumber === n);
+      const winnerId = fix.winner || m.winnerId;
+      if (d.validScores && !fix.score) return toast(`Pick the corrected series score (Bo${d.bestOf})`, true);
+      save.disabled = true;
+      const r = await api(`/admin/api/tournaments/${d.id}/correct`, {
+        method: 'POST',
+        body: { matchNumber: n, winnerId, score: (fix.score || '').trim() || null },
+      });
+      save.disabled = false;
+      if (!r.ok) return toast(r.error, true);
+      delete SEL['fix' + n];
+      openFix = null;
+      toast(`#${n} corrected: ${r.data.newWinner} wins${r.data.score ? ` (${r.data.score})` : ''}`);
+      refreshRun();
+    });
+  });
+
+  // entrants
+  left.querySelectorAll('[data-remove]').forEach(btn => armConfirm(btn, 'Remove', 'Sure?', async () => {
+    const r = await api(`/admin/api/tournaments/${d.id}/remove-entrant`, { method: 'POST', body: { entrantId: btn.dataset.remove } });
+    if (!r.ok) return toast(r.error, true);
+    toast(`Removed ${r.data.name} (${r.data.remaining} left)`);
+    refreshRun();
+  }));
+  left.querySelectorAll('[data-dq]').forEach(btn => armConfirm(btn, 'DQ', 'Sure?', async () => {
+    const reason = prompt('Reason for the disqualification (optional):');
+    if (reason === null) return;
+    const r = await api(`/admin/api/tournaments/${d.id}/disqualify`, { method: 'POST', body: { participantId: btn.dataset.dq, reason } });
+    if (!r.ok) return toast(r.error, true);
+    toast(`${r.data.name} disqualified — ${r.data.forfeited} match(es) forfeited`);
+    refreshRun();
+  }));
 }
 
-// ── Create tournament ────────────────────────────────────────────────────────
-const createModal = document.getElementById('createModal');
+// ── Create modal (2 steps) ──────────────────────────────────────────────────
+let createStep = 1, createGame = null, createChannels = null;
+
+$('newBtn').addEventListener('click', openCreate);
+$('createClose').addEventListener('click', closeCreate);
+let backdropPress = false;
+$('createModal').addEventListener('mousedown', e => { backdropPress = e.target === $('createModal'); });
+$('createModal').addEventListener('click', e => { if (e.target === $('createModal') && backdropPress) closeCreate(); });
 
 async function openCreate() {
   if (!META) {
@@ -763,81 +918,106 @@ async function openCreate() {
     if (!res.ok) return toast(res.error, true);
     META = res.data;
   }
-  // populate games (featured first, then the rest alphabetically)
-  const games = [...META.games].sort((a, b) => (b.featured - a.featured) || a.name.localeCompare(b.name));
-  const gameSel = document.getElementById('cGame');
-  gameSel.innerHTML = games.map(g => `<option value="${esc(g.key)}">${esc(g.name)}</option>`).join('');
+  createChannels = null;
+  api(`/admin/api/guilds/${encodeURIComponent(activeGuild)}/channels`).then(r => { if (r.ok) createChannels = r.data.channels; });
+  createStep = 1; createGame = null;
+  renderCreate();
+  $('createModal').classList.add('open');
+  $('createModal').setAttribute('aria-hidden', 'false');
+}
+function closeCreate() {
+  $('createModal').classList.remove('open');
+  $('createModal').setAttribute('aria-hidden', 'true');
+}
 
-  // channels for the active guild
-  const chSel = document.getElementById('cChannel');
-  chSel.innerHTML = '<option value="">Server default</option>';
-  const chRes = await api(`/admin/api/guilds/${encodeURIComponent(activeGuild)}/channels`);
-  if (chRes.ok) {
-    chSel.innerHTML += chRes.data.channels.map(c =>
-      `<option value="${esc(c.id)}"># ${esc(c.name)}${c.category ? ` — ${esc(c.category)}` : ''}</option>`).join('');
+function gameDefaults(g) {
+  const team = g.defaultTeamSize > 1 ? `${g.defaultTeamSize}v${g.defaultTeamSize}` : 'Solo';
+  return `${(FORMAT_NAMES[g.defaultFormat] || g.defaultFormat).replace('Elim', 'Elim')} · ${team} · Bo${g.defaultBestOf}`;
+}
+
+function renderCreate() {
+  $('createStepLabel').textContent = `Step ${createStep} of 2`;
+  const body = $('createBody');
+
+  if (createStep === 1) {
+    const games = [...META.games].sort((a, b) => (b.featured - a.featured) || a.name.localeCompare(b.name));
+    body.innerHTML = `<div class="modal-body">
+      <p class="modal-sub">Pick a game — its competitive defaults are applied for you.</p>
+      <div class="tiles">${games.map(g => `
+        <button class="tile" data-game="${esc(g.key)}">
+          ${g.logo ? `<img src="${esc(g.logo)}" alt="">` : '<span class="ph">＋</span>'}
+          <span class="nm">${esc(g.name)}</span>
+          <span class="df">${g.key === 'custom' ? 'Your rules' : esc(gameDefaults(g))}</span>
+        </button>`).join('')}</div>
+    </div>`;
+    body.querySelectorAll('.tile').forEach(t => t.addEventListener('click', () => {
+      createGame = META.games.find(g => g.key === t.dataset.game);
+      createStep = 2;
+      renderCreate();
+    }));
+    return;
   }
 
-  applyGamePreset();
-  // sensible default start: tomorrow 19:00 local
+  const g = createGame;
+  const suggest = g.key === 'custom' ? 'Community Cup #1' : `${g.name} Cup #1`;
   const t = new Date(); t.setDate(t.getDate() + 1); t.setHours(19, 0, 0, 0);
-  document.getElementById('cStart').value = toDatetimeLocal(t.toISOString());
+  const channels = createChannels || [];
+  body.innerHTML = `<div style="padding:16px 24px 0">
+    <div class="picked-bar">
+      ${g.logo ? `<img src="${esc(g.logo)}" alt="">` : '<span class="ph">＋</span>'}
+      <span class="nm">${esc(g.name)}</span>
+      <span class="df">${g.key === 'custom' ? 'Your rules' : esc(gameDefaults(g))}</span>
+      <button class="change" id="cChange">Change</button>
+    </div>
+    <div class="cgrid">
+      ${g.key === 'custom' ? '<div class="field full"><label>Game name</label><input type="text" id="cGameName" maxlength="60" placeholder="e.g. Fortnite"></div>' : ''}
+      <div class="field full"><label>Title</label><input type="text" id="cTitle" maxlength="100" value="${esc(suggest)}"></div>
+      <div class="field"><label>Start time</label><input type="datetime-local" id="cStart" value="${toDatetimeLocal(t.toISOString())}"></div>
+      <div class="field"><label>Max entrants</label><input type="number" id="cMax" min="2" max="512" value="16"></div>
+      <div class="field"><label>Format</label><select id="cFormat">${g.formatOptions.map(f => `<option value="${f}" ${f === g.defaultFormat ? 'selected' : ''}>${esc(META.formats[f] || f)}</option>`).join('')}</select></div>
+      <div class="field"><label>Team size · Best of</label><div style="display:flex;gap:8px">
+        <select id="cTeamSize" style="flex:1">${g.teamSizeOptions.map(n => `<option value="${n}" ${n === g.defaultTeamSize ? 'selected' : ''}>${n === 1 ? 'Solo' : `${n}v${n}`}</option>`).join('')}</select>
+        <select id="cBestOf" style="flex:1">${g.bestOfOptions.map(n => `<option value="${n}" ${n === g.defaultBestOf ? 'selected' : ''}>Bo${n}</option>`).join('')}</select>
+      </div></div>
+      <div class="field"><label>Announcement channel</label><select id="cChannel"><option value="">Server default</option>${channels.map(c => `<option value="${esc(c.id)}"># ${esc(c.name)}${c.category ? ` — ${esc(c.category)}` : ''}</option>`).join('')}</select></div>
+      <div style="display:flex;align-items:center;gap:8px;margin-top:20px"><label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px"><input type="checkbox" id="cPublic" checked style="accent-color:var(--accent)"> Live web bracket <span class="protag">PRO</span></label></div>
+      <div class="field full"><label>Description <span style="font-size:11px;color:var(--text-faint);font-weight:400">(optional)</span></label><textarea id="cDesc" rows="2" maxlength="1000" placeholder="Rules, prize, notes…"></textarea></div>
+    </div>
+  </div>
+  <div class="modal-foot">
+    <button class="btn" id="cBack">← Back</button>
+    <button class="btn btn-accent" id="cSubmit">Create &amp; announce</button>
+  </div>`;
 
-  createModal.classList.add('open');
-  createModal.setAttribute('aria-hidden', 'false');
-}
-
-function closeCreate() {
-  createModal.classList.remove('open');
-  createModal.setAttribute('aria-hidden', 'true');
-}
-document.getElementById('createCancel').addEventListener('click', closeCreate);
-// Close on backdrop click — but only when the press STARTED on the backdrop,
-// so drags (or a click racing the modal opening) can't dismiss the form.
-let backdropPress = false;
-createModal.addEventListener('mousedown', e => { backdropPress = e.target === createModal; });
-createModal.addEventListener('click', e => { if (e.target === createModal && backdropPress) closeCreate(); });
-
-function applyGamePreset() {
-  const key = document.getElementById('cGame').value;
-  const g = META.games.find(x => x.key === key);
-  if (!g) return;
-  document.getElementById('cGameNameField').style.display = key === 'custom' ? '' : 'none';
-  const fmt = document.getElementById('cFormat');
-  fmt.innerHTML = g.formatOptions.map(f => `<option value="${f}" ${f === g.defaultFormat ? 'selected' : ''}>${esc(META.formats[f] || f)}</option>`).join('');
-  const ts = document.getElementById('cTeamSize');
-  ts.innerHTML = g.teamSizeOptions.map(n => `<option value="${n}" ${n === g.defaultTeamSize ? 'selected' : ''}>${n === 1 ? 'Solo' : `${n}v${n}`}</option>`).join('');
-  const bo = document.getElementById('cBestOf');
-  bo.innerHTML = g.bestOfOptions.map(n => `<option value="${n}" ${n === g.defaultBestOf ? 'selected' : ''}>Bo${n}</option>`).join('');
-}
-document.getElementById('cGame').addEventListener('change', applyGamePreset);
-
-document.getElementById('createSubmit').addEventListener('click', async () => {
-  const btn = document.getElementById('createSubmit');
-  const startVal = document.getElementById('cStart').value;
-  if (!startVal) return toast('Pick a start time', true);
-  btn.disabled = true;
-  const res = await api(`/admin/api/guilds/${encodeURIComponent(activeGuild)}/tournaments`, {
-    method: 'POST',
-    body: {
-      gamePreset: document.getElementById('cGame').value,
-      gameName: document.getElementById('cGameName').value,
-      title: document.getElementById('cTitle').value,
-      description: document.getElementById('cDesc').value,
-      startTime: startVal ? new Date(startVal).toISOString() : null,
-      maxParticipants: document.getElementById('cMax').value,
-      format: document.getElementById('cFormat').value,
-      teamSize: document.getElementById('cTeamSize').value,
-      bestOf: document.getElementById('cBestOf').value,
-      channelId: document.getElementById('cChannel').value || null,
-      publicBracket: document.getElementById('cPublic').checked,
-    },
+  body.querySelector('#cChange').addEventListener('click', () => { createStep = 1; renderCreate(); });
+  body.querySelector('#cBack').addEventListener('click', () => { createStep = 1; renderCreate(); });
+  body.querySelector('#cSubmit').addEventListener('click', async ev => {
+    const startVal = body.querySelector('#cStart').value;
+    if (!startVal) return toast('Pick a start time', true);
+    ev.target.disabled = true;
+    const r = await api(`/admin/api/guilds/${encodeURIComponent(activeGuild)}/tournaments`, {
+      method: 'POST',
+      body: {
+        gamePreset: g.key,
+        gameName: body.querySelector('#cGameName')?.value || '',
+        title: body.querySelector('#cTitle').value,
+        description: body.querySelector('#cDesc').value,
+        startTime: new Date(startVal).toISOString(),
+        maxParticipants: body.querySelector('#cMax').value,
+        format: body.querySelector('#cFormat').value,
+        teamSize: body.querySelector('#cTeamSize').value,
+        bestOf: body.querySelector('#cBestOf').value,
+        channelId: body.querySelector('#cChannel').value || null,
+        publicBracket: body.querySelector('#cPublic').checked,
+      },
+    });
+    ev.target.disabled = false;
+    if (!r.ok) return toast(r.error, true);
+    closeCreate();
+    toast(`Created "${r.data.title}" — announced in #${r.data.channel.name}`);
+    reloadTournaments();
   });
-  btn.disabled = false;
-  if (!res.ok) return toast(res.error, true);
-  closeCreate();
-  toast(`Created "${res.data.title}" — announced in #${res.data.channel.name}`);
-  await reloadTournaments();
-});
+}
 
 boot();
 </script>
