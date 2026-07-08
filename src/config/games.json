@@ -532,7 +532,12 @@
     "mapPickProcess": null,
     "ruleset": "Standard rules.",
     "customFields": {},
-    "menuEmoji": "1514008011566219326"
+    "menuEmoji": "1514008011566219326",
+    "nickField": {
+      "label": "GOALS User ID",
+      "placeholder": "GOALS app → Account settings → Goals User ID → Copy",
+      "minLength": 30
+    }
   },
   "ea_sports_fc": {
     "displayName": "EA Sports FC",

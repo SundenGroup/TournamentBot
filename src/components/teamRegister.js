@@ -1,6 +1,8 @@
 const { getTournament, addTeam } = require('../services/tournamentService');
 const { getServerSettings } = require('../data/serverSettings');
 const { updateTournamentMessages } = require('../utils/tournamentUpdater');
+const { getNickField } = require('../config/gamePresets');
+const { validateNick } = require('../utils/nickValidation');
 
 module.exports = {
   customId: 'teamRegister',
@@ -124,9 +126,12 @@ module.exports = {
     let captainGameNick = null;
     const memberGameNicks = [];
 
+    const nickField = getNickField(tournament.game);
+    const nounPlural = nickField.custom ? `${nickField.label}s` : 'game nicks';
+
     if (tournament.settings.requireGameNick) {
       if (captainModeEnabled) {
-        // Captain mode: all game nicks provided in one field
+        // Captain mode: all identifiers provided in one field, one per line
         let teamGameNicks;
         try {
           teamGameNicks = interaction.fields.getTextInputValue('teamGameNicks');
@@ -138,9 +143,14 @@ module.exports = {
           const nickLines = teamGameNicks.split('\n').map(l => l.trim()).filter(l => l.length > 0);
           if (nickLines.length !== tournament.settings.teamSize) {
             return interaction.editReply({
-              content: `❌ Please provide exactly ${tournament.settings.teamSize} game nicks (one per line). You provided ${nickLines.length}. First line is your nick, then each member in order.`,
+              content: `❌ Please provide exactly ${tournament.settings.teamSize} ${nounPlural} (one per line). You provided ${nickLines.length}. First line is yours, then each member in order.`,
               ephemeral: true,
             });
+          }
+          // Length-check every line (Discord can't per-line validate a paragraph)
+          for (let i = 0; i < nickLines.length; i++) {
+            const check = validateNick(nickLines[i], nickField, i === 0 ? 'Your' : `Line ${i + 1}'s`);
+            if (!check.ok) return interaction.editReply({ content: `❌ ${check.error}` });
           }
           captainGameNick = nickLines[0];
           for (let i = 1; i < nickLines.length; i++) {
@@ -148,12 +158,15 @@ module.exports = {
           }
         }
       } else {
-        // Non-captain mode: only captain's nick
+        // Non-captain mode: only captain's identifier
         try {
           captainGameNick = interaction.fields.getTextInputValue('captainGameNick');
         } catch {
           captainGameNick = null;
         }
+        const check = validateNick(captainGameNick, nickField);
+        if (!check.ok) return interaction.editReply({ content: `❌ ${check.error}` });
+        captainGameNick = check.value;
       }
     }
 

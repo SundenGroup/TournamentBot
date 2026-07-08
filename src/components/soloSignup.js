@@ -1,5 +1,7 @@
 const { getTournament, addParticipant } = require('../services/tournamentService');
 const { updateTournamentMessages } = require('../utils/tournamentUpdater');
+const { getNickField } = require('../config/gamePresets');
+const { validateNick } = require('../utils/nickValidation');
 
 module.exports = {
   customId: 'soloSignup',
@@ -26,7 +28,12 @@ module.exports = {
       }
     }
 
-    const gameNick = interaction.fields.getTextInputValue('gameNick');
+    const nickField = getNickField(tournament.game);
+    const check = validateNick(interaction.fields.getTextInputValue('gameNick'), nickField);
+    if (!check.ok) {
+      return interaction.editReply({ content: `❌ ${check.error}` });
+    }
+    const gameNick = check.value;
 
     const result = await addParticipant(tournamentId, {
       id: interaction.user.id,
@@ -42,7 +49,7 @@ module.exports = {
     await updateTournamentMessages(interaction.client, result.tournament);
     const { signupNextSteps } = require('../utils/signupMessages');
     return interaction.editReply({
-      content: `✅ You're signed up for **${tournament.title}**!\nIn-game nick: **${gameNick}**${signupNextSteps(tournament)}`,
+      content: `✅ You're signed up for **${tournament.title}**!\n${nickField.noun}: **${gameNick}**${signupNextSteps(tournament)}`,
       ephemeral: true,
     });
   },

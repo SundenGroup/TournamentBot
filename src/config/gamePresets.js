@@ -68,6 +68,37 @@ function getGameEmojiText(game) {
   return preset?.icon || '🎮';
 }
 
+/**
+ * Per-game customization of the "in-game nick" signup field.
+ *
+ * Most games ask for an in-game nickname. Some identify players by something
+ * specific — e.g. GOALS uses a Unique User ID (a UUID copied from the app) —
+ * so their preset sets a `nickField` in games.json to relabel the field, put
+ * how-to text in the input bar (placeholder) and require a minimum length.
+ * Everything else falls back to the generic in-game-nickname wording, so this
+ * is a drop-in replacement for the existing nick field.
+ *
+ * Accepts a preset key or a tournament.game object ({ preset }).
+ * Discord limits: modal label ≤ 45 chars, placeholder ≤ 100.
+ */
+function getNickField(game) {
+  const key = typeof game === 'string' ? game : game?.preset;
+  const nf = (key && GAME_PRESETS[key]?.nickField) || null;
+  const minLength = Math.max(0, Math.min(Math.floor(Number(nf?.minLength) || 0), 1000));
+  return {
+    // whether this game uses a custom identifier (GOALS ID) vs a plain nick
+    custom: !!nf,
+    // modal field label + in-bar helper text
+    label: (nf?.label || 'In-Game Nickname').slice(0, 45),
+    placeholder: (nf?.placeholder || 'Enter your in-game name').slice(0, 100),
+    minLength,
+    // noun for inline confirmations / errors ("Your GOALS User ID: …")
+    noun: nf?.label || 'in-game nick',
+    // announcement-embed field name
+    announceLabel: nf?.label || 'In-Game Nick',
+  };
+}
+
 module.exports = {
   GAME_PRESETS,
   getPreset,
@@ -76,5 +107,6 @@ module.exports = {
   getFeaturedPresetKeys,
   getMenuEmoji,
   getGameEmojiText,
+  getNickField,
   reloadPresets,
 };

@@ -98,7 +98,8 @@ async function createTournamentEmbed(tournament) {
   }
 
   if (settings.requireGameNick) {
-    fields.push({ name: '🎮 In-Game Nick', value: 'Required', inline: true });
+    const { getNickField } = require('../config/gamePresets');
+    fields.push({ name: `🎮 ${getNickField(game).announceLabel}`, value: 'Required', inline: true });
   }
 
   if (settings.requiredRoles && settings.requiredRoles.length > 0) {

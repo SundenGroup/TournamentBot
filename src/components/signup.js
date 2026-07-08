@@ -1,6 +1,7 @@
 const { ModalBuilder, TextInputBuilder, TextInputStyle, ActionRowBuilder } = require('discord.js');
 const { getTournament, addParticipant } = require('../services/tournamentService');
 const { updateTournamentMessages } = require('../utils/tournamentUpdater');
+const { getNickField } = require('../config/gamePresets');
 
 module.exports = {
   customId: 'signup',
@@ -26,22 +27,24 @@ module.exports = {
     }
 
     const isSolo = tournament.settings.teamSize === 1;
+    const nickField = getNickField(tournament.game);
 
     if (isSolo) {
       // Check if game nick is required
       if (tournament.settings.requireGameNick) {
-        // Show modal to collect game nick
+        // Show modal to collect the game nick / game-specific ID
         const modal = new ModalBuilder()
           .setCustomId(`soloSignup:${tournamentId}`)
-          .setTitle(`Sign Up - ${tournament.title}`);
+          .setTitle(`Sign Up - ${tournament.title}`.slice(0, 45));
 
         const gameNickInput = new TextInputBuilder()
           .setCustomId('gameNick')
-          .setLabel('In-Game Nickname')
+          .setLabel(nickField.label)
           .setStyle(TextInputStyle.Short)
-          .setPlaceholder('Enter your in-game name')
+          .setPlaceholder(nickField.placeholder)
           .setRequired(true)
-          .setMaxLength(50);
+          .setMaxLength(nickField.custom ? 100 : 50);
+        if (nickField.minLength) gameNickInput.setMinLength(nickField.minLength);
 
         modal.addComponents(
           new ActionRowBuilder().addComponents(gameNickInput)
@@ -95,15 +98,17 @@ module.exports = {
         new ActionRowBuilder().addComponents(membersInput)
       );
 
-      // Add game nick field(s) if required
+      // Add game nick / game-ID field(s) if required
       if (tournament.settings.requireGameNick) {
         if (tournament.settings.captainMode) {
-          // Captain mode: captain provides all game nicks
+          // Captain mode: captain provides one identifier per line (own first)
+          const listLabel = (nickField.custom ? `All ${nickField.label}s` : 'All Game Nicks')
+            + ` (${tournament.settings.teamSize}, one per line)`;
           const gameNicksInput = new TextInputBuilder()
             .setCustomId('teamGameNicks')
-            .setLabel(`All Game Nicks (${tournament.settings.teamSize} nicks, one per line)`)
+            .setLabel(listLabel.slice(0, 45))
             .setStyle(TextInputStyle.Paragraph)
-            .setPlaceholder('Your nick first, then each member (same order as above)')
+            .setPlaceholder('Yours first, then each member (same order as above)')
             .setRequired(true);
 
           modal.addComponents(
@@ -112,11 +117,12 @@ module.exports = {
         } else {
           const gameNickInput = new TextInputBuilder()
             .setCustomId('captainGameNick')
-            .setLabel('Your In-Game Nickname')
+            .setLabel((nickField.custom ? `Your ${nickField.label}` : 'Your In-Game Nickname').slice(0, 45))
             .setStyle(TextInputStyle.Short)
-            .setPlaceholder('Enter your in-game name')
+            .setPlaceholder(nickField.placeholder)
             .setRequired(true)
-            .setMaxLength(50);
+            .setMaxLength(nickField.custom ? 100 : 50);
+          if (nickField.minLength) gameNickInput.setMinLength(nickField.minLength);
 
           modal.addComponents(
             new ActionRowBuilder().addComponents(gameNickInput)
