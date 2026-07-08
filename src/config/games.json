@@ -533,11 +533,23 @@
     "ruleset": "Standard rules.",
     "customFields": {},
     "menuEmoji": "1514008011566219326",
-    "nickField": {
-      "label": "GOALS User ID",
-      "placeholder": "GOALS app → Account settings → Goals User ID → Copy",
-      "minLength": 30
-    }
+    "nickSummary": "GOALS Username + ID",
+    "nickFields": [
+      {
+        "key": "goals_username",
+        "label": "GOALS Username",
+        "placeholder": "Your GOALS display name",
+        "minLength": 2,
+        "private": false
+      },
+      {
+        "key": "goals_user_id",
+        "label": "GOALS User ID",
+        "placeholder": "GOALS app → Account settings → Goals User ID → Copy",
+        "minLength": 30,
+        "private": true
+      }
+    ]
   },
   "ea_sports_fc": {
     "displayName": "EA Sports FC",

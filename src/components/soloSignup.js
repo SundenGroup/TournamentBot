@@ -1,7 +1,7 @@
 const { getTournament, addParticipant } = require('../services/tournamentService');
 const { updateTournamentMessages } = require('../utils/tournamentUpdater');
-const { getNickField } = require('../config/gamePresets');
-const { validateNick } = require('../utils/nickValidation');
+const { getNickFields } = require('../config/gamePresets');
+const { collectFields } = require('../utils/nickValidation');
 
 module.exports = {
   customId: 'soloSignup',
@@ -28,18 +28,18 @@ module.exports = {
       }
     }
 
-    const nickField = getNickField(tournament.game);
-    const check = validateNick(interaction.fields.getTextInputValue('gameNick'), nickField);
-    if (!check.ok) {
-      return interaction.editReply({ content: `❌ ${check.error}` });
+    const nickFields = getNickFields(tournament.game);
+    const collected = collectFields(nickFields, key => interaction.fields.getTextInputValue(key));
+    if (!collected.ok) {
+      return interaction.editReply({ content: `❌ ${collected.error}` });
     }
-    const gameNick = check.value;
 
     const result = await addParticipant(tournamentId, {
       id: interaction.user.id,
       username: interaction.user.username,
       displayName: interaction.user.displayName,
-      gameNick: gameNick,
+      gameNick: collected.gameNick,     // public display value
+      gameFields: collected.gameFields, // full { key: value } map
     });
 
     if (!result.success) {
@@ -48,8 +48,10 @@ module.exports = {
 
     await updateTournamentMessages(interaction.client, result.tournament);
     const { signupNextSteps } = require('../utils/signupMessages');
+    // Confirmation is ephemeral (only the signer sees it), so echo every field.
+    const summary = nickFields.map(f => `${f.label}: **${collected.gameFields[f.key]}**`).join('\n');
     return interaction.editReply({
-      content: `✅ You're signed up for **${tournament.title}**!\n${nickField.noun}: **${gameNick}**${signupNextSteps(tournament)}`,
+      content: `✅ You're signed up for **${tournament.title}**!\n${summary}${signupNextSteps(tournament)}`,
       ephemeral: true,
     });
   },

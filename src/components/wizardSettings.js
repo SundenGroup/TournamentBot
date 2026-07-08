@@ -7,7 +7,7 @@ const {
   TextInputBuilder,
   TextInputStyle,
 } = require('discord.js');
-const { GAME_PRESETS, getNickField } = require('../config/gamePresets');
+const { GAME_PRESETS, getNickSummary } = require('../config/gamePresets');
 const { getSession, updateSession } = require('../data/wizardSessions');
 const { toDiscordFullAndRelative } = require('../utils/timeUtils');
 
@@ -25,7 +25,7 @@ const ALL_FORMATS = ['single_elimination', 'double_elimination', 'swiss', 'round
 function buildSettingsMessage(session) {
   const { data } = session;
   const preset = GAME_PRESETS[data.gamePreset];
-  const nickField = getNickField(data.gamePreset);
+  const nickSummary = getNickSummary(data.gamePreset);
   const { getGameEmojiText } = require('../config/gamePresets');
   const gameIcon = getGameEmojiText(data.gamePreset);
   const gameName = data.gameName || preset?.displayName || 'Custom Game';
@@ -102,8 +102,8 @@ function buildSettingsMessage(session) {
       .setStyle(data.checkinRequired ? ButtonStyle.Success : ButtonStyle.Secondary),
     new ButtonBuilder()
       .setCustomId(`wizardSettings:${session.id}:toggleGameNick`)
-      // Games with a specific identifier (e.g. GOALS User ID) show that name
-      .setLabel(`${data.requireGameNick ? '✅' : '❌'} ${nickField.custom ? nickField.label : 'Game Nick'}`.slice(0, 80))
+      // Games with their own identifier(s) (e.g. GOALS Username + ID) show that
+      .setLabel(`${data.requireGameNick ? '✅' : '❌'} ${nickSummary}`.slice(0, 80))
       .setStyle(data.requireGameNick ? ButtonStyle.Success : ButtonStyle.Secondary),
     new ButtonBuilder()
       .setCustomId(`wizardSettings:${session.id}:toggleCaptain`)

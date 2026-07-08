@@ -98,8 +98,8 @@ async function createTournamentEmbed(tournament) {
   }
 
   if (settings.requireGameNick) {
-    const { getNickField } = require('../config/gamePresets');
-    fields.push({ name: `🎮 ${getNickField(game).announceLabel}`, value: 'Required', inline: true });
+    const { getNickSummary } = require('../config/gamePresets');
+    fields.push({ name: `🎮 ${getNickSummary(game)}`, value: 'Required', inline: true });
   }
 
   if (settings.requiredRoles && settings.requiredRoles.length > 0) {
@@ -223,12 +223,9 @@ async function createParticipantListEmbed(tournament) {
   const { settings, participants, teams, title, status, guildId } = tournament;
   const isSolo = settings.teamSize === 1;
 
-  // Games with a private identifier (e.g. GOALS User ID) must NOT show the
-  // value in this public list — it's posted in the announcement channel where
-  // everyone can see it. Regular in-game gamertags stay visible as before.
-  const { getNickField } = require('../config/gamePresets');
-  const hidePrivateId = getNickField(tournament.game).custom;
-
+  // `gameNick` holds only the PUBLIC signup value (e.g. GOALS Username);
+  // private ids (GOALS User ID) live in gameFields and never reach this list,
+  // which is posted in the public announcement channel.
   const embed = new EmbedBuilder()
     .setColor(getStatusColor(status));
 
@@ -239,7 +236,7 @@ async function createParticipantListEmbed(tournament) {
     } else {
       const list = participants.map((p, i) => {
         let entry = `${i + 1}. ${p.username}`;
-        if (p.gameNick && !hidePrivateId) entry += ` (${p.gameNick})`;
+        if (p.gameNick) entry += ` (${p.gameNick})`;
         if (p.seed) entry += ` [#${p.seed}]`;
         if (p.disqualified) entry += ' 🚫DQ';
         if (status === 'checkin') {

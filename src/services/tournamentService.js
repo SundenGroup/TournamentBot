@@ -266,7 +266,8 @@ async function addParticipant(tournamentId, user) {
         id: user.id,
         username: user.username,
         displayName: user.displayName || user.username,
-        gameNick: user.gameNick || null,
+        gameNick: user.gameNick || null,          // public display value
+        gameFields: user.gameFields || null,      // full { key: value } map
         seed: null,
         checkedIn: false,
         joinedAt: new Date(),

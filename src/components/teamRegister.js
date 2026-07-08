@@ -1,8 +1,8 @@
 const { getTournament, addTeam } = require('../services/tournamentService');
 const { getServerSettings } = require('../data/serverSettings');
 const { updateTournamentMessages } = require('../utils/tournamentUpdater');
-const { getNickField } = require('../config/gamePresets');
-const { validateNick } = require('../utils/nickValidation');
+const { getNickFields } = require('../config/gamePresets');
+const { validateNick, collectFields } = require('../utils/nickValidation');
 
 module.exports = {
   customId: 'teamRegister',
@@ -122,78 +122,67 @@ module.exports = {
       }
     }
 
-    // Parse game nicks if required
-    let captainGameNick = null;
-    const memberGameNicks = [];
-
-    const nickField = getNickField(tournament.game);
-    const nounPlural = nickField.custom ? `${nickField.label}s` : 'game nicks';
+    // Parse signup fields (nick / game IDs) if required. Each entrant gets a
+    // gameFields map plus gameNick (the first public field value, for display).
+    const nickFields = getNickFields(tournament.game).slice(0, 3);
+    const teamSize = tournament.settings.teamSize;
+    const publicVal = map => {
+      for (const f of nickFields) if (!f.private && map?.[f.key]) return map[f.key];
+      return null;
+    };
+    let captainGameFields = null;
+    const memberGameFields = []; // aligned with `members`
 
     if (tournament.settings.requireGameNick) {
       if (captainModeEnabled) {
-        // Captain mode: all identifiers provided in one field, one per line
-        let teamGameNicks;
-        try {
-          teamGameNicks = interaction.fields.getTextInputValue('teamGameNicks');
-        } catch {
-          teamGameNicks = null;
-        }
-
-        if (teamGameNicks) {
-          const nickLines = teamGameNicks.split('\n').map(l => l.trim()).filter(l => l.length > 0);
-          if (nickLines.length !== tournament.settings.teamSize) {
+        // Captain mode: one paragraph per field, one line per member (own first)
+        const perMember = Array.from({ length: teamSize }, () => ({}));
+        for (const f of nickFields) {
+          let raw;
+          try { raw = interaction.fields.getTextInputValue(`list_${f.key}`); } catch { raw = ''; }
+          const lines = String(raw || '').split('\n').map(l => l.trim()).filter(l => l.length > 0);
+          if (lines.length !== teamSize) {
             return interaction.editReply({
-              content: `❌ Please provide exactly ${tournament.settings.teamSize} ${nounPlural} (one per line). You provided ${nickLines.length}. First line is yours, then each member in order.`,
-              ephemeral: true,
+              content: `❌ Please provide exactly ${teamSize} ${f.label}s (one per line). You provided ${lines.length}. First line is yours, then each member in order.`,
             });
           }
-          // Length-check every line (Discord can't per-line validate a paragraph)
-          for (let i = 0; i < nickLines.length; i++) {
-            const check = validateNick(nickLines[i], nickField, i === 0 ? 'Your' : `Line ${i + 1}'s`);
+          for (let i = 0; i < lines.length; i++) {
+            const check = validateNick(lines[i], f, i === 0 ? 'Your' : `Line ${i + 1}'s`);
             if (!check.ok) return interaction.editReply({ content: `❌ ${check.error}` });
-          }
-          captainGameNick = nickLines[0];
-          for (let i = 1; i < nickLines.length; i++) {
-            memberGameNicks.push(nickLines[i]);
+            perMember[i][f.key] = check.value;
           }
         }
+        captainGameFields = perMember[0];
+        for (let i = 1; i < teamSize; i++) memberGameFields.push(perMember[i]);
       } else {
-        // Non-captain mode: only captain's identifier
-        try {
-          captainGameNick = interaction.fields.getTextInputValue('captainGameNick');
-        } catch {
-          captainGameNick = null;
-        }
-        const check = validateNick(captainGameNick, nickField);
-        if (!check.ok) return interaction.editReply({ content: `❌ ${check.error}` });
-        captainGameNick = check.value;
+        // Non-captain mode: captain provides only their own value per field
+        const collected = collectFields(nickFields, key => interaction.fields.getTextInputValue(`captain_${key}`));
+        if (!collected.ok) return interaction.editReply({ content: `❌ ${collected.error}` });
+        captainGameFields = collected.gameFields;
       }
     }
 
-    // Assign game nicks to members
+    // Assign fields to members (aligned; captain-mode fills these, else null)
     for (let i = 0; i < members.length; i++) {
-      members[i].gameNick = memberGameNicks[i] || null;
+      members[i].gameFields = memberGameFields[i] || null;
+      members[i].gameNick = publicVal(memberGameFields[i]);
     }
 
+    const captainGameNick = publicVal(captainGameFields);
+    const captainEntry = {
+      id: interaction.user.id,
+      username: interaction.user.username,
+      displayName: interaction.user.displayName || interaction.user.username,
+      gameNick: captainGameNick || null,
+      gameFields: captainGameFields || null,
+    };
+
     // Add captain to members list for display
-    const allMembers = [
-      {
-        id: interaction.user.id,
-        username: interaction.user.username,
-        displayName: interaction.user.displayName || interaction.user.username,
-        gameNick: captainGameNick || null,
-      },
-      ...members,
-    ];
+    const allMembers = [captainEntry, ...members];
 
     const result = await addTeam(tournamentId, {
       name: teamName,
-      captain: {
-        id: interaction.user.id,
-        username: interaction.user.username,
-        displayName: interaction.user.displayName || interaction.user.username,
-        gameNick: captainGameNick || null,
-      },
+      captain: captainEntry,
       members: allMembers,
     });
 

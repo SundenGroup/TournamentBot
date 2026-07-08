@@ -496,16 +496,12 @@ function createBRTeamListEmbed(group, tournament) {
 
   let description = '**Use these numbers when reporting results:**\n\n';
 
-  // Private identifiers (e.g. GOALS User ID) are hidden from this lobby list —
-  // it's visible to every other player in the group. Regular gamertags show.
-  const { getNickField } = require('../config/gamePresets');
-  const hidePrivateId = getNickField(tournament.game).custom;
-
+  // gameNick is the public display value only (private ids live in gameFields).
   if (isSolo) {
     group.teams.forEach((player, i) => {
       const num = String(i + 1).padStart(2, ' ');
       description += `\`${num}\` → ${player.username}`;
-      if (player.gameNick && !hidePrivateId) description += ` *(${player.gameNick})*`;
+      if (player.gameNick) description += ` *(${player.gameNick})*`;
       description += '\n';
     });
   } else {

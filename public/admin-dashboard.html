@@ -778,13 +778,17 @@ function renderRunLeft() {
     </div>`;
   }
 
-  html += `<div><div class="qlabel">Entrants · ${d.counts.entrants}${d.nickLabel ? ` · ${esc(d.nickLabel.toLowerCase())} shown (admins only)` : ''}</div><div>`;
-  html += d.entrants.map(e => `
+  html += `<div><div class="qlabel">Entrants · ${d.counts.entrants}${d.nickSummary ? ` · ${esc(d.nickSummary)} shown (admins only)` : ''}</div><div>`;
+  html += d.entrants.map(e => {
+    const fieldLines = (e.fields || []).map(f =>
+      `<span class="idsub">${f.private ? '🔒 ' : ''}${esc(f.label)}: ${esc(f.value)}</span>`).join('');
+    return `
     <div class="ent-row ${e.disqualified ? 'dq' : ''}">
-      <span class="nm">${e.disqualified ? '🚫 ' : ''}${esc(e.name)} <span class="sub">${e.checkedIn ? '✓ in' : ''}${e.fake ? ' test' : ''}</span>${e.gameNick ? `<span class="idsub" title="${esc(d.nickLabel || 'ID')}">${esc(e.gameNick)}</span>` : ''}</span>
+      <span class="nm">${e.disqualified ? '🚫 ' : ''}${esc(e.name)} <span class="sub">${e.checkedIn ? '✓ in' : ''}${e.fake ? ' test' : ''}</span>${fieldLines}</span>
       ${d.can.removeEntrant ? `<button class="btn btn-danger btn-sm" data-remove="${esc(e.id)}">Remove</button>` : ''}
       ${d.can.disqualify && !e.disqualified ? `<button class="btn btn-danger btn-sm" data-dq="${esc(e.id)}">DQ</button>` : ''}
-    </div>`).join('') || '<div class="caught-up">No entrants yet.</div>';
+    </div>`;
+  }).join('') || '<div class="caught-up">No entrants yet.</div>';
   html += '</div></div>';
 
   left.innerHTML = html;
