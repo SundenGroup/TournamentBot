@@ -546,7 +546,7 @@
         "key": "goals_user_id",
         "label": "GOALS User ID",
         "placeholder": "GOALS app → Account settings → Goals User ID → Copy",
-        "minLength": 30,
+        "minLength": 25,
         "private": true
       }
     ]
