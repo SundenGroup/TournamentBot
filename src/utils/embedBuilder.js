@@ -223,6 +223,12 @@ async function createParticipantListEmbed(tournament) {
   const { settings, participants, teams, title, status, guildId } = tournament;
   const isSolo = settings.teamSize === 1;
 
+  // Games with a private identifier (e.g. GOALS User ID) must NOT show the
+  // value in this public list — it's posted in the announcement channel where
+  // everyone can see it. Regular in-game gamertags stay visible as before.
+  const { getNickField } = require('../config/gamePresets');
+  const hidePrivateId = getNickField(tournament.game).custom;
+
   const embed = new EmbedBuilder()
     .setColor(getStatusColor(status));
 
@@ -233,7 +239,7 @@ async function createParticipantListEmbed(tournament) {
     } else {
       const list = participants.map((p, i) => {
         let entry = `${i + 1}. ${p.username}`;
-        if (p.gameNick) entry += ` (${p.gameNick})`;
+        if (p.gameNick && !hidePrivateId) entry += ` (${p.gameNick})`;
         if (p.seed) entry += ` [#${p.seed}]`;
         if (p.disqualified) entry += ' 🚫DQ';
         if (status === 'checkin') {

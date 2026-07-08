@@ -9,7 +9,7 @@ const { getClient } = require('./botClient');
 const { requireSession, requireGuildAdmin, verifyLiveGuildAdmin, requireCsrf, adminRateLimit } = require('./adminAuth');
 const { logWebAction } = require('./audit');
 const { getTournament } = require('../services/tournamentService');
-const { GAME_PRESETS, getPresetKeys, getFeaturedPresetKeys } = require('../config/gamePresets');
+const { GAME_PRESETS, getPresetKeys, getFeaturedPresetKeys, getNickField } = require('../config/gamePresets');
 const { getServiceForBracket, findMatchByNumber, normalizeSeriesScore, listAllMatches, validSeriesScores } = require('../utils/matchUtils');
 const {
   startTournamentFlow,
@@ -154,6 +154,10 @@ router.get('/admin/api/tournaments/:id/manage', requireSession, async (req, res)
   if (!t) return;
 
   const isSolo = t.settings.teamSize === 1;
+  // The game's signup identifier (e.g. GOALS User ID). It's hidden from the
+  // public participant list, so this admin-only view is where admins retrieve
+  // it. For teams, collect each member's id keyed under the team.
+  const nickField = getNickField(t.game);
   const entrants = (isSolo ? t.participants : t.teams).map(e => ({
     id: e.id,
     name: entrantName(t, e),
@@ -161,6 +165,9 @@ router.get('/admin/api/tournaments/:id/manage', requireSession, async (req, res)
     checkedIn: !!e.checkedIn,
     disqualified: !!e.disqualified,
     fake: String(e.id).startsWith('fake_'),
+    gameNick: isSolo
+      ? (e.gameNick || null)
+      : ((e.members || []).map(m => m.gameNick).filter(Boolean).join(', ') || null),
   }));
 
   const toRef = p => (p ? { id: p.id, name: isSolo ? p.username : p.name } : null);
@@ -192,6 +199,7 @@ router.get('/admin/api/tournaments/:id/manage', requireSession, async (req, res)
     maxParticipants: t.settings.maxParticipants,
     startTime: t.startTime,
     description: t.description || '',
+    nickLabel: t.settings.requireGameNick ? nickField.label : null,
     entrants,
     matches,
     counts: { entrants: entrants.length, pending: matches.filter(m => !m.winnerId && m.participant1 && m.participant2).length },

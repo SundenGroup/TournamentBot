@@ -183,6 +183,7 @@
   .ent-row:hover { background: var(--bg-hover); }
   .ent-row .nm { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
   .ent-row .nm .sub { color: var(--text-faint); font-size: 10.5px; font-family: var(--mono); }
+  .ent-row .nm .idsub { display: block; color: var(--text-muted); font-size: 10.5px; font-family: var(--mono); overflow: hidden; text-overflow: ellipsis; }
   .ent-row.dq .nm { color: var(--text-faint); text-decoration: line-through; }
 
   .edit-card { border: 1px solid var(--border); border-radius: 12px; padding: 16px; background: var(--bg-card); }
@@ -777,10 +778,10 @@ function renderRunLeft() {
     </div>`;
   }
 
-  html += `<div><div class="qlabel">Entrants · ${d.counts.entrants}</div><div>`;
+  html += `<div><div class="qlabel">Entrants · ${d.counts.entrants}${d.nickLabel ? ` · ${esc(d.nickLabel.toLowerCase())} shown (admins only)` : ''}</div><div>`;
   html += d.entrants.map(e => `
     <div class="ent-row ${e.disqualified ? 'dq' : ''}">
-      <span class="nm">${e.disqualified ? '🚫 ' : ''}${esc(e.name)} <span class="sub">${e.checkedIn ? '✓ in' : ''}${e.fake ? ' test' : ''}</span></span>
+      <span class="nm">${e.disqualified ? '🚫 ' : ''}${esc(e.name)} <span class="sub">${e.checkedIn ? '✓ in' : ''}${e.fake ? ' test' : ''}</span>${e.gameNick ? `<span class="idsub" title="${esc(d.nickLabel || 'ID')}">${esc(e.gameNick)}</span>` : ''}</span>
       ${d.can.removeEntrant ? `<button class="btn btn-danger btn-sm" data-remove="${esc(e.id)}">Remove</button>` : ''}
       ${d.can.disqualify && !e.disqualified ? `<button class="btn btn-danger btn-sm" data-dq="${esc(e.id)}">DQ</button>` : ''}
     </div>`).join('') || '<div class="caught-up">No entrants yet.</div>';
