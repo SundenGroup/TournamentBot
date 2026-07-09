@@ -275,6 +275,103 @@ tournament creation rather than requiring `/subscribe trial`.
 
 ---
 
+## 6. Founder review addendum (July 2026)
+
+Decisions and refinements after reviewing §1–5 with Simon.
+
+### 6a. Pricing, simplified: two SKUs + B2B
+
+Direction: **B2B is the real revenue; consumer subscriptions exist for a
+healthy user base and a stable payment baseline.** Four tiers is too many for
+that job. Collapse to:
+
+| | **Free** | **Pro — $9.99/mo · $79/yr** | **Studio (B2B) — custom, from ~$500/mo** |
+|---|---|---|---|
+| Positioning | The weapon. "Run real tournaments free, in Discord, no ads." | One decision: *do I run a program, not just events?* | "The official tournament bot for your game" |
+| Tournaments | **Unlimited** | Unlimited | Unlimited |
+| Entrants | **64** | 256 (512 with Event Pass) | 512+ |
+| Concurrent | 2 | Unlimited | Unlimited |
+| Features | **Everything core** — all 4 formats, match rooms, buttons, check-in, seeding, captain mode, corrections/DQ, live web bracket *with "Powered by CLUTCH" footer* | Web dashboard, recurring tournaments, seasons/leagues (when built), templates, analytics, footer removal, priority support | Everything + white-label, custom game preset & private fields (the GOALS pattern), API + webhooks, multi-server, SLA/onboarding |
+| Sold via | — | Stripe site (annual-forward) + Discord store (monthly) | Direct/contact |
+
+- **Kill Premium ($5.99) and self-serve Business ($99).** Two consumer paid
+  tiers force feature-hostage decisions ("which tier gets seeding?") that
+  complicate copy, code, and support — and Premium's features (check-in,
+  seeding, captain mode) are table stakes that make the *free* product feel
+  complete, which is what the B2B story needs ("thousands of servers run
+  this"). Business's features (API/white-label/multi-server) were always
+  B2B features; move them to Studio where the price can be honest.
+- **Optional later SKU: Event Pass (~$9.99 one-off)** — everything-Pro for a
+  single tournament. Don't launch day one; add when someone asks.
+- **Migration**: with zero marketing to date there's almost nobody to
+  grandfather — this is the cheapest moment to simplify. Existing paid guilds
+  (if any) get mapped Premium→Pro free for 12 months, Business→Studio talk.
+
+**What risks can we take with free?** All of the cheap ones:
+- *Infra cost* — negligible at current scale; the single-process ceiling is
+  the real limit and it's capped naturally by 64 entrants/2 concurrent.
+- *Support load* — the actual cost of generous free. Mitigate with the docs
+  (already strong), a community server, and the dashboard reducing "how do I"
+  tickets.
+- *Cannibalization* — acceptable by design: free optimizes for install base,
+  reviews, and the viral bracket footer. Pro's value is programs (recurring,
+  leagues, dashboard, analytics), not the ability to run one event.
+- *The one risk NOT to take*: launching generous and later clawing back
+  (Tourney Bot's token fiasco is the cautionary tale). Whatever free is on
+  marketing day is a floor forever — which is why 64 entrants (not 512) is
+  the right free cap, set consciously *before* the marketing push. Today's
+  accidental "everything free" (parked tokens disabled all caps) gets
+  formalized into these numbers, decoupled from the token flag.
+
+### 6b. Battle Royale with zero added complexity — the three rules
+
+The concern: BR must not make the bot harder for a non-technical admin.
+Design answer — BR ships invisible behind the same three walls that already
+hide per-game complexity:
+
+1. **Scoring lives in the game preset, never in a form.** Picking "PUBG"
+   in `/tournament create` IS choosing SUPER scoring (10/6/5/4/3/2/1/1/0 +1
+   per kill), lobby size, games per stage. Same 3-field modal as today
+   (title, date, max). Warzone preset = kill×multiplier model; Apex = ALGS
+   table. An admin never sees the words "scoring model" unless they open
+   advanced mode, where it's one dropdown ("Standard (recommended) / kill
+   race / custom").
+2. **Reporting is taps, never syntax.** The old `placements:1,5,3,2,…`
+   comma format is dead. In Discord: a "Report Game N" button in the lobby
+   room → select menus, "Who placed 1st? → 2nd? → 3rd?…" — report the top 5
+   and press *Done*, the engine already auto-fills the rest as shared last
+   place. On the dashboard Run view: a tap-in-finish-order grid with
+   per-team kill boxes (the full-detail path). Non-techy admins never need
+   the dashboard; power admins never need Discord.
+3. **BR UI only exists when a BR game is picked.** No BR options, buttons,
+   or copy anywhere for CS2/VALORANT/GOALS organizers. (Already how the
+   wizard works — the parked options render only for `battle_royale`.)
+
+Player-side: nothing new at all — same signup button, same check-in, one
+lobby channel instead of match rooms, standings on the same live web page.
+
+Rollout: fix the four parked bugs → engine v2 (config-driven scoring) →
+tap-to-report flows → enable for PUBG + Warzone + Apex + a "Custom BR"
+preset. Skip Fortnite (Yunite owns it). Success bar: a first-time admin runs
+a 40-player BR night without reading the manual.
+
+### 6c. GOALS — July 20, 2026
+
+Signups for the first big GOALS tournament open **July 20 on the Clutch
+Bot** — first major brand running on it publicly, under the CLUTCH brand
+(no white-label, by their choice). Implications:
+- This *is* the soft launch. The §5 "trust basics" (reminder persistence,
+  monitoring, deploy freeze that week) graduate from backlog to pre-July-20
+  checklist, plus a mass-DM rate-limit review (check-in/bye loops at 100+
+  players) and a full GOALS-preset dry run.
+- It also validates §2.5 (studio offering) with zero sales effort — the
+  case study writes itself: "GOALS runs its official tournaments on CLUTCH."
+  Capture metrics during the event (signups, check-in rate, bracket page
+  views) for that story.
+- Free-tier caps must NOT be enforced before this event concludes.
+
+---
+
 *Full source citations live in the research transcripts (competitor pricing
 table, market scans, BR format rulebooks — ALGS/PUBG/WRS official PDFs,
 top.gg listings, Discord policy pages, all fetched 2026-07-09). Key figures
