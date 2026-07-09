@@ -372,6 +372,85 @@ Bot** — first major brand running on it publicly, under the CLUTCH brand
 
 ---
 
+## 7. LFG deep-dive (July 2026 research)
+
+Question: Gankster and VALORANT LFG built ecosystems around teammate-finding —
+what's there for us? Live counts below pulled 2026-07-09 directly from
+Discord's invite API unless noted.
+
+### 7a. The market shape: servers thrive, products die
+
+**Demand is enormous and lives in Discord servers, not products:**
+| Community | Members (online) |
+|---|---|
+| VALORANT official (w/ Riot) | 2,445,685 (377K) |
+| Fortnite official (LFG channels) | 1,725,003 (333K) |
+| **VALORANT LFG** (community-run) | **1,112,859 (231K online)** |
+| Destiny 2 LFG | 532K (143K) — **sells $2.99/$9.99/$29.99-mo tiers** |
+| R6 official / Apex official / CoD | 907K / 852K / 688K |
+
+**Standalone LFG products are a graveyard:** TEAMS.gg dead Jan 2025 after
+1.5M connection requests ("ads and subscriptions… haven't been enough to
+cover the costs" — their own goodbye page); Guilded dead Dec 2025; Duoo's
+domain now redirects to an elo-boosting shop; GamerLink and Teamfind are
+zombies; LF.Group exited to Xsolla and its site is dark. First parties fare
+no better: Discord killed its own LFG (never left beta), Blizzard removed
+Overwatch's in-game LFG ("social and disruptive behavior problems we never
+solved"), Apex removed Clubs. The recurring failure: **users match and
+leave** — no retention, no willingness to pay, moderation costs exported to
+volunteers.
+
+### 7b. How Gankster actually cracked it (the part worth copying)
+
+Gankster (Israeli startup, $4.25M seed Dec 2022 — Bessemer, Hetz, Overwolf,
+Samsung Next) did NOT build a destination site and wait. They became
+**infrastructure for the communities that already own the audience**:
+- Their bot **powers the group system inside the 1.1M-member VALORANT LFG
+  server** — press "create a group" posts in-channel, funneling users to
+  Gankster accounts + app (documented in player threads; they host a branded
+  page for the server at valorant.gankster.gg/communities/valorantlfg).
+- They **sponsor the community-admin layer**: a $50K fund for community
+  leaders, fronted by Flokie — who owns the official VALORANT Discord
+  (1.5M+) — via a "Gaming Admins" community (Nov 2023).
+- They own a **reputation graph** (GANKREP: post-game tags incl. Toxic/Troll)
+  — the moat LFG servers can't build themselves.
+- They **partner instead of build** where an incumbent owns a vertical:
+  Fortnite tournaments run through a Yunite partnership, not Gankster
+  brackets.
+
+The playbook: distribution = the big servers, product = the workflow inside
+them, moat = identity/reputation data. That is "building an ecosystem."
+
+### 7c. What CLUTCH should do
+
+1. **Build tournament-scoped LFG into CLUTCH** (do this): free-agent signup
+   ("I don't have a team — match me"), auto-formed teams at start
+   (Challengermode does exactly this), an organizer draft view (Battlefy's
+   Free Agent Draft), and a **sub-finder** for no-shows (ESEA's "ringer"
+   list). This is proven prior art on every serious platform, has **zero
+   Discord-bot competition**, fixes our own team-tournament pain (partial
+   rosters, no-shows), and improves the GOALS events immediately. It also
+   makes free-agent players a growth loop: they join the server to play.
+2. **Do not build a standalone LFG destination.** The graveyard is
+   conclusive; even $4.25M-funded Gankster monetizes weakly and had to buy
+   distribution through community funds.
+3. **Run the Gankster playbook with tournaments as the wedge** (the real
+   opportunity): the mega-LFG servers already run "regular tournaments and
+   events with prizes" as retention — with duct-tape tooling. Our pitch to
+   them mirrors Gankster's: a branded, embedded tournament system (buttons,
+   auto rooms, live web brackets with their branding) in exchange for
+   distribution. Three server partnerships (say, a 100K+ Warzone community,
+   an R6 community, a VALORANT community) would dwarf any top.gg marketing.
+   Gankster itself is a possible **partner, not rival** — they outsource
+   brackets (Yunite for Fortnite); we outsource group-finding.
+4. **Later, only if (1) works:** extend free-agent pools cross-server into a
+   scrim/team-finding network. Our edge over every dead LFG product: entrants
+   come with **verified competitive history** (real results from real
+   tournaments) — a trust signal Gankster has to synthesize with GANKREP and
+   nobody else has at all.
+
+---
+
 *Full source citations live in the research transcripts (competitor pricing
 table, market scans, BR format rulebooks — ALGS/PUBG/WRS official PDFs,
 top.gg listings, Discord policy pages, all fetched 2026-07-09). Key figures
