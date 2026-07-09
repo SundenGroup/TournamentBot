@@ -28,6 +28,7 @@ const singleElim = require('../services/singleEliminationService');
 const doubleElim = require('../services/doubleEliminationService');
 const swiss = require('../services/swissService');
 const roundRobin = require('../services/roundRobinService');
+const battleRoyale = require('../services/battleRoyaleService');
 
 const router = express.Router();
 
@@ -36,6 +37,7 @@ const SERVICES = {
   double_elimination: doubleElim,
   swiss,
   round_robin: roundRobin,
+  battle_royale: battleRoyale,
 };
 
 // ============================================================================
@@ -66,6 +68,47 @@ function sanitize(node) {
     return out;
   }
   return node;
+}
+
+/**
+ * Battle Royale gets an explicitly-built payload instead of the generic
+ * sanitizer: BR standings hold full team objects under keys the sanitizer
+ * doesn't treat as participants, which would leak raw ids and private
+ * gameFields. Building the shape by hand means nothing leaks by omission.
+ */
+function buildBRPayload(bracket) {
+  const usesKills = (bracket.scoring?.killPoints || 0) > 0 || !!bracket.scoring?.killMultipliers;
+
+  const stagePayload = (stage) => ({
+    name: stage.name,
+    gamesTotal: stage.games.length,
+    gamesComplete: stage.games.filter(g => g.status === 'complete').length,
+    games: stage.games.map(g => ({ gameNumber: g.gameNumber, status: g.status })),
+    standings: stage.standings.map((s, i) => ({
+      rank: i + 1,
+      name: s.team.name || s.team.username || 'Unknown',
+      points: s.points,
+      kills: s.kills,
+      wins: s.wins,
+      gamesPlayed: s.gamesPlayed,
+      placements: s.placements,
+      qualifiedFrom: s.team.qualifiedFrom || null,
+    })),
+  });
+
+  return {
+    type: 'battle_royale',
+    currentStage: bracket.currentStage,
+    singleLobby: !!bracket.singleLobby,
+    advancingPerGroup: bracket.advancingPerGroup || 0,
+    gamesPerStage: bracket.gamesPerStage,
+    scoring: {
+      label: bracket.scoring?.label || 'Placement points',
+      usesKills,
+    },
+    groups: bracket.groups.map(stagePayload),
+    finals: bracket.finals ? stagePayload(bracket.finals) : null,
+  };
 }
 
 function buildPayload(tournament) {
@@ -114,7 +157,9 @@ function buildPayload(tournament) {
       checkedIn: !!e.checkedIn,
       disqualified: !!e.disqualified,
     })),
-    bracket: tournament.bracket ? sanitize(tournament.bracket) : null,
+    bracket: tournament.bracket
+      ? (tournament.bracket.type === 'battle_royale' ? buildBRPayload(tournament.bracket) : sanitize(tournament.bracket))
+      : null,
     results,
     generatedAt: new Date().toISOString(),
   };

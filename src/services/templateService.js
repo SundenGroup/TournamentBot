@@ -53,6 +53,7 @@ async function createTemplateFromTournament(guildId, tournament, name, descripti
     lobbySize: tournament.settings.lobbySize,
     gamesPerStage: tournament.settings.gamesPerStage,
     advancingPerGroup: tournament.settings.advancingPerGroup,
+    brScoringModel: tournament.settings.brScoringModel,
     createdBy,
   });
 
@@ -100,6 +101,7 @@ async function createTemplateFromWizard(guildId, data, name, description, create
     lobbySize: data.lobbySize,
     gamesPerStage: data.gamesPerStage,
     advancingPerGroup: data.advancingPerGroup,
+    brScoringModel: data.brScoringModel,
     createdBy,
   });
 
@@ -126,6 +128,7 @@ function applyTemplateToSession(template) {
     lobbySize: template.lobbySize,
     gamesPerStage: template.gamesPerStage,
     advancingPerGroup: template.advancingPerGroup,
+    brScoringModel: template.brScoringModel,
   };
 }
 

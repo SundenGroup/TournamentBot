@@ -58,8 +58,14 @@ module.exports = {
       });
     }
 
-    // Subscription checks (concurrent / monthly / participant cap + boosts)
-    const checks = await runCreationChecks(guildId, { maxParticipants });
+    // Subscription checks (concurrent / monthly / participant cap + boosts).
+    // BR games bigger than one lobby run multi-lobby group stages (gated).
+    const features = [];
+    if (preset?.defaultFormat === 'battle_royale') {
+      const lobby = preset?.brDefaults?.lobbySize || 20;
+      if (maxParticipants > lobby) features.push('multi_lobby_br');
+    }
+    const checks = await runCreationChecks(guildId, { maxParticipants, features });
     if (!checks.ok) {
       return interaction.reply({ ...(await checkFailureReply(guildId, checks)) });
     }

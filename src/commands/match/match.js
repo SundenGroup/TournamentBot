@@ -31,6 +31,17 @@ module.exports = {
             .setRequired(true)
             .setAutocomplete(true)
         )
+    )
+    .addSubcommand(subcommand =>
+      subcommand
+        .setName('games')
+        .setDescription('List pending Battle Royale games')
+        .addStringOption(option =>
+          option.setName('tournament')
+            .setDescription('Tournament')
+            .setRequired(true)
+            .setAutocomplete(true)
+        )
     ),
 
   async execute(interaction) {
@@ -42,6 +53,9 @@ module.exports = {
         break;
       case 'bracket':
         await handleBracket(interaction);
+        break;
+      case 'games':
+        await handleGames(interaction);
         break;
     }
   },
@@ -142,8 +156,6 @@ async function handleBracket(interaction) {
   return interaction.reply({ embeds, ephemeral: true });
 }
 
-// NOTE: Battle Royale is parked (see docs/PARKED-FEATURES.md). The `games`
-// subcommand is unregistered; this handler is retained for when BR returns.
 async function handleGames(interaction) {
   const tournamentId = interaction.options.getString('tournament');
   const tournament = await getTournament(tournamentId);
@@ -179,9 +191,8 @@ async function handleGames(interaction) {
   }
 
   description += `\n**To report results (admin):**\n`;
-  description += `\`/tournament br-report placements:1,5,3,2,...\`\n\n`;
-  description += `Use lobby numbers shown in each game room.\n`;
-  description += `💡 Only need to report top placements - rest auto-fill.`;
+  description += `Tap the 🎮 **Game** buttons on the standings board in each lobby room.\n`;
+  description += `💡 Reporting the top 3–5 is enough — the rest share last place.`;
 
   embed.setDescription(description);
 

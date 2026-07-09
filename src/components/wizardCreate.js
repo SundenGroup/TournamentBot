@@ -20,6 +20,12 @@ async function createTournamentFromWizard(interaction, session) {
   if (data.captainMode) features.push('captain_mode');
   if (data.requiredRoles?.length > 0) features.push('required_roles');
   if (data.publicBracket) features.push('public_bracket');
+  // BR events bigger than one lobby run multi-lobby group stages
+  if (data.format === 'battle_royale') {
+    const brDefaults = preset?.brDefaults || {};
+    const lobby = data.lobbySize || brDefaults.lobbySize || 20;
+    if (data.maxParticipants > lobby) features.push('multi_lobby_br');
+  }
 
   // Subscription checks (concurrent / monthly / participant cap / features)
   const checks = await runCreationChecks(guildId, { maxParticipants: data.maxParticipants, features });
@@ -73,6 +79,7 @@ async function createTournamentFromWizard(interaction, session) {
         lobbySize: data.lobbySize,
         gamesPerStage: data.gamesPerStage,
         advancingPerGroup: data.advancingPerGroup,
+        brScoringModel: data.brScoringModel,
         requiredRoles: data.requiredRoles || [],
         publicBracket: data.publicBracket ?? false,
         thirdPlaceMatch: (data.format === 'single_elimination' && data.thirdPlaceMatch) || false,

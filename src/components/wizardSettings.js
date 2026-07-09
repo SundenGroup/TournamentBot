@@ -19,8 +19,10 @@ const FORMAT_LABELS = {
   battle_royale: 'Battle Royale',
 };
 
-// Battle Royale is parked (see docs/PARKED-FEATURES.md) — not offered as a format.
-const ALL_FORMATS = ['single_elimination', 'double_elimination', 'swiss', 'round_robin'];
+// Fallback for presets without formatOptions (custom games). Battle Royale is
+// selectable here — per-game presets stay restricted by their own formatOptions,
+// so bracket-game organizers never see BR anywhere.
+const ALL_FORMATS = ['single_elimination', 'double_elimination', 'swiss', 'round_robin', 'battle_royale'];
 
 function buildSettingsMessage(session) {
   const { data } = session;
@@ -175,9 +177,19 @@ module.exports = {
 
       let updated = session;
       switch (subAction) {
-        case 'format':
-          updated = await updateSession(sessionId, { format: value });
+        case 'format': {
+          const patch = { format: value };
+          // Switching to Battle Royale seeds the game's BR defaults (scoring
+          // model, lobby size, games per stage) so the preset "just works".
+          if (value === 'battle_royale') {
+            const brDefaults = GAME_PRESETS[session.data.gamePreset]?.brDefaults || {};
+            if (session.data.lobbySize == null) patch.lobbySize = brDefaults.lobbySize ?? 20;
+            if (session.data.gamesPerStage == null) patch.gamesPerStage = brDefaults.gamesPerStage ?? 3;
+            if (session.data.brScoringModel == null && brDefaults.scoringModel) patch.brScoringModel = brDefaults.scoringModel;
+          }
+          updated = await updateSession(sessionId, patch);
           break;
+        }
         case 'teamSize':
           updated = await updateSession(sessionId, { teamSize: parseInt(value, 10) });
           break;

@@ -474,9 +474,9 @@ function createBRGroupEmbed(group, tournament) {
   }
 
   description += `━━━━━━━━━━━━━━━━━━━━\n`;
-  description += `**Reporting Results:**\n`;
-  description += `After each game, admin reports with:\n`;
-  description += `\`/tournament br-report group:${group.name} game_number:X placements:1,5,3,...\`\n\n`;
+  description += `**Reporting results (admins):**\n`;
+  description += `Tap a **🎮 Game** button on the standings board below after each game `;
+  description += `and pick the teams in finish order — no typing needed.\n\n`;
   description += `Good luck! 🎮`;
 
   embed.setDescription(description);
@@ -494,31 +494,28 @@ function createBRTeamListEmbed(group, tournament) {
     .setTitle(`👥 Lobby Numbers — ${group.name}`)
     .setColor(0xff6b35);
 
-  let description = '**Use these numbers when reporting results:**\n\n';
+  let description = '**In-game lobby slots:**\n\n';
 
   // gameNick is the public display value only (private ids live in gameFields).
   if (isSolo) {
     group.teams.forEach((player, i) => {
       const num = String(i + 1).padStart(2, ' ');
-      description += `\`${num}\` → ${player.username}`;
+      description += `\`${num}\` ${player.username}`;
       if (player.gameNick) description += ` *(${player.gameNick})*`;
       description += '\n';
     });
   } else {
     group.teams.forEach((team, i) => {
       const num = String(i + 1).padStart(2, ' ');
-      description += `\`${num}\` → **${team.name}**`;
+      description += `\`${num}\` **${team.name}**`;
       if (team.qualifiedFrom) description += ` *(${team.qualifiedFrom})*`;
       description += '\n';
     });
   }
 
-  description += '\n━━━━━━━━━━━━━━━━━━━━\n';
-  description += '**To report results:**\n';
-  description += '`/tournament br-report placements:1,5,3,2,...`\n';
-  description += '*(Enter lobby numbers in finish order)*\n\n';
-  description += '💡 You can report just top placements.\n';
-  description += 'Unreported teams share last place points.';
+  description += '\n💡 Admins report results with the **🎮 Game** buttons on the ';
+  description += 'standings board — tap teams in finish order. Reporting the top 3–5 ';
+  description += 'is enough; everyone else shares last place automatically.';
 
   // Truncate if needed
   if (description.length > 4000) {

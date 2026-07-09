@@ -18,11 +18,37 @@ function buildOptionsMessage(session) {
   const rows = [];
 
   if (isBR) {
+    const { GAME_PRESETS } = require('../config/gamePresets');
+    const brDefaults = GAME_PRESETS[data.gamePreset]?.brDefaults || {};
+    const unit = data.teamSize === 1 ? 'players' : 'teams';
+    const curLobby = data.lobbySize || brDefaults.lobbySize || 20;
+    const curGames = data.gamesPerStage || brDefaults.gamesPerStage || 3;
+
+    // Scoring model — the preset default is always the recommended first pick
+    const { BR_SCORING_MODELS } = require('../services/battleRoyaleService');
+    const defaultModel = brDefaults.scoringModel || 'placement';
+    const curModel = data.brScoringModel || defaultModel;
+    const modelOptions = Object.entries(BR_SCORING_MODELS).map(([key, m]) => ({
+      label: key === defaultModel ? `${m.label} — recommended` : m.label,
+      value: key,
+      default: key === curModel,
+    }));
+
+    rows.push(
+      new ActionRowBuilder().addComponents(
+        new StringSelectMenuBuilder()
+          .setCustomId(`wizardOptions:${session.id}:brScoringModel`)
+          .setPlaceholder('Scoring')
+          .addOptions(modelOptions)
+      )
+    );
+
     // Lobby Size
-    const lobbySizeOptions = [10, 20, 30, 50, 100].map(size => ({
-      label: `${size} players per lobby`,
+    const lobbySizes = [...new Set([10, 16, 20, 25, 30, 50, 100, curLobby])].sort((a, b) => a - b);
+    const lobbySizeOptions = lobbySizes.map(size => ({
+      label: `${size} ${unit} per lobby`,
       value: String(size),
-      default: size === (data.lobbySize || 20),
+      default: size === curLobby,
     }));
 
     rows.push(
@@ -35,10 +61,10 @@ function buildOptionsMessage(session) {
     );
 
     // Games per Stage
-    const gpsOptions = [1, 2, 3, 5, 7, 10].map(n => ({
+    const gpsOptions = [...new Set([1, 2, 3, 4, 5, 6, 8, 10, curGames])].sort((a, b) => a - b).map(n => ({
       label: `${n} game${n > 1 ? 's' : ''} per stage`,
       value: String(n),
-      default: n === (data.gamesPerStage || 3),
+      default: n === curGames,
     }));
 
     rows.push(
@@ -50,28 +76,6 @@ function buildOptionsMessage(session) {
       )
     );
 
-    // Advancing per Group
-    const apgOptions = [
-      { label: 'Auto (based on group size)', value: 'auto' },
-      { label: '2 teams advance', value: '2' },
-      { label: '4 teams advance', value: '4' },
-      { label: '6 teams advance', value: '6' },
-      { label: '8 teams advance', value: '8' },
-    ].map(opt => ({
-      ...opt,
-      default: data.advancingPerGroup == null
-        ? opt.value === 'auto'
-        : String(data.advancingPerGroup) === opt.value,
-    }));
-
-    rows.push(
-      new ActionRowBuilder().addComponents(
-        new StringSelectMenuBuilder()
-          .setCustomId(`wizardOptions:${session.id}:advancingPerGroup`)
-          .setPlaceholder('Advancing per Group')
-          .addOptions(apgOptions)
-      )
-    );
   }
 
   if (!isBR && hasCheckin) {
@@ -116,20 +120,34 @@ function buildOptionsMessage(session) {
   );
 
   // Navigation buttons
-  rows.push(
-    new ActionRowBuilder().addComponents(
-      new ButtonBuilder()
-        .setCustomId(`wizardOptions:${session.id}:back`)
-        .setLabel('Back')
-        .setEmoji('⬅️')
-        .setStyle(ButtonStyle.Secondary),
-      new ButtonBuilder()
-        .setCustomId(`wizardOptions:${session.id}:create`)
-        .setLabel('Create Tournament')
-        .setEmoji('✅')
-        .setStyle(ButtonStyle.Primary),
-    )
+  const navRow = new ActionRowBuilder().addComponents(
+    new ButtonBuilder()
+      .setCustomId(`wizardOptions:${session.id}:back`)
+      .setLabel('Back')
+      .setEmoji('⬅️')
+      .setStyle(ButtonStyle.Secondary)
   );
+
+  // Multi-lobby BR only: how many advance from each group to the finals.
+  // A cycling button (Auto → 2 → 4 → 6 → 8 → 10) — Auto fills one finals lobby.
+  if (isBR && (data.maxParticipants || 0) > (data.lobbySize || 20)) {
+    navRow.addComponents(
+      new ButtonBuilder()
+        .setCustomId(`wizardOptions:${session.id}:cycleAdvancing`)
+        .setLabel(`Advance/group: ${data.advancingPerGroup == null ? 'Auto' : data.advancingPerGroup}`)
+        .setEmoji('🎯')
+        .setStyle(ButtonStyle.Secondary)
+    );
+  }
+
+  navRow.addComponents(
+    new ButtonBuilder()
+      .setCustomId(`wizardOptions:${session.id}:create`)
+      .setLabel('Create Tournament')
+      .setEmoji('✅')
+      .setStyle(ButtonStyle.Primary)
+  );
+  rows.push(navRow);
 
   return { content, components: rows };
 }
@@ -165,14 +183,14 @@ module.exports = {
 
       let updated = session;
       switch (subAction) {
+        case 'brScoringModel':
+          updated = await updateSession(sessionId, { brScoringModel: value });
+          break;
         case 'lobbySize':
           updated = await updateSession(sessionId, { lobbySize: parseInt(value, 10) });
           break;
         case 'gamesPerStage':
           updated = await updateSession(sessionId, { gamesPerStage: parseInt(value, 10) });
-          break;
-        case 'advancingPerGroup':
-          updated = await updateSession(sessionId, { advancingPerGroup: value === 'auto' ? null : parseInt(value, 10) });
           break;
         case 'checkinWindow':
           updated = await updateSession(sessionId, { checkinWindow: parseInt(value, 10) });
@@ -197,6 +215,15 @@ module.exports = {
       switch (subAction) {
         case 'toggleThirdPlace': {
           const updated = await updateSession(sessionId, { thirdPlaceMatch: !session.data.thirdPlaceMatch });
+          return interaction.update(buildOptionsMessage(updated || session));
+        }
+
+        case 'cycleAdvancing': {
+          // Auto → 2 → 4 → 6 → 8 → 10 → Auto
+          const cycle = [null, 2, 4, 6, 8, 10];
+          const idx = cycle.indexOf(session.data.advancingPerGroup ?? null);
+          const next = cycle[(idx + 1) % cycle.length];
+          const updated = await updateSession(sessionId, { advancingPerGroup: next });
           return interaction.update(buildOptionsMessage(updated || session));
         }
 

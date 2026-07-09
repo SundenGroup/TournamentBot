@@ -636,6 +636,149 @@
     },
     "menuEmoji": "1514008010773631147"
   },
+  "pubg": {
+    "displayName": "PUBG: Battlegrounds",
+    "shortName": "PUBG",
+    "icon": "🪖",
+    "category": "Battle Royale",
+    "featured": false,
+    "logo": null,
+    "defaultTeamSize": 4,
+    "teamSizeOptions": [
+      1,
+      2,
+      4
+    ],
+    "defaultFormat": "battle_royale",
+    "formatOptions": [
+      "battle_royale"
+    ],
+    "defaultBestOf": 1,
+    "bestOfOptions": [
+      1
+    ],
+    "mapPool": [
+      "Erangel",
+      "Miramar",
+      "Taego",
+      "Deston",
+      "Vikendi"
+    ],
+    "mapPickProcess": "random",
+    "ruleset": "SUPER ruleset: placement points (10/6/5/4/3/2/1/1) + 1 point per kill.",
+    "customFields": {},
+    "brDefaults": {
+      "scoringModel": "super",
+      "lobbySize": 16,
+      "gamesPerStage": 4
+    }
+  },
+  "pubg_mobile": {
+    "displayName": "PUBG Mobile",
+    "shortName": "PUBGM",
+    "icon": "📱",
+    "category": "Battle Royale",
+    "featured": false,
+    "logo": null,
+    "defaultTeamSize": 4,
+    "teamSizeOptions": [
+      1,
+      2,
+      4
+    ],
+    "defaultFormat": "battle_royale",
+    "formatOptions": [
+      "battle_royale"
+    ],
+    "defaultBestOf": 1,
+    "bestOfOptions": [
+      1
+    ],
+    "mapPool": [
+      "Erangel",
+      "Miramar",
+      "Sanhok",
+      "Vikendi",
+      "Livik"
+    ],
+    "mapPickProcess": "random",
+    "ruleset": "Placement points (10/6/5/4/3/2/1/1) + 1 point per kill.",
+    "customFields": {},
+    "brDefaults": {
+      "scoringModel": "super",
+      "lobbySize": 16,
+      "gamesPerStage": 4
+    }
+  },
+  "apex_legends": {
+    "displayName": "Apex Legends",
+    "shortName": "APEX",
+    "icon": "🔺",
+    "category": "Battle Royale",
+    "featured": false,
+    "logo": null,
+    "defaultTeamSize": 3,
+    "teamSizeOptions": [
+      1,
+      2,
+      3
+    ],
+    "defaultFormat": "battle_royale",
+    "formatOptions": [
+      "battle_royale"
+    ],
+    "defaultBestOf": 1,
+    "bestOfOptions": [
+      1
+    ],
+    "mapPool": [
+      "World's Edge",
+      "Storm Point",
+      "Broken Moon",
+      "Kings Canyon",
+      "Olympus"
+    ],
+    "mapPickProcess": "random",
+    "ruleset": "ALGS scoring: placement points (12/9/7/5/4/3/3/2/2/2/1…) + 1 point per kill.",
+    "customFields": {},
+    "brDefaults": {
+      "scoringModel": "algs",
+      "lobbySize": 20,
+      "gamesPerStage": 4
+    }
+  },
+  "warzone": {
+    "displayName": "Call of Duty: Warzone",
+    "shortName": "WZ",
+    "icon": "💀",
+    "category": "Battle Royale",
+    "featured": false,
+    "logo": null,
+    "defaultTeamSize": 4,
+    "teamSizeOptions": [
+      1,
+      2,
+      3,
+      4
+    ],
+    "defaultFormat": "battle_royale",
+    "formatOptions": [
+      "battle_royale"
+    ],
+    "defaultBestOf": 1,
+    "bestOfOptions": [
+      1
+    ],
+    "mapPool": null,
+    "mapPickProcess": null,
+    "ruleset": "Kill-race scoring: kills × placement multiplier (1st 1.6× … 11th+ 1.0×).",
+    "customFields": {},
+    "brDefaults": {
+      "scoringModel": "warzone",
+      "lobbySize": 25,
+      "gamesPerStage": 4
+    }
+  },
   "custom": {
     "displayName": null,
     "shortName": null,
@@ -658,7 +801,8 @@
       "single_elimination",
       "double_elimination",
       "swiss",
-      "round_robin"
+      "round_robin",
+      "battle_royale"
     ],
     "defaultBestOf": 1,
     "bestOfOptions": [

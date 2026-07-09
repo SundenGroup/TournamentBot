@@ -4,17 +4,17 @@ const crypto = require('node:crypto');
 // ============================================================================
 // Feature flags
 // ----------------------------------------------------------------------------
-// Some features are temporarily parked while the core bot is being tested.
-// They are NOT deleted — the implementation and full specs are preserved (see
-// docs/PARKED-FEATURES.md). Flip the env var (or the default below) to re-enable.
-//
-//   tokens       — tournament tokens + participant boosts (the consumable
-//                  escape-hatch over tier limits) and the /tokens command.
-//   battleRoyale — Battle Royale format, its games, and br-report/match games UI.
+//   tokens — tournament tokens + participant boosts (parked, see
+//            docs/PARKED-FEATURES.md). While off, token purchase paths are
+//            unreachable. Tier LIMITS are governed by enforceTiers below.
+//   enforceTiers — pricing v2 enforcement (Free 5/mo·64·2 concurrent, Pro,
+//            Studio). OFF until after the GOALS July 20 event; flipping it on
+//            is a deliberate post-event step (docs/PRODUCT-STRATEGY.md §6).
+// Battle Royale (v2) is fully enabled — reachable through the BR game presets.
 // ============================================================================
 const features = {
   tokens: process.env.FEATURE_TOKENS === 'true',
-  battleRoyale: process.env.FEATURE_BATTLE_ROYALE === 'true',
+  enforceTiers: process.env.ENFORCE_TIERS === 'true',
 };
 
 const publicBaseUrl = process.env.PUBLIC_BASE_URL || 'https://tournaments.clutch.game';

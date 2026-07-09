@@ -44,6 +44,22 @@ async function createTournament(data) {
 
   const serverCfg = await getServerSettings(data.guildId);
 
+  const format = data.format || preset?.defaultFormat || DEFAULT_TOURNAMENT_SETTINGS.format;
+  const isBR = format === 'battle_royale';
+
+  // Battle Royale: freeze the scoring config onto the tournament at creation
+  // (preset default, unless the wizard picked an explicit model). Lobby/games
+  // defaults also come from the preset's brDefaults.
+  const brDefaults = preset?.brDefaults || {};
+  let brScoring = null;
+  if (isBR) {
+    const { resolveScoring } = require('./battleRoyaleService');
+    brScoring = resolveScoring({
+      brScoring: data.brScoring, // pre-resolved custom config (Studio/API path)
+      brScoringModel: data.brScoringModel || brDefaults.scoringModel,
+    });
+  }
+
   const tournament = {
     id,
     guildId: data.guildId,
@@ -65,8 +81,8 @@ async function createTournament(data) {
     settings: {
       maxParticipants: data.maxParticipants,
       teamSize: data.teamSize || preset?.defaultTeamSize || 1,
-      format: data.format || preset?.defaultFormat || DEFAULT_TOURNAMENT_SETTINGS.format,
-      bestOf: data.bestOf || preset?.defaultBestOf || 1,
+      format,
+      bestOf: isBR ? 1 : (data.bestOf || preset?.defaultBestOf || 1),
 
       checkinRequired: data.checkinRequired ?? DEFAULT_TOURNAMENT_SETTINGS.checkinRequired,
       checkinWindow: data.checkinWindow ?? DEFAULT_TOURNAMENT_SETTINGS.checkinWindow,
@@ -84,10 +100,12 @@ async function createTournament(data) {
 
       requiredRoles: data.requiredRoles || [],
 
-      // Battle Royale specific settings
-      lobbySize: data.lobbySize ?? 20,
-      gamesPerStage: data.gamesPerStage ?? 3,
+      // Battle Royale specific settings (preset brDefaults → generic default)
+      lobbySize: data.lobbySize ?? brDefaults.lobbySize ?? 20,
+      gamesPerStage: data.gamesPerStage ?? brDefaults.gamesPerStage ?? 3,
       advancingPerGroup: data.advancingPerGroup ?? null, // null = auto calculate
+      brScoringModel: isBR ? (data.brScoringModel || brDefaults.scoringModel || 'placement') : null,
+      brScoring, // resolved {model,label,placementPoints,killPoints,killMultipliers} — null for bracket formats
 
       captainMode: data.captainMode ?? serverCfg.captainMode ?? false,
 

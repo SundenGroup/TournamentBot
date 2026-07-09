@@ -83,8 +83,10 @@ async function createTournamentEmbed(tournament) {
   };
   const formatDisplay = formatNames[settings.format] || settings.format;
   if (settings.format === 'battle_royale') {
-    fields.push({ name: '🔄 Format', value: formatDisplay, inline: true });
-    fields.push({ name: '🎮 Games/Stage', value: `${settings.gamesPerStage || 3}`, inline: true });
+    fields.push({ name: '🔄 Format', value: `${formatDisplay} · ${settings.gamesPerStage || 3} games`, inline: true });
+    if (settings.brScoring?.label) {
+      fields.push({ name: '🏆 Scoring', value: settings.brScoring.label, inline: true });
+    }
   } else {
     fields.push({ name: '🔄 Format', value: `${formatDisplay} (Bo${settings.bestOf})`, inline: true });
   }

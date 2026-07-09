@@ -122,6 +122,16 @@
   .section-title { font-family: var(--mono); font-size: 11px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; color: var(--text-faint); margin-bottom: 12px; display: flex; align-items: center; gap: 12px; }
   .section-title::after { content: ''; flex: 1; height: 1px; background: var(--hairline); }
   .table-wrap { border: 1px solid var(--border); border-radius: 10px; overflow: hidden; background: #10141D; }
+  /* Battle Royale standings */
+  tr.advancing td.rank { color: var(--gold); font-weight: 700; }
+  tr.cutline td { padding: 4px 14px; font-family: var(--mono); font-size: 9.5px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--gold); background: rgba(255, 199, 92, .06); border-top: 1px dashed rgba(255, 199, 92, .45); text-align: center; }
+  .qual-from { margin-left: 8px; font-family: var(--mono); font-size: 9px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--text-faint); background: var(--bg-sunken); border: 1px solid var(--hairline); border-radius: 4px; padding: 1px 6px; vertical-align: 1px; }
+  .live-tag { color: var(--live, #ff5c5c); font-family: var(--mono); font-size: 9.5px; font-weight: 700; letter-spacing: .1em; }
+  .game-dots { display: inline-flex; align-items: center; gap: 4px; margin-left: auto; }
+  .game-dots .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--bg-sunken); border: 1px solid var(--border); }
+  .game-dots .dot.done { background: var(--gold); border-color: var(--gold); }
+  .game-dots .dots-label { font-family: var(--mono); font-size: 9.5px; color: var(--text-faint); margin-left: 4px; letter-spacing: .06em; }
+  .br-scoring-note { margin-top: 14px; font-size: 12px; color: var(--text-faint); font-family: var(--mono); letter-spacing: .02em; }
   table.standings { width: 100%; border-collapse: collapse; font-size: 13.5px; }
   table.standings th { text-align: left; font-family: var(--mono); font-size: 10px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; color: var(--text-faint); background: var(--bg-sunken); padding: 9px 14px; }
   table.standings td { padding: 9px 14px; border-top: 1px solid var(--hairline); }
@@ -255,6 +265,7 @@ const FORMAT_NAMES = {
   double_elimination: 'Double Elimination',
   swiss: 'Swiss',
   round_robin: 'Round Robin',
+  battle_royale: 'Battle Royale',
 };
 
 // ── App state (survives polls) ──────────────────────────────────────────────
@@ -685,6 +696,10 @@ function renderHero(d) {
     if (MODEL.byes) bits.push(`${MODEL.byes} bye${MODEL.byes === 1 ? '' : 's'}`);
     bits.push(`${fmt(MODEL.totalMatches)} matches`);
   }
+  if (d.format === 'battle_royale' && d.bracket) {
+    if (!d.bracket.singleLobby) bits.push(`${d.bracket.groups.length} lobbies`);
+    bits.push(d.bracket.scoring?.label || null);
+  }
   $('metaLine').textContent = bits.filter(Boolean).join(' · ');
 }
 
@@ -821,6 +836,65 @@ function renderSwissRR(d) {
   showPanel(html);
 }
 
+// ── Battle Royale standings view ────────────────────────────────────────────
+function brCols(d) {
+  const cols = [{ label: 'Pts', value: s => `<b>${s.points}</b>` }];
+  if (d.bracket.scoring?.usesKills) cols.push({ label: 'Kills', value: s => s.kills });
+  cols.push({ label: 'Wins', value: s => s.wins || '—' });
+  cols.push({ label: 'Games', value: s => `${s.gamesPlayed}/${d.bracket.gamesPerStage}` });
+  return cols;
+}
+
+function renderBRTable(d, stage, cut) {
+  const cols = brCols(d);
+  let html = '<div class="table-wrap"><table class="standings"><thead><tr><th>#</th><th>Name</th>';
+  for (const c of cols) html += `<th style="text-align:center">${c.label}</th>`;
+  html += '</tr></thead><tbody>';
+  stage.standings.forEach((s, i) => {
+    const advancing = cut && i < cut;
+    html += `<tr class="${i === 0 ? 'top' : ''}${advancing ? ' advancing' : ''}">
+      <td class="rank">${s.rank}</td>
+      <td style="font-weight:${i === 0 ? 700 : 500}">${esc(s.name)}${s.qualifiedFrom ? `<span class="qual-from">${esc(s.qualifiedFrom)}</span>` : ''}</td>`;
+    for (const c of cols) html += `<td class="num">${c.value(s)}</td>`;
+    html += '</tr>';
+    if (cut && i === cut - 1 && cut < stage.standings.length) {
+      html += `<tr class="cutline"><td colspan="${cols.length + 2}">▲ Top ${cut} advance to the Grand Finals</td></tr>`;
+    }
+  });
+  return html + '</tbody></table></div>';
+}
+
+function brGameDots(stage) {
+  return `<span class="game-dots">${stage.games.map(g =>
+    `<span class="dot ${g.status === 'complete' ? 'done' : ''}" title="Game ${g.gameNumber}"></span>`).join('')}
+    <span class="dots-label">Game ${Math.min(stage.gamesComplete + 1, stage.gamesTotal)}/${stage.gamesTotal}</span></span>`;
+}
+
+function renderBR(d) {
+  const b = d.bracket;
+  let html = '';
+  if (d.results && d.status === 'completed') html += renderPodiumSection(d.results);
+
+  const inGroups = b.currentStage === 'groups';
+  const sections = [];
+
+  if (b.finals) {
+    sections.push({ stage: b.finals, cut: 0, live: b.currentStage === 'finals',
+      title: `Grand Finals · ${b.finals.gamesComplete}/${b.finals.gamesTotal} games` });
+  }
+  b.groups.forEach(g => {
+    sections.push({ stage: g, cut: inGroups && !b.singleLobby ? b.advancingPerGroup : 0, live: inGroups,
+      title: `${g.name} · ${g.gamesComplete}/${g.gamesTotal} games` });
+  });
+
+  for (const sec of sections) {
+    html += `<div class="section"><div class="section-title">${esc(sec.title)}${sec.live && d.status === 'active' ? '<span class="live-tag">● live</span>' : ''}${brGameDots(sec.stage)}</div>${renderBRTable(d, sec.stage, sec.cut)}</div>`;
+  }
+
+  html += `<div class="br-scoring-note">Scoring: ${esc(b.scoring?.label || 'Placement points')}${b.scoring?.usesKills ? ' — placement points + kills' : ''}</div>`;
+  showPanel(html);
+}
+
 // ── Main render ─────────────────────────────────────────────────────────────
 function render() {
   const d = DATA;
@@ -834,10 +908,13 @@ function render() {
   }
 
   if (!MODEL) {
-    // swiss / round robin (battle royale unsupported publicly)
+    // swiss / round robin / battle royale render as panels
     if (d.bracket.type === 'swiss' || d.bracket.type === 'round_robin') {
       renderStrip(d);
       renderSwissRR(d);
+    } else if (d.bracket.type === 'battle_royale') {
+      renderStrip(d);
+      renderBR(d);
     } else {
       showPanel('<div class="empty"><h2>Unsupported format</h2></div>');
     }

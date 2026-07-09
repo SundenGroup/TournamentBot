@@ -79,6 +79,9 @@ async function startTournamentFlow({ client, guild, tournamentId }) {
           const channel = await createBRGroupRoom(guild, group, tournament);
           group.channelId = channel.id;
           roomsCreated++;
+          // Post the interactive standings board (report buttons live here)
+          tournament.bracket = bracket;
+          await refreshBRBoard(client, { ...tournament, bracket }, group);
         } catch (error) {
           console.error('Error creating BR group room:', error);
           roomsFailed++;
@@ -160,8 +163,8 @@ function buildStartEmbed(tournament, summary) {
   }
 
   if (format === 'battle_royale') {
-    description += `\nUse \`/match bracket\` to view group standings.`;
-    description += `\nUse \`/tournament br-report\` to report game results.`;
+    description += `\nEach lobby room has a live standings board — admins report`;
+    description += `\nresults by tapping the **\uD83C\uDFAE Game** buttons. No typing needed.`;
   } else {
     description += `\nUse \`/match list\` to see active matches.`;
   }
@@ -239,6 +242,11 @@ async function applyMatchReport({ client, guild, tournament, match, winnerId, sc
     await announceTournamentComplete(client, tournament, results);
     await updateTournamentAnnouncement(client, tournament);
     await triggerAutoCleanup(guild, tournament);
+
+    // Free the concurrent-tournament slot (was never decremented before —
+    // free-tier servers would permanently exhaust their concurrent limit)
+    const { recordTournamentCompletion } = require('./subscriptionService');
+    await recordTournamentCompletion(tournament.guildId).catch(() => {});
 
     return { winner, loser, isSolo, swissRoundStarted, completed: true, results, newRooms: 0 };
   }
@@ -350,6 +358,10 @@ async function cancelFlow({ client, tournament }) {
 
   const { cancelReminders } = require('./reminderService');
   cancelReminders(tournament.id);
+
+  // Every creation takes a concurrent slot, so every cancel frees one
+  const { recordTournamentCompletion } = require('./subscriptionService');
+  await recordTournamentCompletion(tournament.guildId).catch(() => {});
 
   // Refresh the announcement so the status + buttons reflect the cancellation
   await updateTournamentMessages(client, tournament);
@@ -492,6 +504,270 @@ async function createRoomsFlow({ guild, tournament }) {
   return { created, failed, existing };
 }
 
+// ─── Battle Royale: game reports, corrections, kills ─────────────────────────
+//
+// BR has no matches — lobbies play N games and results arrive as placement
+// orders (+ optional kills). These flows are the single implementation behind
+// the tap-to-report buttons AND the web dashboard grid. No comma syntax.
+
+const battleRoyale = require('./battleRoyaleService');
+
+/** Resolve a stage by its board key ('f' = finals, else group index). */
+function getBRStage(bracket, groupKey) {
+  if (groupKey === 'f') return bracket.finals;
+  const idx = parseInt(groupKey, 10);
+  return Number.isInteger(idx) ? bracket.groups[idx] || null : null;
+}
+
+/** The board key used in button customIds for a stage. */
+function brStageKey(bracket, stage) {
+  if (bracket.finals && stage.id === bracket.finals.id) return 'f';
+  return String(bracket.groups.findIndex(g => g.id === stage.id));
+}
+
+function brEngineKey(bracket, groupKey) {
+  // The engine addresses the finals as 'finals' and groups by their uuid.
+  if (groupKey === 'f') return 'finals';
+  const stage = getBRStage(bracket, groupKey);
+  return stage?.id || null;
+}
+
+/**
+ * Apply a game report and every side-effect: persistence, lobby-board refresh,
+ * result announcement, finals-room creation, completion flow.
+ */
+async function applyBRGameReport({ client, guild, tournament, groupKey, gameNumber, placements, kills = {} }) {
+  const bracket = tournament.bracket;
+  const engineKey = brEngineKey(bracket, groupKey);
+  if (!engineKey) throw new Error('Lobby not found.');
+
+  const result = battleRoyale.reportGameResults(bracket, engineKey, gameNumber, placements, kills);
+  return finishBRMutation({ client, guild, tournament, result, groupKey, gameNumber, kind: 'report' });
+}
+
+/** Correct an already-reported game (same tap flow, different commit). */
+async function applyBRGameCorrection({ client, guild, tournament, groupKey, gameNumber, placements, kills = {} }) {
+  const bracket = tournament.bracket;
+  const engineKey = brEngineKey(bracket, groupKey);
+  if (!engineKey) throw new Error('Lobby not found.');
+
+  const result = battleRoyale.correctGameResults(bracket, engineKey, gameNumber, placements, kills);
+  return finishBRMutation({ client, guild, tournament, result, groupKey, gameNumber, kind: 'correct' });
+}
+
+/** Add/replace kills on a reported game (placements untouched). */
+async function applyBRSetKills({ client, tournament, groupKey, gameNumber, kills }) {
+  const bracket = tournament.bracket;
+  const engineKey = brEngineKey(bracket, groupKey);
+  if (!engineKey) throw new Error('Lobby not found.');
+
+  const result = battleRoyale.setKills(bracket, engineKey, gameNumber, kills);
+  await updateTournament(tournament.id, { bracket });
+  await refreshBRBoard(client, tournament, result.stage);
+  return result;
+}
+
+/** Shared tail of report/correct: rooms, persistence, announcements, boards. */
+async function finishBRMutation({ client, guild, tournament, result, groupKey, gameNumber, kind }) {
+  const bracket = tournament.bracket;
+  const { stage, finalsCreated, tournamentComplete, finalsRegenerated } = result;
+
+  // New finals stage → create its lobby room + board
+  if (finalsCreated && guild) {
+    try {
+      const channel = await createBRGroupRoom(guild, bracket.finals, tournament);
+      bracket.finals.channelId = channel.id;
+      await refreshBRBoard(client, tournament, bracket.finals);
+    } catch (error) {
+      console.error('Error creating finals room:', error);
+    }
+    await announceBRFinals(client, tournament, bracket);
+  }
+
+  if (tournamentComplete) {
+    await updateTournament(tournament.id, { bracket, status: 'completed' });
+    tournament.status = 'completed';
+
+    const results = battleRoyale.getResults(bracket);
+    webhooks.onTournamentCompleted(tournament, results.standings.map(s => s.team));
+
+    await announceBRGameResult(client, tournament, stage, gameNumber, kind);
+    await refreshBRBoard(client, tournament, stage);
+    await announceTournamentComplete(client, tournament, results);
+    await updateTournamentAnnouncement(client, tournament);
+    if (guild) await triggerAutoCleanup(guild, tournament);
+
+    // Free the concurrent-tournament slot
+    const { recordTournamentCompletion } = require('./subscriptionService');
+    await recordTournamentCompletion(tournament.guildId).catch(() => {});
+
+    return { ...result, groupKey };
+  }
+
+  await updateTournament(tournament.id, { bracket });
+  await announceBRGameResult(client, tournament, stage, gameNumber, kind);
+  await refreshBRBoard(client, tournament, stage);
+  if (finalsRegenerated) await refreshBRBoard(client, tournament, bracket.finals);
+
+  return { ...result, groupKey };
+}
+
+// ─── BR display: lobby board + announcements ─────────────────────────────────
+
+/** Compact standings table for embeds (monospace). */
+function brStandingsTable(bracket, stage, limit = 20) {
+  const name = (t) => (t.name || t.username || 'Unknown');
+  const usesKills = (bracket.scoring?.killPoints || 0) > 0 || bracket.scoring?.killMultipliers;
+
+  const isGroupsStage = bracket.currentStage === 'groups' && !bracket.singleLobby && stage.id !== 'finals';
+  const cut = isGroupsStage ? bracket.advancingPerGroup : 0;
+
+  let out = '```\n';
+  out += usesKills ? ' #  Team                 Pts  Kills\n' : ' #  Team                 Pts\n';
+  stage.standings.slice(0, limit).forEach((s, i) => {
+    const mark = cut && i < cut ? '▸' : ' ';
+    const nm = name(s.team).slice(0, 20).padEnd(20);
+    const pts = String(s.points).padStart(4);
+    out += `${mark}${String(i + 1).padStart(2)}  ${nm}${pts}`;
+    if (usesKills) out += `  ${String(s.kills).padStart(4)}`;
+    out += '\n';
+  });
+  if (stage.standings.length > limit) out += ` …and ${stage.standings.length - limit} more\n`;
+  out += '```';
+  if (cut) out += `\n▸ Top **${cut}** advance to the Grand Finals`;
+  return out;
+}
+
+/** The per-lobby board: standings embed + one button per game. */
+function buildBRBoard(tournament, stage) {
+  const bracket = tournament.bracket;
+  const done = stage.games.filter(g => g.status === 'complete').length;
+
+  const embed = new EmbedBuilder()
+    .setTitle(`📊 ${stage.name} — Standings`)
+    .setColor(stage.id === 'finals' ? 0xffd700 : 0xff6b35)
+    .setDescription(
+      `**${tournament.title}**\n` +
+      `${bracket.scoring?.label || 'Placement points'} · Game ${Math.min(done + 1, stage.games.length)} of ${stage.games.length}` +
+      `\n\n${brStandingsTable(bracket, stage)}`
+    )
+    .setFooter({ text: done < stage.games.length
+      ? 'Admins: tap a game button to report results — no typing needed.'
+      : 'All games reported. Tap a game to correct it.' });
+
+  const key = brStageKey(bracket, stage);
+  const rows = [];
+  let row = new ActionRowBuilder();
+  stage.games.forEach((g, i) => {
+    if (i > 0 && i % 5 === 0) { rows.push(row); row = new ActionRowBuilder(); }
+    const isNext = g.status === 'pending' && stage.games.findIndex(x => x.status === 'pending') === i;
+    row.addComponents(
+      new ButtonBuilder()
+        .setCustomId(`brReport:${tournament.id}:${key}:${g.gameNumber}:start`)
+        .setLabel(`${g.status === 'complete' ? '✅' : '🎮'} Game ${g.gameNumber}`)
+        .setStyle(isNext ? ButtonStyle.Primary : ButtonStyle.Secondary)
+    );
+  });
+  rows.push(row);
+
+  return { embeds: [embed], components: rows };
+}
+
+/** Re-render a stage's lobby board (posts it if missing). */
+async function refreshBRBoard(client, tournament, stage) {
+  if (!stage?.channelId) return;
+  try {
+    const channel = await client.channels.fetch(stage.channelId);
+    const board = buildBRBoard(tournament, stage);
+    if (stage.boardMessageId) {
+      const msg = await channel.messages.fetch(stage.boardMessageId).catch(() => null);
+      if (msg) { await msg.edit(board); return; }
+    }
+    const sent = await channel.send(board);
+    stage.boardMessageId = sent.id;
+    await updateTournament(tournament.id, { bracket: tournament.bracket });
+  } catch (error) {
+    console.error('Error refreshing BR board:', error);
+  }
+}
+
+/** Post a game-result summary to the tournament's announcement channel. */
+async function announceBRGameResult(client, tournament, stage, gameNumber, kind = 'report') {
+  try {
+    const channel = await client.channels.fetch(tournament.channelId);
+    if (!channel) return;
+
+    const game = stage.games.find(g => g.gameNumber === gameNumber);
+    if (!game || game.status !== 'complete') return;
+
+    const teamById = new Map(stage.teams.map(t => [t.id, t]));
+    const name = (id) => {
+      const t = teamById.get(id);
+      return t ? (t.name || t.username || 'Unknown') : 'Unknown';
+    };
+
+    const medals = ['🥇', '🥈', '🥉', '4.', '5.'];
+    const top = game.results
+      .filter(r => r.placement != null)
+      .sort((a, b) => a.placement - b.placement)
+      .slice(0, 5);
+
+    const embed = new EmbedBuilder()
+      .setTitle(`${kind === 'correct' ? '🛠️' : '🎮'} ${stage.name} — Game ${gameNumber} ${kind === 'correct' ? 'corrected' : 'results'}`)
+      .setColor(stage.id === 'finals' ? 0xffd700 : 0xff6b35);
+    if (tournament.game.logo) embed.setThumbnail(tournament.game.logo);
+
+    let description = `**${tournament.title}**\n\n`;
+    top.forEach((r, i) => {
+      description += `${medals[i]} **${name(r.teamId)}** — ${r.points} pts`;
+      if (r.kills) description += ` (${r.kills} kills)`;
+      description += '\n';
+    });
+
+    description += `\n**Standings after Game ${gameNumber}:**\n`;
+    stage.standings.slice(0, 5).forEach((s, i) => {
+      description += `${i + 1}. ${s.team.name || s.team.username} — **${s.points}** pts\n`;
+    });
+
+    const done = stage.games.filter(g => g.status === 'complete').length;
+    description += `\n📊 *${done}/${stage.games.length} games reported*`;
+
+    embed.setDescription(description);
+    await channel.send({ embeds: [embed] });
+  } catch (error) {
+    console.error('Error announcing BR game result:', error);
+  }
+}
+
+/** Announce the Grand Finals roster in the tournament channel. */
+async function announceBRFinals(client, tournament, bracket) {
+  try {
+    const channel = await client.channels.fetch(tournament.channelId);
+    if (!channel || !bracket.finals) return;
+
+    const embed = new EmbedBuilder()
+      .setTitle(`🚀 GRAND FINALS — ${tournament.title}`)
+      .setColor(0xffd700);
+    if (tournament.game.logo) embed.setThumbnail(tournament.game.logo);
+
+    let description = `**${bracket.finals.teams.length} ${tournament.settings.teamSize === 1 ? 'players' : 'teams'} have qualified!**\n\n`;
+    const byGroup = {};
+    for (const team of bracket.finals.teams) {
+      const from = team.qualifiedFrom || 'Qualified';
+      (byGroup[from] = byGroup[from] || []).push(team);
+    }
+    for (const [groupName, teams] of Object.entries(byGroup)) {
+      description += `**${groupName}:** ${teams.map(t => t.name || t.username).join(', ')}\n`;
+    }
+    description += `\n${bracket.gamesPerStage} games decide the champion. Good luck! 🏆`;
+
+    embed.setDescription(description);
+    await channel.send({ embeds: [embed] });
+  } catch (error) {
+    console.error('Error announcing BR finals:', error);
+  }
+}
+
 // ─── Completion side-effects (shared) ────────────────────────────────────────
 
 /** Post the "TOURNAMENT COMPLETE" podium embed to the tournament's channel. */
@@ -604,4 +880,12 @@ module.exports = {
   updateTournamentAnnouncement,
   triggerAutoCleanup,
   FORMAT_NAMES,
+  // Battle Royale
+  applyBRGameReport,
+  applyBRGameCorrection,
+  applyBRSetKills,
+  getBRStage,
+  brStageKey,
+  buildBRBoard,
+  refreshBRBoard,
 };

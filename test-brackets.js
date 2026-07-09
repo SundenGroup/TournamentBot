@@ -294,5 +294,180 @@ console.log('=== CORRECTION GUARDS + DE GF SAFEGUARD ===');
   }
 }
 
+// ============================================================================
+// BATTLE ROYALE v2
+// ============================================================================
+const br = require('./src/services/battleRoyaleService');
+
+function makeTeams(n) {
+  return Array.from({ length: n }, (_, i) => ({ id: `t${i + 1}`, name: `Team${i + 1}`, seed: i + 1 }));
+}
+/** Report every pending game with teams in lobby order (Team with lowest index wins). */
+function playOutBR(bracket, killsFor = null) {
+  let guard = 0;
+  while (!br.isComplete(bracket) && guard++ < 1000) {
+    const active = br.getActiveMatches(bracket);
+    if (!active.length) break;
+    for (const g of active) {
+      const stage = br.getGroup(bracket, g.groupId);
+      const order = stage.teams.map(t => t.id);
+      br.reportGameResults(bracket, g.groupId, g.gameNumber, order, killsFor ? killsFor(order) : {});
+    }
+  }
+}
+
+console.log('=== BR: SINGLE LOBBY (no finals stage) ===');
+{
+  const b = br.generateBracket(makeTeams(16), { lobbySize: 20, gamesPerStage: 3, brScoringModel: 'super', seedingEnabled: true });
+  check(b.singleLobby === true, 'BR 16/20: should be single lobby');
+  check(b.groups.length === 1 && b.groups[0].name === 'Lobby', 'BR 16/20: one group named Lobby');
+  check(b.finals === null, 'BR 16/20: no finals stage');
+  playOutBR(b);
+  check(br.isComplete(b), 'BR 16/20: completes after group games');
+  check(b.finals === null, 'BR 16/20: still no finals after completion');
+  const res = br.getResults(b);
+  check(res.winner?.id === 't1', 'BR 16/20: winner from lobby standings');
+  // SUPER: 3 wins = 30 pts
+  check(res.standings[0].points === 30, `BR 16/20: winner has 30 pts (got ${res.standings[0].points})`);
+  console.log(`  16 teams, lobby 20: single lobby, complete, winner=${res.winner.id} pts=${res.standings[0].points} ✓`);
+}
+
+console.log('=== BR: MULTI-LOBBY → FINALS ===');
+{
+  const b = br.generateBracket(makeTeams(40), { lobbySize: 20, gamesPerStage: 2, brScoringModel: 'super', seedingEnabled: true });
+  check(b.groups.length === 2, 'BR 40/20: two groups');
+  check(b.groups[0].teams.length === 20 && b.groups[1].teams.length === 20, 'BR 40/20: even snake split');
+  check(b.advancingPerGroup === 10, `BR 40/20: auto advancing = 10 (got ${b.advancingPerGroup})`);
+  // snake seeding: seed 1 → A, seed 2+3 → B, seed 4 → A
+  check(b.groups[0].teams[0].id === 't1' && b.groups[1].teams[0].id === 't2' && b.groups[1].teams[1].id === 't3', 'BR 40/20: snake seed order');
+  playOutBR(b);
+  check(br.isComplete(b), 'BR 40/20: completes');
+  check(b.finals && b.finals.teams.length === 20, 'BR 40/20: finals has 20 teams');
+  check(b.finals.teams.every(t => t.qualifiedFrom), 'BR 40/20: finals teams carry qualifiedFrom');
+  console.log(`  40 teams: 2 groups → finals(20) → complete, champion=${br.getResults(b).winner.id} ✓`);
+}
+
+console.log('=== BR: SCORING MODELS ===');
+{
+  // SUPER: 1st with 5 kills = 10 + 5
+  check(br.scoreFor(br.BR_SCORING_MODELS.super, 1, 5) === 15, 'SUPER 1st+5k = 15');
+  check(br.scoreFor(br.BR_SCORING_MODELS.super, 9, 2) === 2, 'SUPER 9th+2k = 2 (0 placement)');
+  check(br.scoreFor(br.BR_SCORING_MODELS.super, 40, 0) === 0, 'SUPER 40th = 0 (past table)');
+  // ALGS: 1st 12 (+1/kill), 10th = 2
+  check(br.scoreFor(br.BR_SCORING_MODELS.algs, 1, 3) === 15, 'ALGS 1st+3k = 15');
+  check(br.scoreFor(br.BR_SCORING_MODELS.algs, 10, 0) === 2, 'ALGS 10th = 2');
+  // Warzone: pure kills × multiplier
+  check(br.scoreFor(br.BR_SCORING_MODELS.warzone, 1, 10) === 16, 'WZ 1st 10k = 16');
+  check(br.scoreFor(br.BR_SCORING_MODELS.warzone, 4, 10) === 13, 'WZ 4th 10k = 13 (1.3×)');
+  check(br.scoreFor(br.BR_SCORING_MODELS.warzone, 30, 10) === 10, 'WZ 30th 10k = 10 (1.0×)');
+  // kill race + placement-only
+  check(br.scoreFor(br.BR_SCORING_MODELS.kill_race, 1, 7) === 7, 'Kill race = kills');
+  check(br.scoreFor(br.BR_SCORING_MODELS.placement, 2, 9) === 7, 'Placement-only ignores kills');
+  // Fairness: same points regardless of lobby size (the v1 uneven-groups bug)
+  const b = br.generateBracket(makeTeams(25), { lobbySize: 20, gamesPerStage: 1, brScoringModel: 'super' });
+  check(b.groups[0].teams.length === 13 && b.groups[1].teams.length === 12, 'BR 25/20: 13+12 split');
+  for (const g of b.groups) br.reportGameResults(b, g.id, 1, g.teams.map(t => t.id));
+  const p1 = b.groups[0].standings[0].points, p2 = b.groups[1].standings[0].points;
+  check(p1 === p2 && p1 === 10, `BR uneven groups: both winners score 10 (got ${p1}/${p2})`);
+  console.log('  SUPER/ALGS/Warzone/kill-race/placement exact + uneven-lobby fairness ✓');
+}
+
+console.log('=== BR: PARTIAL REPORT AUTO-FILL ===');
+{
+  const b = br.generateBracket(makeTeams(8), { lobbySize: 20, gamesPerStage: 1, brScoringModel: 'super' });
+  const lobby = b.groups[0];
+  // Report only top 3 — remaining 5 share avg of slots 4..8 = (4+3+2+1+1)/5 = 2.2
+  br.reportGameResults(b, lobby.id, 1, ['t3', 't5', 't1']);
+  const game = lobby.games[0];
+  const filled = game.results.filter(r => r.placement === null);
+  check(filled.length === 5, 'auto-fill: 5 unreported teams');
+  check(filled.every(r => r.points === 2.2), `auto-fill: shared avg 2.2 (got ${filled[0]?.points})`);
+  check(lobby.standings[0].team.id === 't3' && lobby.standings[0].points === 10, 'auto-fill: reported top intact');
+  console.log('  top-3 report → 5 teams share 2.2 pts ✓');
+}
+
+console.log('=== BR: VALIDATION ===');
+{
+  const b = br.generateBracket(makeTeams(4), { lobbySize: 20, gamesPerStage: 2, brScoringModel: 'super' });
+  const lobby = b.groups[0];
+  let thrown = 0;
+  try { br.reportGameResults(b, lobby.id, 1, ['t1', 't1', 't2']); } catch { thrown++; }
+  try { br.reportGameResults(b, lobby.id, 1, ['t1', 'ghost']); } catch { thrown++; }
+  try { br.reportGameResults(b, lobby.id, 1, []); } catch { thrown++; }
+  try { br.reportGameResults(b, lobby.id, 1, ['t1', 't2'], { t1: -3 }); } catch { thrown++; }
+  try { br.reportGameResults(b, lobby.id, 99, ['t1']); } catch { thrown++; }
+  check(thrown === 5, `validation: 5 bad inputs rejected (got ${thrown})`);
+  br.reportGameResults(b, lobby.id, 1, ['t1', 't2', 't3', 't4']);
+  let dup = false;
+  try { br.reportGameResults(b, lobby.id, 1, ['t2', 't1']); } catch { dup = true; }
+  check(dup, 'validation: re-reporting a complete game is blocked');
+  console.log('  duplicates/unknowns/empty/bad-kills/re-report all rejected ✓');
+}
+
+console.log('=== BR: CORRECTIONS ===');
+{
+  // Same-stage correction recomputes exactly (no double count)
+  const b = br.generateBracket(makeTeams(4), { lobbySize: 20, gamesPerStage: 2, brScoringModel: 'super' });
+  const lobby = b.groups[0];
+  br.reportGameResults(b, lobby.id, 1, ['t1', 't2', 't3', 't4'], { t1: 2 });
+  br.reportGameResults(b, lobby.id, 2, ['t1', 't2', 't3', 't4']);
+  check(br.isComplete(b), 'BR corr: single lobby complete');
+  check(b.groups[0].standings[0].team.id === 't1' && b.groups[0].standings[0].points === 22, 'BR corr: t1 leads 22');
+  br.correctGameResults(b, lobby.id, 1, ['t4', 't3', 't2', 't1'], { t4: 1 });
+  const s = b.groups[0].standings;
+  check(s.find(x => x.team.id === 't1').points === 10 + 4, `BR corr: t1 recomputed to 14 (got ${s.find(x => x.team.id === 't1').points})`);
+  check(s.find(x => x.team.id === 't4').points === 11 + 4, 'BR corr: t4 recomputed to 15');
+  check(br.getResults(b).winner.id === 't4', 'BR corr: post-completion correction flips champion');
+
+  // Group correction regenerates an untouched finals roster
+  const b2 = br.generateBracket(makeTeams(8), { lobbySize: 4, gamesPerStage: 1, advancingPerGroup: 2, brScoringModel: 'super' });
+  for (const g of b2.groups) br.reportGameResults(b2, g.id, 1, g.teams.map(t => t.id));
+  check(b2.currentStage === 'finals' && b2.finals.teams.length === 4, 'BR corr: finals created (2×2)');
+  const gA = b2.groups[0];
+  const before = new Set(b2.finals.teams.map(t => t.id));
+  const reversed = [...gA.teams.map(t => t.id)].reverse();
+  const r = br.correctGameResults(b2, gA.id, 1, reversed);
+  check(r.finalsRegenerated, 'BR corr: finals regenerated');
+  const after = new Set(b2.finals.teams.map(t => t.id));
+  check([...after].some(id => !before.has(id)), 'BR corr: finals roster changed');
+  // After a finals game is reported, group corrections are locked
+  br.reportGameResults(b2, 'finals', 1, b2.finals.teams.map(t => t.id));
+  let locked = false;
+  try { br.correctGameResults(b2, gA.id, 1, gA.teams.map(t => t.id)); } catch { locked = true; }
+  check(locked, 'BR corr: group correction blocked once finals reported');
+  console.log('  recompute-exact + finals regen + late-lock ✓');
+}
+
+console.log('=== BR: KILLS + LOBBY MOVES ===');
+{
+  const b = br.generateBracket(makeTeams(6), { lobbySize: 20, gamesPerStage: 2, brScoringModel: 'algs' });
+  const lobby = b.groups[0];
+  br.reportGameResults(b, lobby.id, 1, lobby.teams.map(t => t.id));
+  br.setKills(b, lobby.id, 1, { [lobby.teams[1].id]: 4 });
+  const s2 = lobby.standings.find(x => x.team.id === lobby.teams[1].id);
+  check(s2.kills === 4 && s2.points === 9 + 4, `BR kills: 2nd +4 kills = 13 (got ${s2.points})`);
+
+  const b3 = br.generateBracket(makeTeams(30), { lobbySize: 20, gamesPerStage: 1, brScoringModel: 'super' });
+  const [g1, g2] = b3.groups;
+  const mover = g1.teams[g1.teams.length - 1].id;
+  br.moveTeam(b3, mover, g2.id);
+  check(!g1.teams.some(t => t.id === mover) && g2.teams.some(t => t.id === mover), 'BR move: team switched lobbies');
+  br.reportGameResults(b3, g1.id, 1, g1.teams.map(t => t.id));
+  let moveBlocked = false;
+  try { br.moveTeam(b3, g1.teams[0].id, g2.id); } catch { moveBlocked = true; }
+  check(moveBlocked, 'BR move: blocked after a reported game');
+  console.log('  setKills recompute + moveTeam guards ✓');
+}
+
+console.log('=== BR: ADVANCING CLAMP (3 groups) ===');
+{
+  const b = br.generateBracket(makeTeams(60), { lobbySize: 20, gamesPerStage: 1, advancingPerGroup: 10, brScoringModel: 'super' });
+  check(b.groups.length === 3, 'BR 60/20: 3 groups');
+  check(b.advancingPerGroup === 6, `BR 60/20: advancing clamped 10→6 (got ${b.advancingPerGroup})`);
+  playOutBR(b);
+  check(b.finals.teams.length === 18 && b.finals.teams.length <= b.lobbySize, 'BR 60/20: finals fits one lobby');
+  console.log('  3×20 → advancing clamped to 6, finals=18 ✓');
+}
+
 console.log('\n' + (failures === 0 ? '✅ ALL CHECKS PASSED' : `❌ ${failures} CHECK(S) FAILED`));
 process.exit(failures === 0 ? 0 : 1);

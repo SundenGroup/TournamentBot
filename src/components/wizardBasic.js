@@ -76,6 +76,13 @@ module.exports = {
       updates.requireGameNick = false;
       updates.captainMode = false;
       updates.seedingEnabled = false;
+      // BR games seed their preset defaults (scoring model, lobby, games)
+      if (updates.format === 'battle_royale') {
+        const brDefaults = preset?.brDefaults || {};
+        updates.lobbySize = brDefaults.lobbySize ?? 20;
+        updates.gamesPerStage = brDefaults.gamesPerStage ?? 3;
+        if (brDefaults.scoringModel) updates.brScoringModel = brDefaults.scoringModel;
+      }
     }
 
     await updateSession(sessionId, updates);

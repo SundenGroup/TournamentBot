@@ -126,6 +126,62 @@ FIXTURES.reg = basePayload({ id: 'reg', title: 'Sunday Showdown', format: 'doubl
   };
   FIXTURES.big = buildPayload(fakeBig); }
 
+// ── Battle Royale fixtures ──────────────────────────────────────────────────
+const battleRoyale = require('../src/services/battleRoyaleService');
+
+function teamsOf(n, size) {
+  return Array.from({ length: n }, (_, i) => ({
+    id: `t${i + 1}`, name: `${NAMES[i % 16]}${i >= 16 ? '_' + (i + 1) : ''}`, seed: i + 1,
+    members: Array.from({ length: size }, (_, j) => ({ id: `t${i}m${j}` })),
+  }));
+}
+
+function playBRGames(b, count) {
+  let played = 0;
+  while (played < count) {
+    const active = battleRoyale.getActiveMatches(b);
+    if (!active.length) break;
+    const g = active[0];
+    const stage = battleRoyale.getGroup(b, g.groupId);
+    const order = [...stage.teams].sort(() => Math.random() - 0.5).map(t => t.id);
+    const kills = Object.fromEntries(order.slice(0, 8).map(id => [id, Math.floor(Math.random() * 9)]));
+    battleRoyale.reportGameResults(b, g.groupId, g.gameNumber, order.slice(0, 10), kills);
+    played++;
+  }
+  return b;
+}
+
+function brPayload(over) {
+  const teams = teamsOf(over.count, 3);
+  const fake = {
+    id: over.id, title: over.title, description: null, status: over.status ?? 'active',
+    startTime: new Date(Date.now() + 86400000),
+    game: { displayName: 'Apex Legends', shortName: 'APEX', icon: '🔺', logo: null },
+    settings: {
+      format: 'battle_royale', teamSize: 3, bestOf: 1,
+      maxParticipants: over.count, publicBracket: true,
+    },
+    participants: [], teams,
+    bracket: over.bracket ?? null,
+  };
+  return buildPayload(fake);
+}
+
+// Single lobby, mid-event (ALGS scoring, kills)
+{ const b = battleRoyale.generateBracket(teamsOf(18, 3), { lobbySize: 20, gamesPerStage: 4, brScoringModel: 'algs', seedingEnabled: true });
+  playBRGames(b, 2);
+  FIXTURES.br = brPayload({ id: 'br', title: 'Apex Community Night', count: 18, bracket: b }); }
+
+// Multi-lobby groups → finals, groups mid-play (shows the advancement cutline)
+{ const b = battleRoyale.generateBracket(teamsOf(40, 3), { lobbySize: 20, gamesPerStage: 3, brScoringModel: 'algs', seedingEnabled: true });
+  playBRGames(b, 4);
+  FIXTURES.brgroups = brPayload({ id: 'brgroups', title: 'ALGS Style — Split Groups', count: 40, bracket: b }); }
+
+// Multi-lobby completed (podium + finals table with qualifiedFrom badges)
+{ const b = battleRoyale.generateBracket(teamsOf(40, 3), { lobbySize: 20, gamesPerStage: 3, brScoringModel: 'algs', seedingEnabled: true });
+  playBRGames(b, 999);
+  FIXTURES.brdone = brPayload({ id: 'brdone', title: 'Apex Major — Grand Finals', count: 40, status: 'completed', bracket: b }); }
+
 const template = fs.readFileSync(path.join(__dirname, '../public/bracket.html'), 'utf8');
 
 const server = http.createServer((req, res) => {
