@@ -279,7 +279,7 @@ tournament creation rather than requiring `/subscribe trial`.
 
 Decisions and refinements after reviewing §1–5 with Simon.
 
-### 6a. Pricing, simplified: two SKUs + B2B
+### 6a. Pricing, simplified: two SKUs + B2B *(v2 — revised after founder challenge)*
 
 Direction: **B2B is the real revenue; consumer subscriptions exist for a
 healthy user base and a stable payment baseline.** Four tiers is too many for
@@ -287,41 +287,79 @@ that job. Collapse to:
 
 | | **Free** | **Pro — $9.99/mo · $79/yr** | **Studio (B2B) — custom, from ~$500/mo** |
 |---|---|---|---|
-| Positioning | The weapon. "Run real tournaments free, in Discord, no ads." | One decision: *do I run a program, not just events?* | "The official tournament bot for your game" |
-| Tournaments | **Unlimited** | Unlimited | Unlimited |
-| Entrants | **64** | 256 (512 with Event Pass) | 512+ |
-| Concurrent | 2 | Unlimited | Unlimited |
-| Features | **Everything core** — all 4 formats, match rooms, buttons, check-in, seeding, captain mode, corrections/DQ, live web bracket *with "Powered by CLUTCH" footer* | Web dashboard, recurring tournaments, seasons/leagues (when built), templates, analytics, footer removal, priority support | Everything + white-label, custom game preset & private fields (the GOALS pattern), API + webhooks, multi-server, SLA/onboarding |
+| Positioning | "Run real tournaments free, in Discord, no ads." | The organizer's tier: *I run this community's competitive program.* | "The official tournament bot for your game" |
+| Tournaments | **5/month**, 2 concurrent | Unlimited, unlimited concurrent | Unlimited |
+| Entrants | **64** (bracket formats) | 256 (512 with Event Pass) | 512+ |
+| Battle Royale | **Single lobby**, up to the game's real lobby size (e.g. 100 for Fortnite-scale, 50+ Warzone) | **Multi-lobby group stages** | Multi-lobby + custom scoring |
+| Features | The complete core run: all 4 formats + single-lobby BR, match rooms, button reporting, corrections/DQ, **check-in**, live web bracket *with "Powered by CLUTCH" footer* | + **Seeding, captain mode**, auto-cleanup, required roles, **web dashboard**, templates, analytics, recurring tournaments & seasons/leagues (when built), footer removal, priority support | Everything + white-label, custom game preset & private fields (the GOALS pattern), API + webhooks, multi-server, SLA/onboarding |
 | Sold via | — | Stripe site (annual-forward) + Discord store (monthly) | Direct/contact |
 
+**Why v1's "unlimited + everything core" was wrong** (founder challenge,
+July 2026 — "we DO want people using Pro"):
+
+- *It removed every conversion trigger except size.* Every comparable that
+  converts keeps a frequent, **felt** wall: Apollo gates recurring events,
+  Sesh gates recurring + calendar sync, Tourney Bot caps free at 8 entrants,
+  Challonge runs ads. Most community cups are 8–32 players — under v1 the
+  majority of organizers would never hit *any* wall, and with recurring/
+  leagues not built yet, launch-day Pro was just dashboard + analytics +
+  a bigger cap. Installs, no revenue.
+- *"Unlimited" gives away the one metric that tracks value.* The real goal
+  was "don't kill the weekly habit" — that needs ~5/month, not unlimited.
+  The organizer who outgrows 5/month is precisely the invested organizer who
+  should convert. Unlimited also invites test-spam and channel-creation load
+  from servers that will never pay.
+- *The ratchet only turns one way.* Free can always be loosened later as a
+  marketing splash; it can never be tightened (Tourney Bot's token clawback).
+  So launch at the **conservative end** of plausible, not the generous end.
+- *"All features free" cheapens the $9.99 anchor.* If free is nearly
+  everything, Pro looks like it buys nothing. Seeding and captain mode are
+  power-organizer features and belong in Pro. The one deliberate exception:
+  **check-in stays free** — without it a first-timer's event gets wrecked by
+  no-shows, and a bad first event is a churned server. It protects the
+  product's reputation, not the organizer's wallet.
+- *BR breaks a flat 64 cap.* Warzone customs need 50 players to start;
+  Fortnite lobbies are 100. Fix: stop using one cap for two shapes — BR's own
+  structure is the value metric. **Free BR = one lobby** (community customs
+  night); **multi-lobby group stages = Pro** (exactly the serious-event
+  organizer who should pay).
+
+**The conversion ladder** a growing organizer climbs — six distinct walls,
+each hit at a moment of investment: 6th event in a month → >64 entrants →
+wants seeding for a serious cup → team event with captain mode → wants the
+dashboard → multi-lobby BR.
+
+**Still clearly the best free tier in the category**: 64 entrants vs Tourney
+Bot's 8, 5/month vs their 3, check-in free (gated elsewhere), single-lobby BR
+up to 100 players, and a live web bracket nobody else has at any price.
+
 - **Kill Premium ($5.99) and self-serve Business ($99).** Two consumer paid
-  tiers force feature-hostage decisions ("which tier gets seeding?") that
-  complicate copy, code, and support — and Premium's features (check-in,
-  seeding, captain mode) are table stakes that make the *free* product feel
-  complete, which is what the B2B story needs ("thousands of servers run
-  this"). Business's features (API/white-label/multi-server) were always
-  B2B features; move them to Studio where the price can be honest.
+  tiers force feature-hostage decisions that complicate copy, code, and
+  support. Premium's features split deliberately: check-in → Free (protects
+  event quality), seeding + captain mode → Pro (power-organizer signals).
+  Business's features (API/white-label/multi-server) were always B2B
+  features; move them to Studio where the price can be honest.
 - **Optional later SKU: Event Pass (~$9.99 one-off)** — everything-Pro for a
   single tournament. Don't launch day one; add when someone asks.
 - **Migration**: with zero marketing to date there's almost nobody to
   grandfather — this is the cheapest moment to simplify. Existing paid guilds
   (if any) get mapped Premium→Pro free for 12 months, Business→Studio talk.
 
-**What risks can we take with free?** All of the cheap ones:
-- *Infra cost* — negligible at current scale; the single-process ceiling is
-  the real limit and it's capped naturally by 64 entrants/2 concurrent.
-- *Support load* — the actual cost of generous free. Mitigate with the docs
+**What risks can we take with free?** The cheap ones — knowingly:
+- *Infra cost* — negligible at current scale; naturally throttled by
+  5/month + 64 entrants + 2 concurrent.
+- *Support load* — the real cost of generous free. Mitigate with the docs
   (already strong), a community server, and the dashboard reducing "how do I"
   tickets.
-- *Cannibalization* — acceptable by design: free optimizes for install base,
-  reviews, and the viral bracket footer. Pro's value is programs (recurring,
-  leagues, dashboard, analytics), not the ability to run one event.
-- *The one risk NOT to take*: launching generous and later clawing back
-  (Tourney Bot's token fiasco is the cautionary tale). Whatever free is on
-  marketing day is a floor forever — which is why 64 entrants (not 512) is
-  the right free cap, set consciously *before* the marketing push. Today's
-  accidental "everything free" (parked tokens disabled all caps) gets
-  formalized into these numbers, decoupled from the token flag.
+- *Some cannibalization* — acceptable: free optimizes for install base,
+  reviews, and the viral bracket footer. But the walls above ensure the
+  invested organizer meets Pro repeatedly.
+- *The one risk NOT to take*: launching generous and clawing back later.
+  Whatever free is on marketing day is a floor forever — set these numbers
+  consciously *before* the marketing push. Today's accidental "everything
+  free" (parked tokens disabled all caps) gets formalized into these
+  numbers, decoupled from the token flag. (And per §6c: no caps enforced
+  until after the GOALS event.)
 
 ### 6b. Battle Royale with zero added complexity — the three rules
 
@@ -354,6 +392,11 @@ Rollout: fix the four parked bugs → engine v2 (config-driven scoring) →
 tap-to-report flows → enable for PUBG + Warzone + Apex + a "Custom BR"
 preset. Skip Fortnite (Yunite owns it). Success bar: a first-time admin runs
 a 40-player BR night without reading the manual.
+
+Tiering (per §6a): free = **single lobby** up to the game's real lobby size
+(so a 100-player customs night is fully free); multi-lobby group stages are
+Pro. BR's own structure is the value metric — no flat entrant cap that would
+accidentally ban the format.
 
 ### 6c. GOALS — July 20, 2026
 
