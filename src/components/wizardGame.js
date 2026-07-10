@@ -1,5 +1,6 @@
 const { ModalBuilder, TextInputBuilder, TextInputStyle, ActionRowBuilder, StringSelectMenuBuilder } = require('discord.js');
 const { GAME_PRESETS, getPresetKeys, getMenuEmoji } = require('../config/gamePresets');
+const { exampleDateTime } = require('../utils/timeUtils');
 const { getSession, updateSession } = require('../data/wizardSessions');
 
 module.exports = {
@@ -87,9 +88,9 @@ module.exports = {
 
     const datetimeInput = new TextInputBuilder()
       .setCustomId('datetime')
-      .setLabel('Date & Time (e.g., Feb 15 7pm UTC)')
+      .setLabel('Date & Time')
       .setStyle(TextInputStyle.Short)
-      .setPlaceholder('Feb 15 7pm UTC')
+      .setPlaceholder(`Today would be: ${exampleDateTime()}`)
       .setRequired(true);
     rows.push(new ActionRowBuilder().addComponents(datetimeInput));
 

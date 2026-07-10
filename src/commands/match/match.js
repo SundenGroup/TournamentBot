@@ -192,7 +192,7 @@ async function handleGames(interaction) {
 
   description += `\n**To report results (admin):**\n`;
   description += `Tap the 🎮 **Game** buttons on the standings board in each lobby room.\n`;
-  description += `💡 Reporting the top 3–5 is enough — the rest share last place.`;
+  description += `💡 Report the scoring places in finish order — unplaced teams score 0 (+ kills).`;
 
   embed.setDescription(description);
 

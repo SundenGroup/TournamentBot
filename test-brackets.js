@@ -372,18 +372,22 @@ console.log('=== BR: SCORING MODELS ===');
   console.log('  SUPER/ALGS/Warzone/kill-race/placement exact + uneven-lobby fairness ✓');
 }
 
-console.log('=== BR: PARTIAL REPORT AUTO-FILL ===');
+console.log('=== BR: PARTIAL REPORT — UNPLACED SCORE 0 (+ KILLS) ===');
 {
   const b = br.generateBracket(makeTeams(8), { lobbySize: 20, gamesPerStage: 1, brScoringModel: 'super' });
   const lobby = b.groups[0];
-  // Report only top 3 — remaining 5 share avg of slots 4..8 = (4+3+2+1+1)/5 = 2.2
-  br.reportGameResults(b, lobby.id, 1, ['t3', 't5', 't1']);
+  // Report only top 3 — the other 5 get 0 placement points, kills still count
+  br.reportGameResults(b, lobby.id, 1, ['t3', 't5', 't1'], { t7: 4 });
   const game = lobby.games[0];
   const filled = game.results.filter(r => r.placement === null);
   check(filled.length === 5, 'auto-fill: 5 unreported teams');
-  check(filled.every(r => r.points === 2.2), `auto-fill: shared avg 2.2 (got ${filled[0]?.points})`);
+  check(filled.every(r => r.points === (r.teamId === 't7' ? 4 : 0)), `auto-fill: unplaced score 0 (+kills)`);
+  check(Number.isInteger(lobby.standings.reduce((s, x) => s + x.points, 0)), 'auto-fill: no decimals with integer scoring');
   check(lobby.standings[0].team.id === 't3' && lobby.standings[0].points === 10, 'auto-fill: reported top intact');
-  console.log('  top-3 report → 5 teams share 2.2 pts ✓');
+  check(br.scoringDepth(br.BR_SCORING_MODELS.super) === 8, 'scoringDepth: SUPER = 8');
+  check(br.scoringDepth(br.BR_SCORING_MODELS.algs) === 15, 'scoringDepth: ALGS = 15');
+  check(br.scoringDepth(br.BR_SCORING_MODELS.warzone) === 0, 'scoringDepth: Warzone = 0');
+  console.log('  top-3 report → unplaced 0 pts, kills counted, depths ok ✓');
 }
 
 console.log('=== BR: VALIDATION ===');

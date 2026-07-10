@@ -9,7 +9,7 @@ const {
 } = require('discord.js');
 const { GAME_PRESETS, getNickSummary } = require('../config/gamePresets');
 const { getSession, updateSession } = require('../data/wizardSessions');
-const { toDiscordFullAndRelative } = require('../utils/timeUtils');
+const { toDiscordFullAndRelative, exampleDateTime } = require('../utils/timeUtils');
 
 const FORMAT_LABELS = {
   single_elimination: 'Single Elimination',
@@ -267,9 +267,9 @@ module.exports = {
             new ActionRowBuilder().addComponents(
               new TextInputBuilder()
                 .setCustomId('datetime')
-                .setLabel('Date & Time (e.g., Feb 15 7pm UTC)')
+                .setLabel('Date & Time')
                 .setStyle(TextInputStyle.Short)
-                .setPlaceholder('Feb 15 7pm UTC')
+                .setPlaceholder(`Today would be: ${exampleDateTime()}`)
                 .setRequired(true)
             ),
             new ActionRowBuilder().addComponents(

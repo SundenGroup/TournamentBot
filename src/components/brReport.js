@@ -5,14 +5,16 @@
 //
 //   Who placed #1? → pick → Who placed #2? → … → ✅ Done (auto-fill rest)
 //
-// Reporting the top 3–5 is enough — unreported teams share last place
-// automatically. Tapping an already-reported game runs the same flow as a
-// CORRECTION. If the scoring model counts kills, the confirmation offers a
-// tap-only kills entry (pick team → pick kill count).
+// Report at least as many places as the scoring table awards (the picker
+// says how many) — unplaced teams score 0 placement points, kills still
+// count. For kill-scoring models a tap-only kills step runs BEFORE the
+// commit, so the final game scores fully before completion fires. Tapping
+// an already-reported game runs the same flow as a CORRECTION.
 //
 // customId space:
 //   brReport:<tid>:<key>:<game>:start|pick|page:<p>|undo|done|cancel
-//   brReport:<tid>:<key>:<game>:kills|killteam|killcount:<teamId>|killsdone
+//   brReport:<tid>:<key>:<game>:pkteam|pkcount:<teamId>|pkpage:<p>|pksave   (pre-commit kills)
+//   brReport:<tid>:<key>:<game>:kills|killteam|killcount:<teamId>|killpage:<p>|killsdone  (edits)
 // where <key> = group index or 'f' (finals).
 
 const { ActionRowBuilder, StringSelectMenuBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
@@ -64,7 +66,14 @@ function buildPicker(tournament, stage, key, gameNumber, sess) {
 
   let content = `${sess.mode === 'correct' ? '🛠️ **Correcting**' : '🎮 **Reporting**'} — **${stage.name} · Game ${gameNumber}**\n`;
   if (picked.length === 0) {
-    content += `Tap teams in finish order. Top 3–5 is enough — the rest share last place automatically.\n`;
+    const { scoringDepth } = require('../services/battleRoyaleService');
+    const depth = scoringDepth(tournament.bracket.scoring || {});
+    const unit = tournament.settings.teamSize === 1 ? 'players' : 'teams';
+    if (depth > 0) {
+      content += `Tap ${unit} in finish order — the **top ${depth}** score placement points here, so report at least those. Everyone unplaced scores 0 (kills still count).\n`;
+    } else {
+      content += `Tap ${unit} in finish order (placement sets the kill multiplier — kills decide the points).\n`;
+    }
   }
   if (picked.length > 0) {
     const byId = new Map(stage.teams.map(t => [t.id, t]));
@@ -115,13 +124,24 @@ function buildPicker(tournament, stage, key, gameNumber, sess) {
 }
 
 // ─── Kills picker UI ──────────────────────────────────────────────────────────
+//
+// Two variants sharing one renderer:
+//   pre-commit (sess.step === 'kills') — kills collected into the session and
+//     saved WITH the placement report in one commit, so the final game of a
+//     stage scores fully before any completion announcement fires.
+//   post-commit — edits kills on an already-reported game via applyBRSetKills.
 
 function buildKillsPicker(tournament, stage, key, gameNumber, sess) {
   const base = `brReport:${tournament.id}:${key}:${gameNumber}`;
-  const game = stage.games.find(g => g.gameNumber === gameNumber);
-  const kills = game?.kills || {};
+  const pre = sess.step === 'kills';
+  const kills = pre
+    ? (sess.kills || {})
+    : (stage.games.find(g => g.gameNumber === gameNumber)?.kills || {});
 
-  let content = `🔫 **Kills — ${stage.name} · Game ${gameNumber}**\nPick a ${tournament.settings.teamSize === 1 ? 'player' : 'team'}, then their kill count. Repeat as needed.\n`;
+  let content = `🔫 **Kills — ${stage.name} · Game ${gameNumber}**\n`;
+  content += pre
+    ? `Placements locked in. Now add kills (they count toward the score) — pick a ${tournament.settings.teamSize === 1 ? 'player' : 'team'}, then the count. **Save** when done; kills are optional.\n`
+    : `Pick a ${tournament.settings.teamSize === 1 ? 'player' : 'team'}, then their kill count. Repeat as needed.\n`;
   const withKills = stage.teams.filter(t => kills[t.id] > 0);
   if (withKills.length > 0) {
     content += '\n' + withKills.map(t => `**${teamName(t)}:** ${kills[t.id]} kills`).join(' · ') + '\n';
@@ -131,10 +151,11 @@ function buildKillsPicker(tournament, stage, key, gameNumber, sess) {
   const pages = Math.ceil(stage.teams.length / 25);
   const page = Math.min(sess.page || 0, pages - 1);
   const slice = stage.teams.slice(page * 25, page * 25 + 25);
+  const ns = pre ? 'pk' : 'kill'; // customId namespace per variant
 
   rows.push(new ActionRowBuilder().addComponents(
     new StringSelectMenuBuilder()
-      .setCustomId(`${base}:killteam`)
+      .setCustomId(`${base}:${ns}team`)
       .setPlaceholder(`Add kills for…${pages > 1 ? ` (page ${page + 1}/${pages})` : ''}`)
       .addOptions(slice.map(t => ({
         label: teamName(t).slice(0, 80) + (kills[t.id] ? ` — ${kills[t.id]} kills` : ''),
@@ -146,7 +167,7 @@ function buildKillsPicker(tournament, stage, key, gameNumber, sess) {
     const t = stage.teams.find(x => x.id === sess.killTeam);
     rows.push(new ActionRowBuilder().addComponents(
       new StringSelectMenuBuilder()
-        .setCustomId(`${base}:killcount:${sess.killTeam}`)
+        .setCustomId(`${base}:${ns}count:${sess.killTeam}`)
         .setPlaceholder(`Kills for ${teamName(t).slice(0, 60)}`)
         .addOptions(Array.from({ length: 25 }, (_, i) => ({ label: `${i} kill${i === 1 ? '' : 's'}`, value: String(i) })))
     ));
@@ -155,13 +176,21 @@ function buildKillsPicker(tournament, stage, key, gameNumber, sess) {
   const nav = new ActionRowBuilder();
   if (pages > 1) {
     nav.addComponents(
-      new ButtonBuilder().setCustomId(`${base}:killpage:${page - 1}`).setLabel('◀').setStyle(ButtonStyle.Secondary).setDisabled(page === 0),
-      new ButtonBuilder().setCustomId(`${base}:killpage:${page + 1}`).setLabel('▶').setStyle(ButtonStyle.Secondary).setDisabled(page >= pages - 1)
+      new ButtonBuilder().setCustomId(`${base}:${ns}page:${page - 1}`).setLabel('◀').setStyle(ButtonStyle.Secondary).setDisabled(page === 0),
+      new ButtonBuilder().setCustomId(`${base}:${ns}page:${page + 1}`).setLabel('▶').setStyle(ButtonStyle.Secondary).setDisabled(page >= pages - 1)
     );
   }
   nav.addComponents(
-    new ButtonBuilder().setCustomId(`${base}:killsdone`).setLabel('✅ Done').setStyle(ButtonStyle.Success)
+    new ButtonBuilder()
+      .setCustomId(`${base}:${pre ? 'pksave' : 'killsdone'}`)
+      .setLabel(pre ? '✅ Save results' : '✅ Done')
+      .setStyle(ButtonStyle.Success)
   );
+  if (pre) {
+    nav.addComponents(
+      new ButtonBuilder().setCustomId(`${base}:cancel`).setLabel('✖️ Cancel').setStyle(ButtonStyle.Danger)
+    );
+  }
   rows.push(nav);
 
   return { content, components: rows };
@@ -180,7 +209,7 @@ function buildSummary(tournament, stage, key, gameNumber, result, mode) {
     content += `${medals[i]} ${teamName(byId.get(id))}\n`;
   });
   const autoFilled = stage.teams.length - game.reported.length;
-  if (autoFilled > 0) content += `*${autoFilled} unplaced ${tournament.settings.teamSize === 1 ? 'players' : 'teams'} share last place.*\n`;
+  if (autoFilled > 0) content += `*${autoFilled} unplaced ${tournament.settings.teamSize === 1 ? 'players' : 'teams'} score 0 placement points${usesKills(tournament.bracket) ? ' (their kills still count)' : ''}.*\n`;
 
   if (result.finalsCreated) {
     content += `\n🚀 **All groups done — the Grand Finals lobby has been created!**`;
@@ -196,15 +225,14 @@ function buildSummary(tournament, stage, key, gameNumber, result, mode) {
 
   const rows = [];
   if (usesKills(bracket) && !result.tournamentComplete) {
-    content += `\n\n🔫 This scoring counts kills — add them now or any time before the next stage.`;
     rows.push(new ActionRowBuilder().addComponents(
       new ButtonBuilder()
         .setCustomId(`brReport:${tournament.id}:${key}:${gameNumber}:kills`)
-        .setLabel('🔫 Add kills')
-        .setStyle(ButtonStyle.Primary)
+        .setLabel('🔫 Edit kills')
+        .setStyle(ButtonStyle.Secondary)
     ));
   } else if (usesKills(bracket) && result.tournamentComplete) {
-    content += `\n\n🔫 Kills can still be added from the web dashboard if needed.`;
+    content += `\n*Spotted a mistake? Tap the game on the standings board to correct it — kills included.*`;
   }
 
   return { content, components: rows };
@@ -257,7 +285,12 @@ module.exports = {
         }
       }
 
-      const sess = { picks: [], page: 0, mode, at: Date.now() };
+      // Corrections pre-fill existing kills so they survive a placement redo
+      const game2 = stage.games.find(g => g.gameNumber === gameNumber);
+      const existingKills = mode === 'correct'
+        ? Object.fromEntries(Object.entries(game2.kills || {}).filter(([id]) => stage.teams.some(t => t.id === id)))
+        : {};
+      const sess = { picks: [], page: 0, mode, kills: existingKills, step: 'picks', at: Date.now() };
       sessions.set(sk, sess);
       return interaction.reply({ ...buildPicker(tournament, stage, key, gameNumber, sess), ephemeral: true });
     }
@@ -284,9 +317,9 @@ module.exports = {
         const id = interaction.values[0];
         if (!sess.picks.includes(id)) sess.picks.push(id);
         sess.page = 0;
-        // Everyone placed → commit immediately
+        // Everyone placed → next step (kills or straight to commit)
         if (sess.picks.length >= stage.teams.length) {
-          return commit(interaction, tournament, stage, key, gameNumber, sess, sk);
+          return finishPicks(interaction, tournament, stage, key, gameNumber, sess, sk);
         }
         return interaction.update(buildPicker(tournament, stage, key, gameNumber, sess));
       }
@@ -310,10 +343,31 @@ module.exports = {
         if (sess.picks.length === 0) {
           return interaction.update(buildPicker(tournament, stage, key, gameNumber, sess));
         }
+        return finishPicks(interaction, tournament, stage, key, gameNumber, sess, sk);
+      }
+
+      // ── kills, pre-commit (saved together with the placements) ──
+      case 'pkteam': {
+        sess.killTeam = interaction.values[0];
+        return interaction.update(buildKillsPicker(tournament, stage, key, gameNumber, sess));
+      }
+
+      case 'pkpage': {
+        sess.page = Math.max(0, parseInt(extra, 10) || 0);
+        return interaction.update(buildKillsPicker(tournament, stage, key, gameNumber, sess));
+      }
+
+      case 'pkcount': {
+        sess.kills[extra] = parseInt(interaction.values[0], 10);
+        sess.killTeam = null;
+        return interaction.update(buildKillsPicker(tournament, stage, key, gameNumber, sess));
+      }
+
+      case 'pksave': {
         return commit(interaction, tournament, stage, key, gameNumber, sess, sk);
       }
 
-      // ── kills flow ──
+      // ── kills, post-commit edits (applied immediately) ──
       case 'killteam': {
         sess.killTeam = interaction.values[0];
         return interaction.update(buildKillsPicker(tournament, stage, key, gameNumber, sess));
@@ -356,7 +410,22 @@ module.exports = {
   },
 };
 
-/** Commit picks as a report or correction and render the confirmation. */
+/**
+ * Placements finished (Done or everyone placed): kill-scoring models get the
+ * kills step BEFORE anything commits — so the final game of a stage scores
+ * fully before completion fires. Placement-only models commit straight away.
+ */
+function finishPicks(interaction, tournament, stage, key, gameNumber, sess, sk) {
+  if (usesKills(tournament.bracket)) {
+    sess.step = 'kills';
+    sess.page = 0;
+    sess.killTeam = null;
+    return interaction.update(buildKillsPicker(tournament, stage, key, gameNumber, sess));
+  }
+  return commit(interaction, tournament, stage, key, gameNumber, sess, sk);
+}
+
+/** Commit picks (+ session kills) as a report or correction. */
 async function commit(interaction, tournament, stage, key, gameNumber, sess, sk) {
   await interaction.deferUpdate();
   sessions.delete(sk);
@@ -371,11 +440,7 @@ async function commit(interaction, tournament, stage, key, gameNumber, sess, sk)
       groupKey: key,
       gameNumber,
       placements: sess.picks,
-      // corrections keep previously-entered kills for still-placed teams
-      kills: sess.mode === 'correct'
-        ? Object.fromEntries(Object.entries(stage.games.find(g => g.gameNumber === gameNumber)?.kills || {})
-            .filter(([id]) => stage.teams.some(t => t.id === id)))
-        : {},
+      kills: sess.kills || {},
     });
     return interaction.editReply(buildSummary(tournament, stage, key, gameNumber, result, sess.mode));
   } catch (error) {

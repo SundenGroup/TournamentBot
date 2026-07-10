@@ -238,9 +238,10 @@ function generateBracket(participants, settings = {}) {
 
 /**
  * Compute the full per-team results of one game from its raw inputs.
- * Reported teams take placements 1..n. Unreported teams are auto-filled: each
- * receives the AVERAGE of the remaining placement-point slots (fair share of
- * last place — v1 handed them arbitrary sequential placements).
+ * Reported teams take placements 1..n. Unreported teams score 0 placement
+ * points — kills still count (at the lowest multiplier band for multiplier
+ * models). Whole numbers only; admins should report at least as many places
+ * as the scoring table awards (see scoringDepth).
  */
 function computeGameResults(stage, game, scoring) {
   if (game.status !== 'complete') return [];
@@ -258,30 +259,26 @@ function computeGameResults(stage, game, scoring) {
     });
   });
 
-  const unreported = stage.teams.filter(t => !reportedSet.has(t.id));
-  if (unreported.length > 0) {
-    const from = game.reported.length + 1;
-    let sum = 0;
-    for (let p = from; p < from + unreported.length; p++) {
-      sum += placementPointsFor(scoring, p);
-    }
-    const shared = round1(sum / unreported.length);
-    // Kill points still count individually for auto-filled teams; the
-    // multiplier band is the first unclaimed placement for all of them.
-    const mult = killMultiplierFor(scoring, from);
-    for (const team of unreported) {
-      const kills = game.kills[team.id] || 0;
-      const killScore = mult != null ? kills * mult : kills * scoring.killPoints;
-      results.push({
-        teamId: team.id,
-        placement: null, // shared last place
-        kills,
-        points: round1(shared + killScore),
-      });
-    }
+  for (const team of stage.teams) {
+    if (reportedSet.has(team.id)) continue;
+    const kills = game.kills[team.id] || 0;
+    const killScore = scoring.killMultipliers ? kills * 1.0 : kills * scoring.killPoints;
+    results.push({
+      teamId: team.id,
+      placement: null, // unplaced — no placement points
+      kills,
+      points: round1(killScore),
+    });
   }
 
   return results;
+}
+
+/** How many places actually award points in this scoring (SUPER → 8, ALGS → 15). */
+function scoringDepth(scoring) {
+  let depth = 0;
+  (scoring.placementPoints || []).forEach((pts, i) => { if (pts > 0) depth = i + 1; });
+  return depth;
 }
 
 /** Rebuild a stage's standings from scratch from its completed games. */
@@ -589,6 +586,7 @@ module.exports = {
   BR_SCORING_MODELS,
   resolveScoring,
   scoreFor,
+  scoringDepth,
   generateBracket,
   reportGameResults,
   correctGameResults,

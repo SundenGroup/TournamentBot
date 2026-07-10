@@ -5,7 +5,7 @@
     "icon": "🎯",
     "category": "FPS",
     "featured": true,
-    "logo": "https://cdn.discordapp.com/emojis/1514008006134599702.png?size=128",
+    "logo": "https://cdn.discordapp.com/emojis/1525031509289865216.png?size=128",
     "defaultTeamSize": 5,
     "teamSizeOptions": [
       1,
@@ -53,7 +53,7 @@
         "label": "Tech Pauses per Team"
       }
     },
-    "menuEmoji": "1514008006134599702"
+    "menuEmoji": "1525031509289865216"
   },
   "valorant": {
     "displayName": "VALORANT",
@@ -61,7 +61,7 @@
     "icon": "🔫",
     "category": "FPS",
     "featured": true,
-    "logo": "https://cdn.discordapp.com/emojis/1514008021951320235.png?size=128",
+    "logo": "https://cdn.discordapp.com/emojis/1525031536640917635.png?size=128",
     "defaultTeamSize": 5,
     "teamSizeOptions": [
       1,
@@ -101,7 +101,7 @@
         "label": "Agent Restrictions"
       }
     },
-    "menuEmoji": "1514008021951320235"
+    "menuEmoji": "1525031536640917635"
   },
   "deadlock": {
     "displayName": "Deadlock",
@@ -109,7 +109,7 @@
     "icon": "💀",
     "category": "Hero Shooter",
     "featured": true,
-    "logo": "https://cdn.discordapp.com/emojis/1514008007225118903.png?size=128",
+    "logo": "https://cdn.discordapp.com/emojis/1525031511445733446.png?size=128",
     "defaultTeamSize": 6,
     "teamSizeOptions": [
       6
@@ -131,7 +131,7 @@
     "mapPickProcess": null,
     "ruleset": "Standard competitive rules.",
     "customFields": {},
-    "menuEmoji": "1514008007225118903"
+    "menuEmoji": "1525031511445733446"
   },
   "marvel_rivals": {
     "displayName": "Marvel Rivals",
@@ -139,7 +139,7 @@
     "icon": "🦸",
     "category": "Hero Shooter",
     "featured": true,
-    "logo": "https://cdn.discordapp.com/emojis/1514008014108233889.png?size=128",
+    "logo": "https://cdn.discordapp.com/emojis/1525031522694987796.png?size=128",
     "defaultTeamSize": 6,
     "teamSizeOptions": [
       6
@@ -167,7 +167,7 @@
         "label": "Hero Restrictions"
       }
     },
-    "menuEmoji": "1514008014108233889"
+    "menuEmoji": "1525031522694987796"
   },
   "overwatch": {
     "displayName": "Overwatch",
@@ -175,7 +175,7 @@
     "icon": "🛡️",
     "category": "Hero Shooter",
     "featured": true,
-    "logo": "https://cdn.discordapp.com/emojis/1514008016595325150.png?size=128",
+    "logo": "https://cdn.discordapp.com/emojis/1525031526205624372.png?size=128",
     "defaultTeamSize": 5,
     "teamSizeOptions": [
       5
@@ -208,7 +208,7 @@
         "label": "Hero Restrictions"
       }
     },
-    "menuEmoji": "1514008016595325150"
+    "menuEmoji": "1525031526205624372"
   },
   "league_of_legends": {
     "displayName": "League of Legends",
@@ -216,7 +216,7 @@
     "icon": "⚔️",
     "category": "MOBA",
     "featured": true,
-    "logo": "https://cdn.discordapp.com/emojis/1514008012849938452.png?size=128",
+    "logo": "https://cdn.discordapp.com/emojis/1525031520501366908.png?size=128",
     "defaultTeamSize": 5,
     "teamSizeOptions": [
       1,
@@ -260,7 +260,7 @@
         "label": "Side Selection"
       }
     },
-    "menuEmoji": "1514008012849938452"
+    "menuEmoji": "1525031520501366908"
   },
   "dota2": {
     "displayName": "Dota 2",
@@ -268,7 +268,7 @@
     "icon": "🗡️",
     "category": "MOBA",
     "featured": true,
-    "logo": "https://cdn.discordapp.com/emojis/1514008008378552413.png?size=128",
+    "logo": "https://cdn.discordapp.com/emojis/1525031513652199464.png?size=128",
     "defaultTeamSize": 5,
     "teamSizeOptions": [
       1,
@@ -301,7 +301,7 @@
         "label": "Draft Mode"
       }
     },
-    "menuEmoji": "1514008008378552413"
+    "menuEmoji": "1525031513652199464"
   },
   "mobile_legends": {
     "displayName": "Mobile Legends",
@@ -309,7 +309,7 @@
     "icon": "🏹",
     "category": "MOBA",
     "featured": true,
-    "logo": "https://cdn.discordapp.com/emojis/1514008015618048192.png?size=128",
+    "logo": "https://cdn.discordapp.com/emojis/1525031524263526472.png?size=128",
     "defaultTeamSize": 5,
     "teamSizeOptions": [
       5
@@ -331,7 +331,7 @@
     "mapPickProcess": null,
     "ruleset": "Draft pick mode. Standard competitive rules.",
     "customFields": {},
-    "menuEmoji": "1514008015618048192"
+    "menuEmoji": "1525031524263526472"
   },
   "street_fighter_6": {
     "displayName": "Street Fighter 6",
@@ -339,7 +339,7 @@
     "icon": "👊",
     "category": "Fighting",
     "featured": true,
-    "logo": "https://cdn.discordapp.com/emojis/1514008019002986496.png?size=128",
+    "logo": "https://cdn.discordapp.com/emojis/1525031532018925680.png?size=128",
     "defaultTeamSize": 1,
     "teamSizeOptions": [
       1
@@ -371,7 +371,7 @@
         "label": "Round Timer"
       }
     },
-    "menuEmoji": "1514008019002986496"
+    "menuEmoji": "1525031532018925680"
   },
   "tekken_8": {
     "displayName": "Tekken 8",
@@ -379,7 +379,7 @@
     "icon": "🥋",
     "category": "Fighting",
     "featured": true,
-    "logo": "https://cdn.discordapp.com/emojis/1514008020474925176.png?size=128",
+    "logo": "https://cdn.discordapp.com/emojis/1525031534900281464.png?size=128",
     "defaultTeamSize": 1,
     "teamSizeOptions": [
       1
@@ -411,7 +411,7 @@
         "label": "Round Timer"
       }
     },
-    "menuEmoji": "1514008020474925176"
+    "menuEmoji": "1525031534900281464"
   },
   "2xko": {
     "displayName": "2XKO",
@@ -419,7 +419,7 @@
     "icon": "🥊",
     "category": "Fighting",
     "featured": true,
-    "logo": "https://cdn.discordapp.com/emojis/1514008004515729421.png?size=128",
+    "logo": "https://cdn.discordapp.com/emojis/1525031506135875664.png?size=128",
     "defaultTeamSize": 2,
     "teamSizeOptions": [
       1,
@@ -441,7 +441,7 @@
     "mapPickProcess": null,
     "ruleset": "Standard tournament rules.",
     "customFields": {},
-    "menuEmoji": "1514008004515729421"
+    "menuEmoji": "1525031506135875664"
   },
   "rocket_league": {
     "displayName": "Rocket League",
@@ -449,7 +449,7 @@
     "icon": "🚗",
     "category": "Sports",
     "featured": true,
-    "logo": "https://cdn.discordapp.com/emojis/1514008017979576370.png?size=128",
+    "logo": "https://cdn.discordapp.com/emojis/1525031530026631200.png?size=128",
     "defaultTeamSize": 3,
     "teamSizeOptions": [
       1,
@@ -500,7 +500,7 @@
         "label": "Overtime Mode"
       }
     },
-    "menuEmoji": "1514008017979576370"
+    "menuEmoji": "1525031530026631200"
   },
   "goals": {
     "displayName": "GOALS",
@@ -508,7 +508,7 @@
     "icon": "⚽",
     "category": "Sports",
     "featured": true,
-    "logo": "https://cdn.discordapp.com/emojis/1514008011566219326.png?size=128",
+    "logo": "https://cdn.discordapp.com/emojis/1525031519180165160.png?size=128",
     "defaultTeamSize": 1,
     "teamSizeOptions": [
       1,
@@ -532,7 +532,7 @@
     "mapPickProcess": null,
     "ruleset": "Standard rules.",
     "customFields": {},
-    "menuEmoji": "1514008011566219326",
+    "menuEmoji": "1525031519180165160",
     "nickSummary": "GOALS Username + ID",
     "nickFields": [
       {
@@ -557,7 +557,7 @@
     "icon": "🏟️",
     "category": "Sports",
     "featured": true,
-    "logo": "https://cdn.discordapp.com/emojis/1514008009733439628.png?size=128",
+    "logo": "https://cdn.discordapp.com/emojis/1525031515405291622.png?size=128",
     "defaultTeamSize": 1,
     "teamSizeOptions": [
       1,
@@ -586,7 +586,7 @@
         "label": "Half Length (minutes)"
       }
     },
-    "menuEmoji": "1514008009733439628"
+    "menuEmoji": "1525031515405291622"
   },
   "geoguessr": {
     "displayName": "GeoGuessr",
@@ -594,7 +594,7 @@
     "icon": "🌍",
     "category": "Casual",
     "featured": true,
-    "logo": "https://cdn.discordapp.com/emojis/1514008010773631147.png?size=128",
+    "logo": "https://cdn.discordapp.com/emojis/1525031517183676467.png?size=128",
     "defaultTeamSize": 1,
     "teamSizeOptions": [
       1,
@@ -634,7 +634,7 @@
         "label": "Moving Allowed"
       }
     },
-    "menuEmoji": "1514008010773631147"
+    "menuEmoji": "1525031517183676467"
   },
   "pubg": {
     "displayName": "PUBG: Battlegrounds",
@@ -642,7 +642,7 @@
     "icon": "🪖",
     "category": "Battle Royale",
     "featured": false,
-    "logo": null,
+    "logo": "https://cdn.discordapp.com/emojis/1525031527329824828.png?size=128",
     "defaultTeamSize": 4,
     "teamSizeOptions": [
       1,
@@ -671,7 +671,8 @@
       "scoringModel": "super",
       "lobbySize": 16,
       "gamesPerStage": 4
-    }
+    },
+    "menuEmoji": "1525031527329824828"
   },
   "pubg_mobile": {
     "displayName": "PUBG Mobile",
@@ -679,7 +680,7 @@
     "icon": "📱",
     "category": "Battle Royale",
     "featured": false,
-    "logo": null,
+    "logo": "https://cdn.discordapp.com/emojis/1525031528202109008.png?size=128",
     "defaultTeamSize": 4,
     "teamSizeOptions": [
       1,
@@ -708,7 +709,8 @@
       "scoringModel": "super",
       "lobbySize": 16,
       "gamesPerStage": 4
-    }
+    },
+    "menuEmoji": "1525031528202109008"
   },
   "apex_legends": {
     "displayName": "Apex Legends",
@@ -716,7 +718,7 @@
     "icon": "🔺",
     "category": "Battle Royale",
     "featured": false,
-    "logo": null,
+    "logo": "https://cdn.discordapp.com/emojis/1525031506924277863.png?size=128",
     "defaultTeamSize": 3,
     "teamSizeOptions": [
       1,
@@ -745,7 +747,8 @@
       "scoringModel": "algs",
       "lobbySize": 20,
       "gamesPerStage": 4
-    }
+    },
+    "menuEmoji": "1525031506924277863"
   },
   "warzone": {
     "displayName": "Call of Duty: Warzone",
@@ -753,7 +756,7 @@
     "icon": "💀",
     "category": "Battle Royale",
     "featured": false,
-    "logo": null,
+    "logo": "https://cdn.discordapp.com/emojis/1525031538113122345.png?size=128",
     "defaultTeamSize": 4,
     "teamSizeOptions": [
       1,
@@ -777,7 +780,8 @@
       "scoringModel": "warzone",
       "lobbySize": 25,
       "gamesPerStage": 4
-    }
+    },
+    "menuEmoji": "1525031538113122345"
   },
   "custom": {
     "displayName": null,

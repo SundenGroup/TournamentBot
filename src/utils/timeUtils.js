@@ -99,9 +99,21 @@ function toDiscordFullAndRelative(date) {
   return `<t:${unix}:F> (<t:${unix}:R>)`;
 }
 
+/**
+ * A live example for date inputs — today's date at 8pm UTC ("Jul 10 8pm UTC"),
+ * in exactly the informal format parseDateTime accepts. Used as the modal
+ * placeholder so the example is never stale.
+ */
+function exampleDateTime() {
+  const now = new Date();
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  return `${months[now.getUTCMonth()]} ${now.getUTCDate()} 8pm UTC`;
+}
+
 module.exports = {
   parseDateTime,
   formatTimeUntil,
   toDiscordTimestamp,
   toDiscordFullAndRelative,
+  exampleDateTime,
 };

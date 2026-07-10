@@ -514,8 +514,8 @@ function createBRTeamListEmbed(group, tournament) {
   }
 
   description += '\n💡 Admins report results with the **🎮 Game** buttons on the ';
-  description += 'standings board — tap teams in finish order. Reporting the top 3–5 ';
-  description += 'is enough; everyone else shares last place automatically.';
+  description += 'standings board — tap teams in finish order, at least the places ';
+  description += 'that score points. Unplaced teams score 0 (kills still count).';
 
   // Truncate if needed
   if (description.length > 4000) {

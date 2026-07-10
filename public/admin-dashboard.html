@@ -869,7 +869,7 @@ function renderBRGrid(d, stage, game) {
   const posOf = (id) => sel.order.indexOf(id);
 
   let html = `<div class="br-grid" data-brgrid="${gk}">
-    <div class="hint">${isCorrection ? 'Correcting a reported game — the new order replaces the old one.' : 'Tap ' + (d.isSolo ? 'players' : 'teams') + ' in finish order (1st first).'} Top 3–5 is enough — the rest share last place.${d.br.scoring.usesKills ? ' Kill boxes are optional.' : ''}</div>`;
+    <div class="hint">${isCorrection ? 'Correcting a reported game — the new order replaces the old one.' : 'Tap ' + (d.isSolo ? 'players' : 'teams') + ' in finish order (1st first).'} Report at least the places that score points — unplaced teams score 0.${d.br.scoring.usesKills ? ' Kill boxes are optional.' : ''}</div>`;
 
   html += stage.teams.map(t => {
     const p = posOf(t.id);

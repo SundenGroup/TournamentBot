@@ -775,7 +775,7 @@ async function handleEdit(interaction) {
     new ActionRowBuilder().addComponents(
       new TextInputBuilder()
         .setCustomId('datetime')
-        .setLabel('Date & Time (e.g., 2026-06-10 18:00 UTC)')
+        .setLabel('Date & Time (UTC)')
         .setStyle(TextInputStyle.Short)
         .setValue(toEditableUtc(tournament.startTime))
         .setRequired(true)
