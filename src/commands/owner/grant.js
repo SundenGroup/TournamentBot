@@ -30,9 +30,11 @@ module.exports = {
             .setDescription('Tier to grant')
             .setRequired(true)
             .addChoices(
-              { name: 'Premium', value: 'premium' },
               { name: 'Pro', value: 'pro' },
-              { name: 'Business', value: 'business' }
+              { name: 'Studio', value: 'studio' },
+              // Legacy names still accepted; they map to Pro/Studio at read time
+              { name: 'Premium (legacy → Pro)', value: 'premium' },
+              { name: 'Business (legacy → Studio)', value: 'business' }
             )
         )
         .addIntegerOption(opt =>
@@ -100,7 +102,9 @@ module.exports = {
     // Handle grant
     if (subcommand === 'grant') {
       const guildId = interaction.options.getString('guild_id');
-      const tier = interaction.options.getString('tier');
+      // Normalize legacy names so new grants are stored as v2 tiers
+      const { normalizeTier } = require('../../services/subscriptionService');
+      const tier = normalizeTier(interaction.options.getString('tier'));
       const days = interaction.options.getInteger('days');
       const reason = interaction.options.getString('reason') || 'Manual grant';
 

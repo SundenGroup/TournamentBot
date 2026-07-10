@@ -99,7 +99,7 @@ async function authenticate(req, res, next) {
 
   // Verify Business tier
   const tier = await getEffectiveTier(guildId);
-  if (tier !== 'business') {
+  if (tier !== 'studio') {
     return res.status(403).json({
       error: 'Business tier required',
       message: 'API access is only available on the Business tier',

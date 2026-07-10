@@ -781,7 +781,7 @@ async function handleHelp(interaction) {
   );
 
   // Pro tier features
-  if (tier === 'pro' || tier === 'business') {
+  if (tier === 'pro' || tier === 'studio') {
     embed.addFields({
       name: '/templates (Pro)',
       value: [

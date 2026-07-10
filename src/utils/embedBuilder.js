@@ -15,7 +15,7 @@ function getBracketUrl(tournament) {
 async function applyBranding(embed, guildId) {
   // Only apply branding for Business tier
   const tier = await getEffectiveTier(guildId);
-  if (tier !== 'business') return embed;
+  if (tier !== 'studio') return embed;
 
   const branding = await getBranding(guildId);
   if (!branding) return embed;

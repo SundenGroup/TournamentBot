@@ -42,7 +42,7 @@ function buildSettingsMessage(session) {
   content += `**Date:** ${dateDisplay}\n`;
   content += `**Players:** ${data.maxParticipants}\n\n`;
   content += `Customize your tournament settings below, or create with defaults.\n`;
-  content += `-# 💎 Premium · 🌐 Web Bracket is Pro — toggles turn green when on.`;
+  content += `-# 💎 Pro features — toggles turn green when on.`;
 
   const rows = [];
 
@@ -100,7 +100,7 @@ function buildSettingsMessage(session) {
   const toggleRow = new ActionRowBuilder().addComponents(
     new ButtonBuilder()
       .setCustomId(`wizardSettings:${session.id}:toggleCheckin`)
-      .setLabel(`${data.checkinRequired ? '✅' : '❌'} Check-in 💎`)
+      .setLabel(`${data.checkinRequired ? '✅' : '❌'} Check-in`)
       .setStyle(data.checkinRequired ? ButtonStyle.Success : ButtonStyle.Secondary),
     new ButtonBuilder()
       .setCustomId(`wizardSettings:${session.id}:toggleGameNick`)

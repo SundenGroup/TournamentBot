@@ -28,9 +28,8 @@ module.exports = {
             .setDescription('Tier to upgrade to')
             .setRequired(true)
             .addChoices(
-              { name: 'Premium — $5.99/mo or $49/yr', value: 'premium' },
-              { name: 'Pro — $24.99/mo or $199/yr', value: 'pro' },
-              { name: 'Business — $99/mo or $899/yr', value: 'business' }
+              { name: 'Pro — $9.99/mo or $79/yr', value: 'pro' },
+              { name: 'Studio — custom plan for studios & orgs (contact)', value: 'studio' }
             )
         )
         .addStringOption(opt =>
@@ -40,7 +39,7 @@ module.exports = {
             .setRequired(true)
             .addChoices(
               { name: 'Monthly', value: 'monthly' },
-              { name: 'Annual (save up to 34%)', value: 'annual' }
+              { name: 'Annual (save 34%)', value: 'annual' }
             )
         )
     )
@@ -57,7 +56,7 @@ module.exports = {
     .addSubcommand(sub =>
       sub
         .setName('api-key')
-        .setDescription('Manage your REST API key (Business tier)')
+        .setDescription('Manage your REST API key (Studio plan)')
         .addStringOption(opt =>
           opt
             .setName('action')
@@ -74,7 +73,7 @@ module.exports = {
     .addSubcommand(sub =>
       sub
         .setName('webhook')
-        .setDescription('Configure webhook notifications (Business tier)')
+        .setDescription('Configure webhook notifications (Studio plan)')
         .addStringOption(opt =>
           opt
             .setName('action')
@@ -97,12 +96,12 @@ module.exports = {
     .addSubcommand(sub =>
       sub
         .setName('trial')
-        .setDescription('Start a free 7-day Premium trial')
+        .setDescription('Start a free 7-day Pro trial')
     )
     .addSubcommand(sub =>
       sub
         .setName('branding')
-        .setDescription('Configure white-label branding (Business tier)')
+        .setDescription('Configure white-label branding (Studio plan)')
         .addStringOption(opt =>
           opt
             .setName('action')
@@ -152,6 +151,23 @@ module.exports = {
     }
 
     if (subcommand === 'upgrade') {
+      const tier = interaction.options.getString('tier');
+
+      // Studio is sold directly, not through self-serve checkout
+      if (tier === 'studio') {
+        const embed = new EmbedBuilder()
+          .setColor(0x5865F2)
+          .setTitle('🏢 Studio — the official tournament bot for your game')
+          .setDescription([
+            'Studio is our partner plan for game studios, esports orgs and large',
+            'communities: **white-label branding, custom game presets & private',
+            'signup fields, Results API + webhooks, multi-server** and hands-on onboarding.',
+            '',
+            `Get in touch and we'll tailor it: **https://tournaments.clutch.game/contact**`,
+          ].join('\n'));
+        return interaction.reply({ embeds: [embed], ephemeral: true });
+      }
+
       if (!isStripeConfigured()) {
         return interaction.reply({
           content: '❌ Payment processing is not configured. Please contact the bot administrator.',
@@ -159,15 +175,14 @@ module.exports = {
         });
       }
 
-      const tier = interaction.options.getString('tier');
       const billingCycle = interaction.options.getString('billing');
       const currentTier = await getEffectiveTier(interaction.guildId);
 
       // Check if already at or above this tier
-      const tierOrder = ['free', 'premium', 'pro', 'business'];
+      const tierOrder = ['free', 'pro', 'studio'];
       if (tierOrder.indexOf(currentTier) >= tierOrder.indexOf(tier)) {
         return interaction.reply({
-          content: `❌ You already have ${capitalize(currentTier)} tier. Use \`/subscribe manage\` to change your plan.`,
+          content: `❌ You already have the ${capitalize(currentTier)} plan. Use \`/subscribe manage\` to change your plan.`,
           ephemeral: true,
         });
       }
@@ -182,12 +197,8 @@ module.exports = {
         );
 
         const priceDisplay = {
-          premium_monthly: '$5.99/month',
-          premium_annual: '$49/year (save 32%)',
-          pro_monthly: '$24.99/month',
-          pro_annual: '$199/year (save 34%)',
-          business_monthly: '$99/month',
-          business_annual: '$899/year (save 24%)',
+          pro_monthly: '$9.99/month',
+          pro_annual: '$79/year (save 34%)',
         };
 
         const embed = new EmbedBuilder()
@@ -264,81 +275,57 @@ module.exports = {
 
       const embed = new EmbedBuilder()
         .setColor(0x5865F2)
-        .setTitle('📋 Subscription Plans')
-        .setDescription(`Your current tier: **${capitalize(currentTier)}**`)
+        .setTitle('📋 Plans')
+        .setDescription(`Your current plan: **${capitalize(currentTier)}**`)
         .addFields(
           {
-            name: '🆓 Free',
+            name: '🆓 Free — run real tournaments, free',
             value: [
-              '• 3 tournaments/month',
-              '• 50 max participants',
-              '• 1 concurrent tournament',
-              '• Basic features',
+              '• 5 tournaments/month · 2 at once',
+              '• Up to 64 entrants (brackets)',
+              '• Battle Royale: one lobby, up to 100 players',
+              '• All formats, match rooms, tap-to-report',
+              '• Check-in system',
+              '• Live web bracket (with CLUTCH footer)',
             ].join('\n'),
-            inline: true,
+            inline: false,
           },
           {
-            name: '⭐ Premium — $5.99/mo',
+            name: '💎 Pro — $9.99/mo or $79/yr',
             value: [
-              '• 15 tournaments/month',
-              '• 128 max participants',
-              '• 3 concurrent tournaments',
-              '• Check-in, seeding, captain mode',
-              '• Auto-cleanup, required roles',
+              '• Unlimited tournaments, unlimited concurrent',
+              '• Up to 256 entrants · multi-lobby Battle Royale',
+              '• Seeding, captain mode, auto-cleanup, required roles',
+              '• Web admin dashboard · templates · analytics',
+              '• Footer removal · priority support',
             ].join('\n'),
-            inline: true,
+            inline: false,
           },
           {
-            name: '\u200B',
-            value: '\u200B',
-            inline: true,
-          },
-          {
-            name: '💎 Pro — $24.99/mo',
+            name: '🏢 Studio — for game studios & orgs',
             value: [
-              '• 50 tournaments/month',
-              '• 256 max participants',
-              '• 10 concurrent tournaments',
-              '• All Premium features',
-              '• Tournament templates',
-              '• Advanced analytics',
+              '• White-label branding · custom game presets & private fields',
+              '• Results API + webhooks · multi-server · onboarding & SLA',
+              '• Contact us: https://tournaments.clutch.game/contact',
             ].join('\n'),
-            inline: true,
-          },
-          {
-            name: '🏢 Business — $99/mo',
-            value: [
-              '• 200 tournaments/month',
-              '• 512 max participants',
-              '• Unlimited concurrent',
-              '• All Pro features',
-              '• Results API & webhooks',
-              '• White-label branding',
-              '• 5 servers per subscription',
-            ].join('\n'),
-            inline: true,
-          },
-          {
-            name: '\u200B',
-            value: '\u200B',
-            inline: true,
+            inline: false,
           }
         )
-        .setFooter({ text: 'Annual billing saves up to 34%. Use /subscribe upgrade to get started.' });
+        .setFooter({ text: 'Annual billing saves 34%. Use /subscribe upgrade to get started, or /subscribe trial for 7 days of Pro.' });
 
       return interaction.reply({ embeds: [embed], ephemeral: true });
     }
 
     // ============================================================================
-    // API Key Management (Business tier)
+    // API Key Management (Studio plan)
     // ============================================================================
 
     if (subcommand === 'api-key') {
-      // Check Business tier
+      // Check Studio plan
       const tier = await getEffectiveTier(interaction.guildId);
-      if (tier !== 'business') {
+      if (tier !== 'studio') {
         return interaction.reply({
-          content: '❌ API access requires Business tier. Use `/subscribe upgrade` to upgrade.',
+          content: '❌ API access is part of the **Studio** plan — contact us: https://tournaments.clutch.game/contact',
           ephemeral: true,
         });
       }
@@ -458,15 +445,15 @@ module.exports = {
     }
 
     // ============================================================================
-    // Webhook Configuration (Business tier)
+    // Webhook Configuration (Studio plan)
     // ============================================================================
 
     if (subcommand === 'webhook') {
-      // Check Business tier
+      // Check Studio plan
       const tier = await getEffectiveTier(interaction.guildId);
-      if (tier !== 'business') {
+      if (tier !== 'studio') {
         return interaction.reply({
-          content: '❌ Webhooks require Business tier. Use `/subscribe upgrade` to upgrade.',
+          content: '❌ Webhooks are part of the **Studio** plan — contact us: https://tournaments.clutch.game/contact',
           ephemeral: true,
         });
       }
@@ -627,20 +614,18 @@ module.exports = {
       const embed = new EmbedBuilder()
         .setColor(0x57F287)
         .setTitle('🎉 Free Trial Activated!')
-        .setDescription('You now have **Premium** features for 7 days!')
+        .setDescription('You now have **Pro** features for 7 days!')
         .addFields(
           {
             name: 'Trial Features',
             value: [
-              '• Check-in system',
-              '• Seeding',
-              '• Captain Mode',
-              '• Auto-cleanup',
-              '• Required roles',
+              '• Seeding & captain mode',
+              '• Auto-cleanup & required roles',
               '• Full reminders (24h + 1h)',
-              '• 15 tournaments/month',
-              '• 128 max participants',
-              '• 3 concurrent tournaments',
+              '• Tournament templates & analytics',
+              '• Multi-lobby Battle Royale',
+              '• Up to 256 entrants',
+              '• Unlimited tournaments',
             ].join('\n'),
             inline: false,
           },
@@ -656,15 +641,15 @@ module.exports = {
     }
 
     // ============================================================================
-    // White-Label Branding (Business tier)
+    // White-Label Branding (Studio plan)
     // ============================================================================
 
     if (subcommand === 'branding') {
-      // Check Business tier
+      // Check Studio plan
       const tier = await getEffectiveTier(interaction.guildId);
-      if (tier !== 'business') {
+      if (tier !== 'studio') {
         return interaction.reply({
-          content: '❌ White-label branding requires Business tier. Use `/subscribe upgrade` to upgrade.',
+          content: '❌ White-label branding is part of the **Studio** plan — contact us: https://tournaments.clutch.game/contact',
           ephemeral: true,
         });
       }

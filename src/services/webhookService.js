@@ -33,7 +33,7 @@ async function sendWebhook(guildId, event, data) {
   }
 
   const tier = await getEffectiveTier(guildId);
-  if (tier !== 'business') {
+  if (tier !== 'studio') {
     return { sent: false, reason: 'Business tier required' };
   }
 

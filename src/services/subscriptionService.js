@@ -22,30 +22,46 @@ const {
 const GRACE_PERIOD_DAYS = 3;
 
 // ============================================================================
-// Tier Limits Configuration
+// Tiers — pricing v2 (docs/PRODUCT-STRATEGY.md §6a): Free / Pro / Studio.
+// ----------------------------------------------------------------------------
+// Legacy paid tiers map at read time (premium → pro, business → studio) so
+// existing grants and Stripe subscriptions keep working unchanged.
+//
+// Enforcement model:
+//   • FEATURE gates always follow the lists below. v2 only ever LOOSENS
+//     feature access vs v1 (check-in + web bracket became free), so applying
+//     them immediately claws nothing back.
+//   • LIMIT checks (monthly count / entrant cap / concurrent) only apply when
+//     config.features.enforceTiers is on (ENFORCE_TIERS env). It stays OFF
+//     until after the GOALS event on July 20, 2026 — flipping it is a
+//     deliberate post-event step.
 // ============================================================================
+
+const TIER_ORDER = ['free', 'pro', 'studio'];
+
+const LEGACY_TIER_MAP = { premium: 'pro', business: 'studio' };
+
+/** Map legacy tier names (stored in old grants/subscriptions) to v2 tiers. */
+function normalizeTier(tier) {
+  if (!tier) return 'free';
+  return LEGACY_TIER_MAP[tier] || (TIER_ORDER.includes(tier) ? tier : 'free');
+}
 
 const TIER_LIMITS = {
   free: {
-    tournamentsPerMonth: 3,
-    maxParticipants: 50,
-    maxConcurrent: 1,
-    maxServers: 1,
-  },
-  premium: {
-    tournamentsPerMonth: 15,
-    maxParticipants: 128,
-    maxConcurrent: 3,
+    tournamentsPerMonth: 5,   // a weekly cup + one extra
+    maxParticipants: 64,      // bracket formats; BR: one lobby (multi-lobby is Pro)
+    maxConcurrent: 2,
     maxServers: 1,
   },
   pro: {
-    tournamentsPerMonth: 50,
+    tournamentsPerMonth: Infinity,
     maxParticipants: 256,
-    maxConcurrent: 10,
+    maxConcurrent: Infinity,
     maxServers: 1,
   },
-  business: {
-    tournamentsPerMonth: 200,
+  studio: {
+    tournamentsPerMonth: Infinity,
     maxParticipants: 512,
     maxConcurrent: Infinity,
     maxServers: 5,
@@ -54,29 +70,37 @@ const TIER_LIMITS = {
 
 // ============================================================================
 // Feature Lists
+// ----------------------------------------------------------------------------
+// Free includes everything not listed here — notably check-in (protects a
+// first-timer's event quality) and the live web bracket (with footer).
+// web_dashboard / footer_removal are declared for plan display; their route
+// wiring lands with the post-GOALS enforcement flip.
 // ============================================================================
 
-const PREMIUM_FEATURES = [
-  'checkin',
+const PRO_FEATURES = [
   'seeding',
   'captain_mode',
   'auto_cleanup',
   'required_roles',
   'full_reminders',
-];
-
-const PRO_FEATURES = [
   'tournament_templates',
   'advanced_analytics',
-  'public_bracket',
+  'multi_lobby_br',
+  'footer_removal',
+  'web_dashboard',
 ];
 
-const BUSINESS_FEATURES = [
+const STUDIO_FEATURES = [
   'api_access',
   'webhooks',
   'white_label',
   'multi_server',
+  'custom_presets',
 ];
+
+// Legacy aliases (old call sites / display code)
+const PREMIUM_FEATURES = PRO_FEATURES;
+const BUSINESS_FEATURES = STUDIO_FEATURES;
 
 // ============================================================================
 // Feature Names (for display)
@@ -92,10 +116,14 @@ const FEATURE_NAMES = {
   tournament_templates: 'Tournament Templates',
   advanced_analytics: 'Advanced Analytics',
   public_bracket: 'Live Web Bracket',
+  multi_lobby_br: 'Multi-Lobby Battle Royale (group stages)',
+  footer_removal: 'Bracket Footer Removal',
+  web_dashboard: 'Web Admin Dashboard',
   api_access: 'Results API',
   webhooks: 'Webhooks',
   white_label: 'White-Label Branding',
   multi_server: 'Multi-Server Support',
+  custom_presets: 'Custom Game Presets & Private Fields',
   concurrent: 'More Concurrent Tournaments',
   participants: 'More Participants',
 };
@@ -109,16 +137,14 @@ function capitalize(str) {
 }
 
 function getNextTier(currentTier) {
-  const tiers = ['free', 'premium', 'pro', 'business'];
-  const index = tiers.indexOf(currentTier);
-  if (index === -1 || index === tiers.length - 1) return null;
-  return tiers[index + 1];
+  const index = TIER_ORDER.indexOf(normalizeTier(currentTier));
+  if (index === -1 || index === TIER_ORDER.length - 1) return null;
+  return TIER_ORDER[index + 1];
 }
 
 function getRequiredTierForFeature(feature) {
-  if (PREMIUM_FEATURES.includes(feature)) return 'premium';
   if (PRO_FEATURES.includes(feature)) return 'pro';
-  if (BUSINESS_FEATURES.includes(feature)) return 'business';
+  if (STUDIO_FEATURES.includes(feature)) return 'studio';
   return 'free';
 }
 
@@ -149,11 +175,11 @@ async function getEffectiveTier(guildId) {
     }
   }
 
-  // Check if linked to a Business subscription
+  // Check if linked to a Studio (legacy Business) multi-server subscription
   if (sub.parentSubscription) {
     const parent = await getSubscription(sub.parentSubscription);
-    if (parent?.tier === 'business') {
-      return 'business';
+    if (normalizeTier(parent?.tier) === 'studio') {
+      return 'studio';
     }
   }
 
@@ -161,7 +187,7 @@ async function getEffectiveTier(guildId) {
   if (sub.gracePeriodEnd && sub.previousTier) {
     const gracePeriodEnd = new Date(sub.gracePeriodEnd);
     if (gracePeriodEnd > new Date()) {
-      return sub.previousTier;
+      return normalizeTier(sub.previousTier);
     } else {
       // Grace period expired - clear it
       await updateSubscription(guildId, {
@@ -171,7 +197,7 @@ async function getEffectiveTier(guildId) {
     }
   }
 
-  return sub.tier || 'free';
+  return normalizeTier(sub.tier);
 }
 
 /**
@@ -198,7 +224,7 @@ async function startGracePeriod(guildId, previousTier) {
 }
 
 /**
- * Start a free trial (7 days of Premium)
+ * Start a free trial (7 days of Pro)
  */
 async function startFreeTrial(guildId, grantedBy) {
   const sub = await getOrCreateSubscription(guildId);
@@ -214,11 +240,11 @@ async function startFreeTrial(guildId, grantedBy) {
     return { success: false, reason: 'Server already has an active subscription' };
   }
 
-  // Grant 7-day Premium trial
+  // Grant 7-day Pro trial
   const expiresAt = new Date();
   expiresAt.setDate(expiresAt.getDate() + 7);
 
-  await setManualGrant(guildId, 'premium', expiresAt, 'Free trial', grantedBy);
+  await setManualGrant(guildId, 'pro', expiresAt, 'Free trial', grantedBy);
   await updateSubscription(guildId, { trialUsed: true });
 
   return { success: true, expiresAt };
@@ -231,18 +257,8 @@ async function startFreeTrial(guildId, grantedBy) {
 async function checkFeature(guildId, feature) {
   const tier = await getEffectiveTier(guildId);
 
-  if (PREMIUM_FEATURES.includes(feature)) {
-    if (tier === 'free') {
-      return {
-        allowed: false,
-        reason: `${FEATURE_NAMES[feature] || feature} is a Premium feature`,
-        upgradeRequired: 'premium',
-      };
-    }
-  }
-
   if (PRO_FEATURES.includes(feature)) {
-    if (tier === 'free' || tier === 'premium') {
+    if (tier === 'free') {
       return {
         allowed: false,
         reason: `${FEATURE_NAMES[feature] || feature} is a Pro feature`,
@@ -251,12 +267,12 @@ async function checkFeature(guildId, feature) {
     }
   }
 
-  if (BUSINESS_FEATURES.includes(feature)) {
-    if (tier !== 'business') {
+  if (STUDIO_FEATURES.includes(feature)) {
+    if (tier !== 'studio') {
       return {
         allowed: false,
-        reason: `${FEATURE_NAMES[feature] || feature} is a Business feature`,
-        upgradeRequired: 'business',
+        reason: `${FEATURE_NAMES[feature] || feature} is part of the Studio plan`,
+        upgradeRequired: 'studio',
       };
     }
   }
@@ -265,35 +281,37 @@ async function checkFeature(guildId, feature) {
 }
 
 /**
- * Check if a participant limit is within tier allowance (including boosts)
+ * Check if a participant limit is within tier allowance (including boosts).
+ * Limits are only enforced when ENFORCE_TIERS is on (post-GOALS step) —
+ * until then only the 512 platform cap applies.
  */
 async function checkParticipantLimit(guildId, requestedLimit, boostToUse = null) {
-  // Participant boosts are part of the parked token system. With tokens
-  // disabled, allow up to the platform hard cap so the boost-purchase prompt
-  // never fires during testing. See docs/PARKED-FEATURES.md.
-  if (!features.tokens) {
-    const PLATFORM_CAP = 512;
-    if (requestedLimit > PLATFORM_CAP) {
-      return { allowed: false, reason: `Maximum ${PLATFORM_CAP} participants allowed.`, canBuyBoost: false };
-    }
+  const PLATFORM_CAP = 512;
+  if (requestedLimit > PLATFORM_CAP) {
+    return { allowed: false, reason: `Maximum ${PLATFORM_CAP} participants allowed.`, canBuyBoost: false };
+  }
+
+  if (!features.enforceTiers) {
     return { allowed: true, effectiveMax: PLATFORM_CAP };
   }
 
   const tier = await getEffectiveTier(guildId);
   const baseMax = TIER_LIMITS[tier].maxParticipants;
-  const boostAmount = boostToUse || 0;
-  const effectiveMax = Math.min(baseMax + boostAmount, 512); // Platform cap
+  // Participant boosts belong to the parked token system
+  const boostAmount = features.tokens ? (boostToUse || 0) : 0;
+  const effectiveMax = Math.min(baseMax + boostAmount, PLATFORM_CAP);
 
   if (requestedLimit > effectiveMax) {
     const reason = boostAmount
-      ? `Your ${tier} tier allows up to ${baseMax} participants (+${boostAmount} boost = ${effectiveMax}). You requested ${requestedLimit}.`
-      : `Your ${tier} tier allows up to ${baseMax} participants. You requested ${requestedLimit}.`;
+      ? `Your ${tier} plan allows up to ${baseMax} participants (+${boostAmount} boost = ${effectiveMax}). You requested ${requestedLimit}.`
+      : `Your ${tier} plan allows up to ${baseMax} participants. You requested ${requestedLimit}.`;
 
     return {
       allowed: false,
       reason,
-      canBuyBoost: requestedLimit <= 512,
+      canBuyBoost: features.tokens && requestedLimit <= PLATFORM_CAP,
       suggestedBoost: getSuggestedBoost(requestedLimit - baseMax),
+      upgradeRequired: getNextTier(tier),
     };
   }
 
@@ -301,13 +319,11 @@ async function checkParticipantLimit(guildId, requestedLimit, boostToUse = null)
 }
 
 /**
- * Check monthly tournament limit (including tokens)
+ * Check monthly tournament limit. Enforced only when ENFORCE_TIERS is on;
+ * tournament tokens (parked) can extend the cap when that system returns.
  */
 async function checkTournamentLimit(guildId) {
-  // Tokens parked: the monthly cap was only ever soft because tokens could
-  // extend it. With tokens disabled we don't gate tournament count at all so
-  // testing is never blocked. See docs/PARKED-FEATURES.md.
-  if (!features.tokens) {
+  if (!features.enforceTiers) {
     return { allowed: true, remaining: Infinity, tokensAvailable: 0, usingToken: false };
   }
 
@@ -316,13 +332,13 @@ async function checkTournamentLimit(guildId) {
   const baseLimit = TIER_LIMITS[tier].tournamentsPerMonth;
 
   const used = sub.usage?.tournamentsThisMonth || 0;
-  const tokens = sub.tokens?.tournament || 0;
+  const tokens = features.tokens ? (sub.tokens?.tournament || 0) : 0;
 
-  // Check if within base limit first
+  // Check if within base limit first (Pro/Studio: Infinity — always within)
   if (used < baseLimit) {
     return {
       allowed: true,
-      remaining: baseLimit - used,
+      remaining: baseLimit === Infinity ? Infinity : baseLimit - used,
       tokensAvailable: tokens,
       usingToken: false,
     };
@@ -342,16 +358,21 @@ async function checkTournamentLimit(guildId) {
   // No tokens available
   return {
     allowed: false,
-    reason: `You've used all ${baseLimit} tournaments this month and have no tokens.`,
-    canBuyTokens: true,
+    reason: `You've used all ${baseLimit} free tournaments this month. Pro has no monthly limit.`,
+    canBuyTokens: features.tokens,
+    upgradeRequired: getNextTier(tier),
     resetDate: sub.usage?.monthResetDate,
   };
 }
 
 /**
- * Check concurrent tournament limit
+ * Check concurrent tournament limit. Enforced only when ENFORCE_TIERS is on.
  */
 async function checkConcurrentLimit(guildId) {
+  if (!features.enforceTiers) {
+    return { allowed: true };
+  }
+
   const sub = await getOrCreateSubscription(guildId);
   const tier = await getEffectiveTier(guildId);
   const limit = TIER_LIMITS[tier].maxConcurrent;
@@ -364,7 +385,7 @@ async function checkConcurrentLimit(guildId) {
   if (current >= limit) {
     return {
       allowed: false,
-      reason: `You have ${current} active tournament${current !== 1 ? 's' : ''}. Your ${tier} tier allows ${limit} concurrent.`,
+      reason: `You have ${current} active tournament${current !== 1 ? 's' : ''}. Your ${tier} plan allows ${limit} at once.`,
       upgradeRequired: getNextTier(tier),
     };
   }
@@ -553,9 +574,8 @@ async function getStatusEmbed(guildId) {
 
   const tierEmoji = {
     free: '🆓',
-    premium: '⭐',
     pro: '💎',
-    business: '🏢',
+    studio: '🏢',
   };
 
   const embed = new EmbedBuilder()
@@ -595,11 +615,15 @@ async function getStatusEmbed(guildId) {
   const resetDate = sub.usage?.monthResetDate;
   const resetTimestamp = resetDate ? Math.floor(new Date(resetDate).getTime() / 1000) : null;
 
+  // While tier limits aren't enforced (pre-launch period), show ∞ so usage
+  // never reads as an overage.
+  const showLimit = (n) => (!features.enforceTiers || n === Infinity) ? '∞' : String(n);
+
   embed.addFields(
     { name: '\u200B', value: '**📊 Usage This Month**', inline: false },
-    { name: 'Tournaments', value: `${used} / ${limits.tournamentsPerMonth}`, inline: true },
-    { name: 'Concurrent Active', value: `${concurrent} / ${limits.maxConcurrent === Infinity ? '∞' : limits.maxConcurrent}`, inline: true },
-    { name: 'Max Participants', value: `${limits.maxParticipants}`, inline: true }
+    { name: 'Tournaments', value: `${used} / ${showLimit(limits.tournamentsPerMonth)}`, inline: true },
+    { name: 'Concurrent Active', value: `${concurrent} / ${showLimit(limits.maxConcurrent)}`, inline: true },
+    { name: 'Max Participants', value: showLimit(limits.maxParticipants), inline: true }
   );
 
   if (resetTimestamp) {
@@ -628,11 +652,14 @@ async function getStatusEmbed(guildId) {
 module.exports = {
   // Config
   TIER_LIMITS,
-  PREMIUM_FEATURES,
+  TIER_ORDER,
   PRO_FEATURES,
-  BUSINESS_FEATURES,
+  STUDIO_FEATURES,
+  PREMIUM_FEATURES,   // legacy alias of PRO_FEATURES
+  BUSINESS_FEATURES,  // legacy alias of STUDIO_FEATURES
   FEATURE_NAMES,
   GRACE_PERIOD_DAYS,
+  normalizeTier,
 
   // Core functions
   getEffectiveTier,
