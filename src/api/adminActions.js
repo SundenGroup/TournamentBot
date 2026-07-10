@@ -20,6 +20,9 @@ const {
   editTournamentFlow,
   removeEntrantFlow,
   createRoomsFlow,
+  applyBRGameReport,
+  applyBRGameCorrection,
+  applyBRSetKills,
 } = require('../services/lifecycleService');
 const { runCreationChecks, resolveAnnouncementChannel, createAndAnnounce } = require('../services/creationService');
 
@@ -194,6 +197,49 @@ router.get('/admin/api/tournaments/:id/manage', requireSession, async (req, res)
     hasRoom: !!match.channelId,
   }));
 
+  // Battle Royale: stage/game/standings payload for the dashboard grid.
+  // Admin-only surface — raw entrant ids are fine here (they're needed to
+  // submit placements), private fields still never appear.
+  let br = null;
+  if (t.bracket?.type === 'battle_royale') {
+    const b = t.bracket;
+    const stagePayload = (stage, key) => ({
+      key,
+      name: stage.name,
+      teams: stage.teams.map(team => ({ id: team.id, name: isSolo ? team.username : team.name })),
+      games: stage.games.map(g => ({
+        gameNumber: g.gameNumber,
+        status: g.status,
+        reported: g.reported || [],
+        kills: g.kills || {},
+      })),
+      standings: stage.standings.map((s, i) => ({
+        rank: i + 1,
+        teamId: s.team.id,
+        name: isSolo ? s.team.username : s.team.name,
+        points: s.points,
+        kills: s.kills,
+        wins: s.wins,
+        gamesPlayed: s.gamesPlayed,
+      })),
+    });
+    br = {
+      currentStage: b.currentStage,
+      singleLobby: !!b.singleLobby,
+      advancingPerGroup: b.advancingPerGroup || 0,
+      gamesPerStage: b.gamesPerStage,
+      scoring: {
+        label: b.scoring?.label || 'Placement points',
+        usesKills: (b.scoring?.killPoints || 0) > 0 || !!b.scoring?.killMultipliers,
+      },
+      stages: [
+        ...b.groups.map((g, i) => stagePayload(g, String(i))),
+        ...(b.finals ? [stagePayload(b.finals, 'f')] : []),
+      ],
+    };
+  }
+
+  const isBR = t.settings.format === 'battle_royale';
   res.set('Cache-Control', 'no-store');
   res.json({
     id: t.id,
@@ -210,15 +256,21 @@ router.get('/admin/api/tournaments/:id/manage', requireSession, async (req, res)
     nickSummary: t.settings.requireGameNick ? getNickSummary(t.game) : null,
     entrants,
     matches,
-    counts: { entrants: entrants.length, pending: matches.filter(m => !m.winnerId && m.participant1 && m.participant2).length },
+    br,
+    counts: {
+      entrants: entrants.length,
+      pending: isBR
+        ? (br?.stages || []).reduce((n, s) => n + s.games.filter(g => g.status === 'pending').length, 0)
+        : matches.filter(m => !m.winnerId && m.participant1 && m.participant2).length,
+    },
     can: {
       edit: ['registration', 'checkin'].includes(t.status),
       start: ['registration', 'checkin'].includes(t.status) && entrants.length >= 2,
       cancel: ['registration', 'checkin', 'active'].includes(t.status),
       removeEntrant: ['registration', 'checkin'].includes(t.status),
-      report: t.status === 'active' && t.settings.format !== 'battle_royale',
-      correct: !!t.bracket && t.settings.format !== 'battle_royale',
-      disqualify: t.status === 'active' && t.settings.format !== 'battle_royale',
+      report: t.status === 'active',
+      correct: !!t.bracket,
+      disqualify: t.status === 'active' && !isBR,
       createRooms: t.status === 'active',
     },
   });
@@ -255,7 +307,7 @@ router.post('/admin/api/guilds/:guildId/tournaments', ...mutate, requireGuildAdm
   }
 
   const format = b.format || preset?.defaultFormat || 'single_elimination';
-  if (!['single_elimination', 'double_elimination', 'swiss', 'round_robin'].includes(format)) {
+  if (!['single_elimination', 'double_elimination', 'swiss', 'round_robin', 'battle_royale'].includes(format)) {
     return res.status(400).json({ error: 'Unsupported format' });
   }
 
@@ -270,9 +322,14 @@ router.post('/admin/api/guilds/:guildId/tournaments', ...mutate, requireGuildAdm
   const publicBracket = !!b.publicBracket;
 
   // Subscription / entitlement checks — same as Discord creation
+  const requestedFeatures = publicBracket ? ['public_bracket'] : [];
+  if (format === 'battle_royale') {
+    const lobby = preset?.brDefaults?.lobbySize || 20;
+    if (maxParticipants > lobby) requestedFeatures.push('multi_lobby_br');
+  }
   const checks = await runCreationChecks(guild.id, {
     maxParticipants,
-    features: publicBracket ? ['public_bracket'] : [],
+    features: requestedFeatures,
   });
   if (!checks.ok) {
     const messages = {
@@ -385,7 +442,7 @@ router.post('/admin/api/tournaments/:id/report', ...mutate, async (req, res) => 
   if (!guild) return;
 
   if (!t.bracket) return res.status(400).json({ error: 'Tournament has not started yet.' });
-  if (t.bracket.type === 'battle_royale') return res.status(400).json({ error: 'Battle Royale results are reported in Discord (/tournament br-report).' });
+  if (t.bracket.type === 'battle_royale') return res.status(400).json({ error: 'Battle Royale games are reported from the BR grid (or the lobby buttons in Discord).' });
 
   const matchNumber = parseInt(req.body?.matchNumber, 10);
   const winnerId = String(req.body?.winnerId || '');
@@ -424,7 +481,7 @@ router.post('/admin/api/tournaments/:id/report', ...mutate, async (req, res) => 
 router.post('/admin/api/tournaments/:id/correct', ...mutate, async (req, res) => {
   const t = await loadOwnedForMutation(req, res);
   if (!t) return;
-  if (t.bracket?.type === 'battle_royale') return res.status(400).json({ error: 'Battle Royale results are corrected in Discord.' });
+  if (t.bracket?.type === 'battle_royale') return res.status(400).json({ error: 'Battle Royale games are corrected from the BR grid (or by tapping the reported game in Discord).' });
   try {
     const result = await correctMatchFlow({
       client: getClient(),
@@ -444,6 +501,91 @@ router.post('/admin/api/tournaments/:id/correct', ...mutate, async (req, res) =>
   } catch (err) {
     console.error(`[web-admin] ${req.method} ${req.path} failed:`, err.message);
     res.status(400).json({ error: err.message.replace(/\*\*|`/g, '') });
+  }
+});
+
+// ── Battle Royale: report / correct / kills (the dashboard grid) ─────────────
+
+/** Shared validation for BR grid submissions. Returns null + responds on error. */
+function parseBRBody(t, req, res) {
+  if (!t.bracket) { res.status(400).json({ error: 'Tournament has not started yet.' }); return null; }
+  if (t.bracket.type !== 'battle_royale') { res.status(400).json({ error: 'Not a Battle Royale tournament.' }); return null; }
+
+  const groupKey = String(req.body?.groupKey ?? '');
+  const gameNumber = parseInt(req.body?.gameNumber, 10);
+  if (!Number.isInteger(gameNumber) || gameNumber < 1) { res.status(400).json({ error: 'Invalid game number.' }); return null; }
+
+  const placements = Array.isArray(req.body?.placements) ? req.body.placements.map(String) : [];
+  const killsIn = req.body?.kills && typeof req.body.kills === 'object' ? req.body.kills : {};
+  const kills = {};
+  for (const [id, n] of Object.entries(killsIn)) {
+    const v = parseInt(n, 10);
+    if (Number.isInteger(v) && v >= 0) kills[String(id)] = v;
+  }
+  return { groupKey, gameNumber, placements, kills };
+}
+
+router.post('/admin/api/tournaments/:id/br-report', ...mutate, async (req, res) => {
+  const t = await loadOwnedForMutation(req, res);
+  if (!t) return;
+  const guild = getGuildOr503(t.guildId, res);
+  if (!guild) return;
+  const body = parseBRBody(t, req, res);
+  if (!body) return;
+
+  try {
+    const result = await applyBRGameReport({
+      client: getClient(), guild, tournament: t,
+      groupKey: body.groupKey, gameNumber: body.gameNumber,
+      placements: body.placements, kills: body.kills,
+    });
+    await audit(req, t, 'br-report', { groupKey: body.groupKey, gameNumber: body.gameNumber, placements: body.placements.length, completed: result.tournamentComplete });
+    res.json({ ok: true, stageComplete: result.stageComplete, finalsCreated: result.finalsCreated, completed: result.tournamentComplete });
+  } catch (err) {
+    console.error(`[web-admin] ${req.method} ${req.path} failed:`, err.message);
+    res.status(400).json({ error: err.message });
+  }
+});
+
+router.post('/admin/api/tournaments/:id/br-correct', ...mutate, async (req, res) => {
+  const t = await loadOwnedForMutation(req, res);
+  if (!t) return;
+  const guild = getGuildOr503(t.guildId, res);
+  if (!guild) return;
+  const body = parseBRBody(t, req, res);
+  if (!body) return;
+
+  try {
+    const result = await applyBRGameCorrection({
+      client: getClient(), guild, tournament: t,
+      groupKey: body.groupKey, gameNumber: body.gameNumber,
+      placements: body.placements, kills: body.kills,
+    });
+    await audit(req, t, 'br-correct', { groupKey: body.groupKey, gameNumber: body.gameNumber, finalsRegenerated: !!result.finalsRegenerated });
+    res.json({ ok: true, finalsRegenerated: !!result.finalsRegenerated });
+  } catch (err) {
+    console.error(`[web-admin] ${req.method} ${req.path} failed:`, err.message);
+    res.status(400).json({ error: err.message });
+  }
+});
+
+router.post('/admin/api/tournaments/:id/br-kills', ...mutate, async (req, res) => {
+  const t = await loadOwnedForMutation(req, res);
+  if (!t) return;
+  const body = parseBRBody(t, req, res);
+  if (!body) return;
+  if (!Object.keys(body.kills).length) return res.status(400).json({ error: 'No kills provided.' });
+
+  try {
+    await applyBRSetKills({
+      client: getClient(), tournament: t,
+      groupKey: body.groupKey, gameNumber: body.gameNumber, kills: body.kills,
+    });
+    await audit(req, t, 'br-kills', { groupKey: body.groupKey, gameNumber: body.gameNumber, teams: Object.keys(body.kills).length });
+    res.json({ ok: true });
+  } catch (err) {
+    console.error(`[web-admin] ${req.method} ${req.path} failed:`, err.message);
+    res.status(400).json({ error: err.message });
   }
 });
 

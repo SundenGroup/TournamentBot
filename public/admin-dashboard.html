@@ -229,6 +229,26 @@
   .toast.err { border-left-color: var(--accent); }
 
   @media (max-width: 640px) { .wrap { padding: 0 16px; } .brand .sub { display: none; } }
+/* ── Battle Royale grid ── */
+.br-chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0 12px; }
+.br-chip { font: inherit; font-size: 12px; font-weight: 600; padding: 7px 12px; border-radius: 8px; border: 1px solid var(--border); background: var(--bg-card); color: var(--text); cursor: pointer; }
+.br-chip.done { color: var(--text-dim); }
+.br-chip.next { border-color: var(--accent); color: var(--accent); }
+.br-chip.open { background: var(--accent); border-color: var(--accent); color: #fff; }
+.br-grid { border: 1px solid var(--border); border-radius: 10px; padding: 10px; margin-bottom: 14px; background: var(--bg-sunken, rgba(0,0,0,.15)); }
+.br-grid .hint { font-size: 11.5px; color: var(--text-dim); margin: 2px 2px 10px; }
+.br-row { display: flex; align-items: center; gap: 8px; width: 100%; margin-bottom: 4px; }
+.br-tap { flex: 1; display: flex; align-items: center; gap: 10px; font: inherit; font-size: 13px; text-align: left; padding: 8px 10px; border-radius: 8px; border: 1px solid var(--border); background: var(--bg-card); color: var(--text); cursor: pointer; }
+.br-tap .pos { min-width: 26px; height: 22px; display: inline-flex; align-items: center; justify-content: center; border-radius: 6px; background: var(--bg-sunken, rgba(0,0,0,.2)); border: 1px solid var(--border); font-size: 11px; font-weight: 700; color: var(--text-dim); }
+.br-tap.placed { border-color: var(--accent); }
+.br-tap.placed .pos { background: var(--accent); border-color: var(--accent); color: #fff; }
+.br-kill { width: 58px; padding: 8px 6px; font: inherit; font-size: 12.5px; text-align: center; border-radius: 8px; border: 1px solid var(--border); background: var(--bg-card); color: var(--text); }
+.br-actions { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 10px; }
+.br-standings { width: 100%; border-collapse: collapse; font-size: 12.5px; margin-bottom: 14px; }
+.br-standings th { text-align: left; font-size: 10px; letter-spacing: .08em; text-transform: uppercase; color: var(--text-dim); padding: 5px 8px; border-bottom: 1px solid var(--border); }
+.br-standings td { padding: 5px 8px; border-bottom: 1px solid var(--border); }
+.br-standings td.num { text-align: center; font-variant-numeric: tabular-nums; }
+.br-standings tr.cut td { border-bottom: 1px dashed var(--accent); }
 </style>
 </head>
 <body>
@@ -339,6 +359,8 @@ let manageData = null;
 let SEL = {};                  // matchNumber -> { winner, score }
 let openFix = null;
 let editOpen = false;
+let openBRGame = null;         // "stageKey:gameNumber" — which BR grid is open
+let BRSEL = {};                // "stageKey:gameNumber" -> { order: [teamId], kills: {teamId: n} }
 
 // ── helpers (api / toast / armConfirm) ──────────────────────────────────────
 async function api(path, { method = 'GET', body } = {}) {
@@ -737,8 +759,8 @@ function renderRunLeft() {
     html += '</div>';
   }
 
-  if (isBR) {
-    html += `<div class="caught-up">Battle Royale results are reported in Discord with <span class="mono">/tournament br-report</span>.</div>`;
+  if (isBR && d.br) {
+    html += renderBRStages(d);
   }
 
   if (d.can.correct && decided.length && !isBR) {
@@ -795,7 +817,151 @@ function renderRunLeft() {
   wireRunLeft(d, left);
 }
 
+// ── Battle Royale: stages, game chips, tap-in-finish-order grid ──────────────
+
+function renderBRStages(d) {
+  const br = d.br;
+  // Active stage first: finals when running/complete, else groups
+  const stages = [...br.stages].sort((a, b) =>
+    (a.key === 'f' && br.currentStage !== 'groups' ? -1 : 0) - (b.key === 'f' && br.currentStage !== 'groups' ? -1 : 0));
+
+  let html = '';
+  for (const stage of stages) {
+    const done = stage.games.filter(g => g.status === 'complete').length;
+    const isCurrent = (stage.key === 'f') === (br.currentStage !== 'groups');
+    html += `<div><div class="qlabel ${isCurrent && d.status === 'active' ? 'red' : ''}">${esc(stage.name)} · ${done}/${stage.games.length} games · ${esc(br.scoring.label)}</div>`;
+
+    // Game chips — tap a pending game to report, a done game to correct
+    html += `<div class="br-chips">` + stage.games.map(g => {
+      const gk = `${stage.key}:${g.gameNumber}`;
+      const isOpen = openBRGame === gk;
+      const isNext = g.status === 'pending' && stage.games.find(x => x.status === 'pending')?.gameNumber === g.gameNumber;
+      const cls = isOpen ? 'open' : g.status === 'complete' ? 'done' : isNext ? 'next' : '';
+      return `<button class="br-chip ${cls}" data-brgame="${gk}">${g.status === 'complete' ? '✓' : '▸'} Game ${g.gameNumber}</button>`;
+    }).join('') + `</div>`;
+
+    // Open reporting grid for this stage's selected game
+    if (openBRGame && openBRGame.startsWith(stage.key + ':')) {
+      const gameNumber = parseInt(openBRGame.split(':')[1], 10);
+      const game = stage.games.find(g => g.gameNumber === gameNumber);
+      if (game) html += renderBRGrid(d, stage, game);
+    }
+
+    // Standings with advancement cutline during the group stage
+    const cut = stage.key !== 'f' && !br.singleLobby && br.currentStage === 'groups' ? br.advancingPerGroup : 0;
+    html += `<table class="br-standings"><thead><tr><th>#</th><th>${d.isSolo ? 'Player' : 'Team'}</th><th style="text-align:center">Pts</th>${br.scoring.usesKills ? '<th style="text-align:center">Kills</th>' : ''}<th style="text-align:center">Games</th></tr></thead><tbody>`;
+    html += stage.standings.map((s, i) =>
+      `<tr class="${cut && i === cut - 1 ? 'cut' : ''}"><td class="num">${s.rank}</td><td>${esc(s.name)}</td><td class="num"><b>${s.points}</b></td>${br.scoring.usesKills ? `<td class="num">${s.kills}</td>` : ''}<td class="num">${s.gamesPlayed}/${stage.games.length}</td></tr>`).join('');
+    html += `</tbody></table>`;
+    if (cut) html += `<div class="hint" style="font-size:11px;color:var(--text-dim);margin:-8px 0 14px">Top ${cut} advance to the Grand Finals (dashed line).</div>`;
+    html += `</div>`;
+  }
+  return html;
+}
+
+function renderBRGrid(d, stage, game) {
+  const gk = `${stage.key}:${game.gameNumber}`;
+  const sel = BRSEL[gk] || (BRSEL[gk] = {
+    order: [...(game.reported || [])],
+    kills: { ...(game.kills || {}) },
+  });
+  const isCorrection = game.status === 'complete';
+  const posOf = (id) => sel.order.indexOf(id);
+
+  let html = `<div class="br-grid" data-brgrid="${gk}">
+    <div class="hint">${isCorrection ? 'Correcting a reported game — the new order replaces the old one.' : 'Tap ' + (d.isSolo ? 'players' : 'teams') + ' in finish order (1st first).'} Top 3–5 is enough — the rest share last place.${d.br.scoring.usesKills ? ' Kill boxes are optional.' : ''}</div>`;
+
+  html += stage.teams.map(t => {
+    const p = posOf(t.id);
+    return `<div class="br-row">
+      <button class="br-tap ${p >= 0 ? 'placed' : ''}" data-brtap="${esc(t.id)}"><span class="pos">${p >= 0 ? p + 1 : '·'}</span>${esc(t.name)}</button>
+      ${d.br.scoring.usesKills ? `<input class="br-kill" data-brkill="${esc(t.id)}" type="number" min="0" max="999" placeholder="kills" value="${sel.kills[t.id] ?? ''}">` : ''}
+    </div>`;
+  }).join('');
+
+  html += `<div class="br-actions">
+    <button class="btn btn-sm" data-brclear>Clear order</button>
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-sm" data-brcancel>Close</button>
+      <button class="btn btn-accent btn-sm ${sel.order.length ? '' : 'dim'}" data-brsubmit>${isCorrection ? 'Save correction' : `Report game ${game.gameNumber}`}</button>
+    </div>
+  </div></div>`;
+  return html;
+}
+
+function wireBR(d, left) {
+  left.querySelectorAll('[data-brgame]').forEach(btn => btn.addEventListener('click', () => {
+    const gk = btn.dataset.brgame;
+    openBRGame = openBRGame === gk ? null : gk;
+    renderRunLeft();
+  }));
+
+  left.querySelectorAll('[data-brtap]').forEach(btn => btn.addEventListener('click', () => {
+    const sel = BRSEL[openBRGame];
+    if (!sel) return;
+    // capture kill inputs before re-render so typed values survive
+    left.querySelectorAll('[data-brkill]').forEach(inp => {
+      const v = parseInt(inp.value, 10);
+      if (Number.isInteger(v) && v >= 0) sel.kills[inp.dataset.brkill] = v;
+      else delete sel.kills[inp.dataset.brkill];
+    });
+    const id = btn.dataset.brtap;
+    const i = sel.order.indexOf(id);
+    if (i >= 0) sel.order.splice(i, 1); else sel.order.push(id);
+    renderRunLeft();
+  }));
+
+  const clear = left.querySelector('[data-brclear]');
+  if (clear) clear.addEventListener('click', () => {
+    const sel = BRSEL[openBRGame];
+    if (sel) sel.order = [];
+    renderRunLeft();
+  });
+
+  const cancel = left.querySelector('[data-brcancel]');
+  if (cancel) cancel.addEventListener('click', () => {
+    delete BRSEL[openBRGame];
+    openBRGame = null;
+    renderRunLeft();
+  });
+
+  const submit = left.querySelector('[data-brsubmit]');
+  if (submit) submit.addEventListener('click', async () => {
+    const gk = openBRGame;
+    const sel = BRSEL[gk];
+    if (!sel || !sel.order.length) return toast('Tap at least the winner first.', true);
+    const [stageKey, gameNumber] = gk.split(':');
+    const stage = d.br.stages.find(s => s.key === stageKey);
+    const game = stage?.games.find(g => g.gameNumber === parseInt(gameNumber, 10));
+
+    // collect current kill inputs
+    const kills = {};
+    left.querySelectorAll('[data-brkill]').forEach(inp => {
+      const v = parseInt(inp.value, 10);
+      if (Number.isInteger(v) && v >= 0) kills[inp.dataset.brkill] = v;
+    });
+
+    submit.disabled = true;
+    const endpoint = game?.status === 'complete' ? 'br-correct' : 'br-report';
+    const r = await api(`/admin/api/tournaments/${d.id}/${endpoint}`, {
+      method: 'POST',
+      body: { groupKey: stageKey, gameNumber: parseInt(gameNumber, 10), placements: sel.order, kills },
+    });
+    submit.disabled = false;
+    if (!r.ok) return toast(r.error, true);
+
+    delete BRSEL[gk];
+    openBRGame = null;
+    if (r.data.completed) toast('🏆 Tournament complete!');
+    else if (r.data.finalsCreated) toast('Grand Finals created — all groups done!');
+    else if (r.data.finalsRegenerated) toast('Saved. Finals roster updated from the new standings.');
+    else toast(endpoint === 'br-correct' ? 'Correction saved.' : `Game ${gameNumber} reported.`);
+    refreshRun();
+  });
+}
+
 function wireRunLeft(d, left) {
+  if (d.format === 'battle_royale' && d.br) wireBR(d, left);
   // edit card
   const eSave = left.querySelector('#eSave');
   if (eSave) {
