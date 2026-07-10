@@ -93,6 +93,13 @@ function buildBRPayload(bracket) {
       gamesPlayed: s.gamesPlayed,
       placements: s.placements,
       qualifiedFrom: s.team.qualifiedFrom || null,
+      // Per-game breakdown for the results matrix: {p: placement|null (unplaced),
+      // k: kills, pts: points} per game, null while a game is pending.
+      perGame: stage.games.map(g => {
+        if (g.status !== 'complete') return null;
+        const r = (g.results || []).find(x => x.teamId === s.team.id);
+        return r ? { p: r.placement, k: r.kills, pts: r.points } : null;
+      }),
     })),
   });
 

@@ -847,11 +847,20 @@ function renderBRStages(d) {
       if (game) html += renderBRGrid(d, stage, game);
     }
 
-    // Standings with advancement cutline during the group stage
+    // Standings + per-game results matrix, cutline during the group stage
     const cut = stage.key !== 'f' && !br.singleLobby && br.currentStage === 'groups' ? br.advancingPerGroup : 0;
-    html += `<table class="br-standings"><thead><tr><th>#</th><th>${d.isSolo ? 'Player' : 'Team'}</th><th style="text-align:center">Pts</th>${br.scoring.usesKills ? '<th style="text-align:center">Kills</th>' : ''}<th style="text-align:center">Games</th></tr></thead><tbody>`;
+    const gameCount = stage.standings[0]?.perGame?.length || 0;
+    const gcell = (g) => {
+      if (g === null) return '<td class="num" style="opacity:.35">·</td>';
+      if (!g) return '<td class="num"></td>';
+      const tip = `${g.p == null ? 'Unplaced' : '#' + g.p}${br.scoring.usesKills ? ` · ${g.k} kills` : ''} · ${g.pts} pts`;
+      return `<td class="num" title="${esc(tip)}" style="${g.p === 1 ? 'color:var(--accent);font-weight:700' : g.p == null ? 'color:var(--text-dim)' : ''}">${g.pts}</td>`;
+    };
+    html += `<table class="br-standings"><thead><tr><th>#</th><th>${d.isSolo ? 'Player' : 'Team'}</th>`;
+    for (let g = 1; g <= gameCount; g++) html += `<th style="text-align:center" title="Game ${g} points">G${g}</th>`;
+    html += `<th style="text-align:center">Pts</th>${br.scoring.usesKills ? '<th style="text-align:center">Kills</th>' : ''}<th style="text-align:center">Games</th></tr></thead><tbody>`;
     html += stage.standings.map((s, i) =>
-      `<tr class="${cut && i === cut - 1 ? 'cut' : ''}"><td class="num">${s.rank}</td><td>${esc(s.name)}</td><td class="num"><b>${s.points}</b></td>${br.scoring.usesKills ? `<td class="num">${s.kills}</td>` : ''}<td class="num">${s.gamesPlayed}/${stage.games.length}</td></tr>`).join('');
+      `<tr class="${cut && i === cut - 1 ? 'cut' : ''}"><td class="num">${s.rank}</td><td>${esc(s.name)}</td>${(s.perGame || []).map(gcell).join('')}<td class="num"><b>${s.points}</b></td>${br.scoring.usesKills ? `<td class="num">${s.kills}</td>` : ''}<td class="num">${s.gamesPlayed}/${stage.games.length}</td></tr>`).join('');
     html += `</tbody></table>`;
     if (cut) html += `<div class="hint" style="font-size:11px;color:var(--text-dim);margin:-8px 0 14px">Top ${cut} advance to the Grand Finals (dashed line).</div>`;
     html += `</div>`;

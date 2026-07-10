@@ -221,6 +221,12 @@ router.get('/admin/api/tournaments/:id/manage', requireSession, async (req, res)
         kills: s.kills,
         wins: s.wins,
         gamesPlayed: s.gamesPlayed,
+        // Per-game breakdown for the results matrix (null = game pending)
+        perGame: stage.games.map(g => {
+          if (g.status !== 'complete') return null;
+          const r = (g.results || []).find(x => x.teamId === s.team.id);
+          return r ? { p: r.placement, k: r.kills, pts: r.points } : null;
+        }),
       })),
     });
     br = {

@@ -132,6 +132,13 @@
   .game-dots .dot.done { background: var(--gold); border-color: var(--gold); }
   .game-dots .dots-label { font-family: var(--mono); font-size: 9.5px; color: var(--text-faint); margin-left: 4px; letter-spacing: .06em; }
   .br-scoring-note { margin-top: 14px; font-size: 12px; color: var(--text-faint); font-family: var(--mono); letter-spacing: .02em; }
+  /* Per-game results matrix */
+  th.gcol { font-size: 9px; color: var(--text-faint); }
+  td.gcell { font-variant-numeric: tabular-nums; font-size: 12.5px; color: var(--text-dim); cursor: default; }
+  td.gcell.won { color: var(--gold); font-weight: 700; background: rgba(255, 199, 92, .07); }
+  td.gcell.unplaced { color: var(--text-faint); }
+  td.gcell.pending { color: var(--text-faint); opacity: .45; }
+  .matrix-hint { margin-top: 8px; font-size: 11px; color: var(--text-faint); font-family: var(--mono); letter-spacing: .02em; }
   table.standings { width: 100%; border-collapse: collapse; font-size: 13.5px; }
   table.standings th { text-align: left; font-family: var(--mono); font-size: 10px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; color: var(--text-faint); background: var(--bg-sunken); padding: 9px 14px; }
   table.standings td { padding: 9px 14px; border-top: 1px solid var(--hairline); }
@@ -845,9 +852,29 @@ function brCols(d) {
   return cols;
 }
 
+function ordinal(n) {
+  const s = ['th', 'st', 'nd', 'rd'][((n % 100) - 20) % 10] || ['th', 'st', 'nd', 'rd'][n % 100] || 'th';
+  return `${n}${s}`;
+}
+
+/** One matrix cell: that game's points for the team; tooltip has the story. */
+function brGameCell(g, usesKills) {
+  if (g === null) return '<td class="num gcell pending">·</td>';
+  if (!g) return '<td class="num gcell"></td>';
+  const place = g.p == null ? 'Unplaced' : ordinal(g.p);
+  const tip = `${place}${usesKills ? ` · ${g.k} kill${g.k === 1 ? '' : 's'}` : ''} · ${g.pts} pts`;
+  const cls = g.p === 1 ? ' won' : g.p == null ? ' unplaced' : '';
+  return `<td class="num gcell${cls}" title="${esc(tip)}">${g.pts}</td>`;
+}
+
 function renderBRTable(d, stage, cut) {
   const cols = brCols(d);
+  const usesKills = !!d.bracket.scoring?.usesKills;
+  const hasMatrix = stage.standings[0]?.perGame?.length > 0;
+  const gameCount = hasMatrix ? stage.standings[0].perGame.length : 0;
+
   let html = '<div class="table-wrap"><table class="standings"><thead><tr><th>#</th><th>Name</th>';
+  for (let g = 1; g <= gameCount; g++) html += `<th class="gcol" style="text-align:center">G${g}</th>`;
   for (const c of cols) html += `<th style="text-align:center">${c.label}</th>`;
   html += '</tr></thead><tbody>';
   stage.standings.forEach((s, i) => {
@@ -855,13 +882,16 @@ function renderBRTable(d, stage, cut) {
     html += `<tr class="${i === 0 ? 'top' : ''}${advancing ? ' advancing' : ''}">
       <td class="rank">${s.rank}</td>
       <td style="font-weight:${i === 0 ? 700 : 500}">${esc(s.name)}${s.qualifiedFrom ? `<span class="qual-from">${esc(s.qualifiedFrom)}</span>` : ''}</td>`;
+    if (hasMatrix) for (const g of s.perGame) html += brGameCell(g, usesKills);
     for (const c of cols) html += `<td class="num">${c.value(s)}</td>`;
     html += '</tr>';
     if (cut && i === cut - 1 && cut < stage.standings.length) {
-      html += `<tr class="cutline"><td colspan="${cols.length + 2}">▲ Top ${cut} advance to the Grand Finals</td></tr>`;
+      html += `<tr class="cutline"><td colspan="${cols.length + gameCount + 2}">▲ Top ${cut} advance to the Grand Finals</td></tr>`;
     }
   });
-  return html + '</tbody></table></div>';
+  html += '</tbody></table></div>';
+  if (gameCount) html += `<div class="matrix-hint">G columns show each game's points — hover for placement${usesKills ? ' and kills' : ''}. Gold = won the game.</div>`;
+  return html;
 }
 
 function brGameDots(stage) {
