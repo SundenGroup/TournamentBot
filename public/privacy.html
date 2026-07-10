@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Privacy Policy — CLUTCH Tournaments</title>
+<meta name="description" content="How CLUTCH Tournaments collects, uses, and protects your data.">
+<link rel="icon" type="image/png" href="/clutch-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0A0D12; --bg-elev: #121620; --bg-sunken: #05090E; --bg-hover: #1A2030;
+    --fg: #F5F7FA; --fg-muted: #9BA3AF; --fg-subtle: #6B7280;
+    --border: #222938; --border-strong: #313B4E;
+    --accent: #FF154D; --accent-soft: #FF4D7A; --accent-wash: rgba(255,21,77,.12);
+    --r-sm: 6px; --r-md: 10px; --r-lg: 14px;
+    --sans: 'DM Sans', system-ui, sans-serif;
+    --mono: 'JetBrains Mono', ui-monospace, monospace;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--fg); font-family: var(--sans); font-feature-settings: "ss01","cv11"; line-height: 1.7; }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { color: var(--accent-soft); }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .wrap { max-width: 840px; margin: 0 auto; padding: 0 28px; }
+  .eyebrow { font-family: var(--mono); font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: .14em; color: var(--fg-subtle); }
+
+  nav { border-bottom: 1px solid var(--border); background: rgba(10,13,18,.85); backdrop-filter: blur(12px); position: sticky; top: 0; z-index: 40; height: 52px; display: flex; align-items: center; }
+  nav .wrap { display: flex; align-items: center; gap: 12px; width: 100%; max-width: 1060px; }
+  .brand { display: flex; align-items: center; gap: 10px; color: var(--fg); }
+  .brand img.mark { width: 24px; height: 24px; }
+  .brand img.word { height: 14px; display: block; }
+  .brand .sub { font-family: var(--mono); font-size: 10px; font-weight: 600; letter-spacing: .14em; color: var(--fg-subtle); border-left: 1px solid var(--border-strong); padding-left: 10px; text-transform: uppercase; }
+  nav .links { margin-left: auto; display: flex; gap: 20px; font-size: 13px; font-weight: 500; }
+  nav .links a { color: var(--fg-muted); }
+  nav .links a:hover { color: var(--fg); }
+
+  header { background: radial-gradient(ellipse 60% 100% at 20% 0%, var(--accent-wash), transparent), linear-gradient(180deg, #0D1018, var(--bg)); border-bottom: 1px solid var(--border); padding: 46px 0 38px; }
+  header .eyebrow { display: block; margin-bottom: 10px; color: var(--accent); }
+  h1 { font-size: 30px; font-weight: 700; letter-spacing: -0.02em; }
+  header p { color: var(--fg-muted); margin-top: 8px; font-size: 15px; }
+  main { padding: 38px 0 70px; }
+
+  .legal h2 { margin: 34px 0 14px; display: flex; align-items: center; gap: 12px; font-size: 19px; font-weight: 700; letter-spacing: -0.01em; }
+  .legal h2 .n { font-family: var(--mono); font-size: 12px; font-weight: 700; color: var(--accent); background: var(--accent-wash); border-radius: var(--r-sm); padding: 3px 8px; }
+  .legal h3 { margin: 22px 0 8px; font-size: 15.5px; font-weight: 600; color: var(--fg); }
+  .legal p { color: var(--fg-muted); margin: 10px 0; font-size: 15px; }
+  .legal ul { margin: 10px 0 10px 4px; padding: 0; list-style: none; }
+  .legal li { color: var(--fg-muted); font-size: 15px; margin: 8px 0; padding-left: 22px; position: relative; }
+  .legal li::before { content: '→'; position: absolute; left: 0; color: var(--accent); font-family: var(--mono); }
+  .legal strong { color: var(--fg); font-weight: 600; }
+  .legal code { font-family: var(--mono); font-size: 13px; background: var(--bg-sunken); border: 1px solid var(--border); border-radius: 4px; padding: 1px 6px; color: var(--fg); }
+  .legal a { color: var(--accent); }
+  .updated { font-family: var(--mono); font-size: 11px; letter-spacing: .06em; color: var(--fg-subtle); text-transform: uppercase; margin-top: 16px; }
+  .callout { background: var(--bg-elev); border: 1px solid var(--border); border-left: 3px solid var(--accent); border-radius: var(--r-md); padding: 16px 20px; margin: 20px 0; }
+  .callout p { margin: 4px 0; color: var(--fg-muted); font-size: 14.5px; }
+
+  footer { border-top: 1px solid var(--border); padding: 24px 0; color: var(--fg-subtle); font-size: 13px; }
+  footer .wrap { display: flex; gap: 18px; max-width: 1060px; flex-wrap: wrap; }
+  footer a { color: var(--fg-muted); }
+  @media (max-width: 640px) { .wrap { padding: 0 16px; } .brand .sub { display: none; } }
+</style>
+</head>
+<body>
+
+<nav><div class="wrap">
+  <a class="brand" href="/"><img class="mark" src="/clutch-icon.png" alt=""><img class="word" src="/clutch-wordmark.png" alt="CLUTCH"><span class="sub">Tournaments</span></a>
+  <div class="links">
+    <a href="/admin">Dashboard</a>
+    <a href="/faq">FAQ</a>
+    <a href="/terms">Terms</a>
+    <a href="/contact">Contact</a>
+  </div>
+</div></nav>
+
+<header><div class="wrap">
+  <span class="eyebrow">Legal</span>
+  <h1>Privacy Policy</h1>
+  <p>What CLUTCH Tournaments collects, why, and the control you have over it.</p>
+  <div class="updated">Last updated: 10 July 2026</div>
+</div></header>
+
+<main><div class="wrap"><div class="legal">
+
+  <p>This Privacy Policy explains how <strong>CLUTCH Tournaments</strong> ("CLUTCH", "we", "us") — a Discord bot and companion website at <a href="https://tournaments.clutch.game">tournaments.clutch.game</a> that runs competitive tournaments inside Discord servers — handles information about the servers, organizers, and players who use it.</p>
+
+  <div class="callout">
+    <p><strong>The short version.</strong> We collect the minimum needed to run tournaments: your Discord identity, the entries and results you create, and (for paid plans) billing details handled by Stripe. We don't sell your data, we don't run ads, and we don't use it to profile you. You can have your data deleted at any time.</p>
+  </div>
+
+  <h2><span class="n">1</span>Who this applies to</h2>
+  <p>This policy covers everyone who interacts with the bot or the website: server administrators and tournament organizers, players who sign up for tournaments, and visitors to our public pages (including the live web bracket).</p>
+  <p>CLUTCH runs on top of Discord. Your use of Discord itself is governed by <a href="https://discord.com/privacy">Discord's Privacy Policy</a>, which is separate from this one.</p>
+
+  <h2><span class="n">2</span>Information we collect</h2>
+
+  <h3>Discord account information</h3>
+  <p>When you use the bot or sign in to the web dashboard, we receive from Discord your <strong>user ID, username, display name, and avatar</strong>. For the web dashboard, signing in with Discord also tells us which servers you can manage, so we only show you those. We never receive your Discord password or email login credentials.</p>
+
+  <h3>Tournament and participation data</h3>
+  <ul>
+    <li>Tournaments you create or join: titles, dates, formats, entrants, teams, seeds, check-ins, match results, scores, and standings.</li>
+    <li>Server (guild) IDs and the tournament-related settings an admin configures (announcement channels, admin roles, cleanup preferences).</li>
+    <li><strong>In-game identifiers you choose to provide at signup</strong> — for example an in-game nickname, or for some games a game-specific username and account ID. Fields marked as private (such as a game account ID) are shown only to tournament administrators and are never displayed on public pages.</li>
+  </ul>
+
+  <h3>Billing information (paid plans)</h3>
+  <p>Payments are processed by <strong>Stripe</strong>. We do not see or store your full card number — Stripe handles that directly. We store a Stripe customer/subscription reference, your plan, and billing status so we can apply your subscription to your server. Stripe's handling of your payment data is covered by <a href="https://stripe.com/privacy">Stripe's Privacy Policy</a>.</p>
+
+  <h3>Technical and operational data</h3>
+  <ul>
+    <li>A signed session cookie set when you log in to the web dashboard, so you stay signed in. It is authentication-only — not an advertising or tracking cookie.</li>
+    <li>An administrative audit record of actions taken through the web dashboard (for example, who reported or corrected a result), used for security and accountability.</li>
+    <li>Standard server logs (such as error logs) needed to keep the service running and diagnose problems.</li>
+  </ul>
+
+  <h2><span class="n">3</span>How we use your information</h2>
+  <ul>
+    <li>To run tournaments — create brackets, form match rooms, track results, publish standings, and notify participants.</li>
+    <li>To operate the web dashboard and the public live bracket pages.</li>
+    <li>To apply and manage subscriptions and billing.</li>
+    <li>To keep the service secure, prevent abuse, and fix bugs.</li>
+    <li>To respond to your support requests.</li>
+  </ul>
+  <p>We do <strong>not</strong> sell your personal information, share it with advertisers, or use it to build marketing profiles.</p>
+
+  <h2><span class="n">4</span>What is shown publicly</h2>
+  <p>Tournaments are social by nature. Your <strong>display name and public entry details</strong> (and, if the organizer enables it, your chosen public in-game nickname) appear in the Discord announcement and, when the organizer turns on the live web bracket, on a public page at <code>tournaments.clutch.game/b/&lt;id&gt;</code>. That page is reachable by anyone with the link.</p>
+  <p>Private signup fields (such as a game account ID) are <strong>never</strong> shown on public pages or to other players — only to the tournament's administrators. We deliberately never place your Discord ID or private fields into public bracket data.</p>
+
+  <h2><span class="n">5</span>Sharing and third parties</h2>
+  <p>We share data only with the service providers that make CLUTCH work:</p>
+  <ul>
+    <li><strong>Discord</strong> — the platform the bot operates on.</li>
+    <li><strong>Stripe</strong> — payment processing for paid plans.</li>
+    <li><strong>Our hosting provider</strong> — the servers and database that store and serve the application.</li>
+  </ul>
+  <p>We may also disclose information if required by law, or to protect the rights, safety, and security of our users and the service.</p>
+
+  <h2><span class="n">6</span>Data retention</h2>
+  <p>We keep tournament and account data for as long as your server uses CLUTCH, so past events and standings remain available. Billing records are retained as required for accounting and legal obligations. You can request deletion of your data at any time (see below), and we remove data we no longer need to operate the service.</p>
+
+  <h2><span class="n">7</span>Your rights and choices</h2>
+  <ul>
+    <li><strong>Access & correction</strong> — organizers can view and edit tournament data through the bot and dashboard; contact us for anything you can't change yourself.</li>
+    <li><strong>Deletion</strong> — you can ask us to delete your personal data, or a server owner can ask us to remove their server's data. Removing the bot from a server also stops any further data collection for it.</li>
+    <li><strong>Withdrawing from a tournament</strong> — you can withdraw before a tournament starts, which removes your entry.</li>
+  </ul>
+  <p>To exercise any of these, reach us at <a href="mailto:support@clutch.game">support@clutch.game</a> or through our <a href="https://discord.gg/jVDC39J6mN">Discord</a>.</p>
+
+  <h2><span class="n">8</span>Children</h2>
+  <p>CLUTCH is not directed at children. You must meet Discord's minimum age requirement for your country to use Discord, and therefore to use CLUTCH. We do not knowingly collect data from anyone below that age; if you believe we have, contact us and we will remove it.</p>
+
+  <h2><span class="n">9</span>Security</h2>
+  <p>We use reasonable technical and organizational measures to protect your data, including encrypted connections (HTTPS/TLS), signed session tokens, scoped access to server data, and per-action authorization checks. No system is perfectly secure, but we work to keep your information safe and to limit what we collect in the first place.</p>
+
+  <h2><span class="n">10</span>Changes to this policy</h2>
+  <p>We may update this policy as CLUTCH evolves. When we make material changes, we'll update the "Last updated" date above and, where appropriate, note it in our Discord. Continued use after an update means you accept the revised policy.</p>
+
+  <h2><span class="n">11</span>Contact</h2>
+  <p>Questions about this policy or your data? Email <a href="mailto:support@clutch.game">support@clutch.game</a> or join our <a href="https://discord.gg/jVDC39J6mN">Discord</a>. See also our <a href="/terms">Terms of Service</a>.</p>
+
+</div></div></main>
+
+<footer><div class="wrap">
+  <span>© CLUTCH — <a href="https://clutch.game">clutch.game</a></span>
+  <a href="/privacy">Privacy</a>
+  <a href="/terms">Terms</a>
+  <a href="/faq">FAQ</a>
+  <a href="/contact">Contact</a>
+  <a href="https://discord.gg/jVDC39J6mN">Discord</a>
+</div></footer>
+
+</body>
+</html>
