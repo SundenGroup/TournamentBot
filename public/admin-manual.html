@@ -193,6 +193,7 @@
   <div class="sidebar-section">
     <div class="sidebar-section-title">Running Tournaments</div>
     <a href="#reporting"><span class="n">04</span>Reporting Results</a>
+    <a href="#battle-royale"><span class="n">BR</span>Battle Royale</a>
     <a href="#teams"><span class="n">05</span>Team Tournaments</a>
     <a href="#seeding"><span class="n">06</span>Seeding</a>
   </div>
@@ -382,6 +383,48 @@
     <h3>Viewing the bracket</h3>
     <pre><code><span class="cmd">/tournament bracket</span> <span class="param">tournament:</span><span class="value">Friday Night Fights</span></code></pre>
     <p>Or click the <strong>View Bracket</strong> button on the tournament embed.</p>
+  </section>
+
+  <!-- ================================================================
+       Battle Royale
+       ================================================================ -->
+  <section id="battle-royale">
+    <h2><span class="secnum">BR</span>Battle Royale</h2>
+    <p>Battle Royale events (PUBG, PUBG Mobile, Apex Legends, Warzone — or any game via
+    <strong>Custom</strong> + the Battle Royale format) work differently from brackets:
+    everyone plays in shared lobbies, teams earn <strong>points per game</strong>, and the
+    highest total wins. <strong>Scoring is built into the game preset</strong> — picking PUBG
+    <em>is</em> picking SUPER scoring, Apex is ALGS, Warzone is kill&nbsp;×&nbsp;placement
+    multiplier. You never configure a scoring table.</p>
+
+    <h3>Creating</h3>
+    <p>Exactly like any tournament: <code>/tournament create</code>, pick a BR game, fill in
+    title / date / size. Lobby size, games per stage and scoring come from the preset;
+    <code>/tournament create-advanced</code> → <strong>More Options</strong> lets you change
+    them (one dropdown each).</p>
+
+    <h3>Single lobby vs. groups</h3>
+    <p>If signups fit one lobby (e.g. 18 squads, lobby size 20) the whole event is
+    <strong>one lobby playing N games</strong> — done. If signups exceed the lobby size, the
+    bot splits entrants into <strong>groups</strong> (Group A, B, …), each plays its games, and
+    the <strong>top N per group advance to a Grand Finals</strong> lobby. N defaults to
+    exactly filling one finals lobby; change it under More Options
+    (<em>Advance/group</em> button). The live standings page shows the cutline.</p>
+
+    <h3>Reporting — tap, never type</h3>
+    <p>Each lobby room gets a <strong>standings board</strong> with a button per game. After a
+    game, any admin taps <strong>🎮 Game N</strong> and picks the teams in finish order —
+    <em>Who placed 1st? 2nd? …</em> Reporting the <strong>top 3–5 is enough</strong>: everyone
+    unplaced automatically shares last place. If the game's scoring counts kills, the
+    confirmation offers a tap-only <strong>Add kills</strong> flow (pick team → pick count).</p>
+    <p>Made a mistake? <strong>Tap the reported game again</strong> — the same flow re-runs as a
+    correction. Group results can be corrected until the Grand Finals have a reported game.</p>
+    <p>The <a href="/admin/dashboard">web dashboard</a> has the same grid with per-team kill
+    boxes — fastest for full-lobby results with kills.</p>
+
+    <h3>Players see</h3>
+    <p>Nothing new: the same signup button, one lobby channel with the in-game slot list, and
+    live standings on the tournament's web page (points, kills, wins, advancement cutline).</p>
   </section>
 
   <!-- ================================================================
@@ -681,7 +724,7 @@
        ================================================================ -->
   <section id="games">
     <h2><span class="secnum">13</span>Supported Games</h2>
-    <p>The bot includes presets with optimized defaults for 15 games, organized by category:</p>
+    <p>The bot includes presets with optimized defaults for 19 games, organized by category:</p>
     <div class="table-wrap">
       <table>
         <thead><tr><th>Category</th><th>Games</th></tr></thead>
@@ -691,6 +734,7 @@
           <tr><td><strong>MOBA</strong></td><td>League of Legends, Dota 2, Mobile Legends</td></tr>
           <tr><td><strong>Fighting</strong></td><td>Street Fighter 6, Tekken 8, 2XKO</td></tr>
           <tr><td><strong>Sports</strong></td><td>Rocket League, GOALS, EA Sports FC</td></tr>
+          <tr><td><strong>Battle Royale</strong></td><td>PUBG: Battlegrounds, PUBG Mobile, Apex Legends, Call of Duty: Warzone</td></tr>
           <tr><td><strong>Casual</strong></td><td>GeoGuessr</td></tr>
         </tbody>
       </table>
@@ -710,27 +754,32 @@
           <tr>
             <th></th>
             <th><span class="tag tag-free">Free</span></th>
-            <th><span class="tag tag-premium">Premium</span></th>
-            <th><span class="tag tag-pro">Pro</span></th>
-            <th><span class="tag tag-business">Business</span></th>
+            <th><span class="tag tag-pro">Pro — $9.99/mo · $79/yr</span></th>
+            <th><span class="tag tag-business">Studio — contact</span></th>
           </tr>
         </thead>
         <tbody>
-          <tr><td><strong>Tournaments / month</strong></td><td>3</td><td>15</td><td>50</td><td>200</td></tr>
-          <tr><td><strong>Max participants</strong></td><td>50</td><td>128</td><td>256</td><td>512</td></tr>
-          <tr><td><strong>Concurrent</strong></td><td>1</td><td>3</td><td>10</td><td>Unlimited</td></tr>
-          <tr><td><strong>Check-in</strong></td><td>—</td><td>Yes</td><td>Yes</td><td>Yes</td></tr>
-          <tr><td><strong>Seeding</strong></td><td>—</td><td>Yes</td><td>Yes</td><td>Yes</td></tr>
-          <tr><td><strong>Captain Mode</strong></td><td>—</td><td>Yes</td><td>Yes</td><td>Yes</td></tr>
-          <tr><td><strong>Auto-cleanup</strong></td><td>—</td><td>Yes</td><td>Yes</td><td>Yes</td></tr>
-          <tr><td><strong>Templates</strong></td><td>—</td><td>—</td><td>Yes</td><td>Yes</td></tr>
-          <tr><td><strong>Analytics</strong></td><td>—</td><td>—</td><td>Yes</td><td>Yes</td></tr>
-          <tr><td><strong>REST API</strong></td><td>—</td><td>—</td><td>—</td><td>Yes</td></tr>
-          <tr><td><strong>Webhooks</strong></td><td>—</td><td>—</td><td>—</td><td>Yes</td></tr>
-          <tr><td><strong>White-label</strong></td><td>—</td><td>—</td><td>—</td><td>Yes</td></tr>
+          <tr><td><strong>Tournaments / month</strong></td><td>5</td><td>Unlimited</td><td>Unlimited</td></tr>
+          <tr><td><strong>Max entrants (brackets)</strong></td><td>64</td><td>256</td><td>512</td></tr>
+          <tr><td><strong>Battle Royale</strong></td><td>Single lobby (up to 100 players)</td><td>Multi-lobby group stages</td><td>Multi-lobby + custom scoring</td></tr>
+          <tr><td><strong>Concurrent</strong></td><td>2</td><td>Unlimited</td><td>Unlimited</td></tr>
+          <tr><td><strong>Check-in</strong></td><td>Yes</td><td>Yes</td><td>Yes</td></tr>
+          <tr><td><strong>Live web bracket</strong></td><td>Yes (CLUTCH footer)</td><td>Yes (footer removal)</td><td>Yes (white-label)</td></tr>
+          <tr><td><strong>Seeding</strong></td><td>—</td><td>Yes</td><td>Yes</td></tr>
+          <tr><td><strong>Captain Mode</strong></td><td>—</td><td>Yes</td><td>Yes</td></tr>
+          <tr><td><strong>Auto-cleanup · required roles</strong></td><td>—</td><td>Yes</td><td>Yes</td></tr>
+          <tr><td><strong>Web admin dashboard</strong></td><td>—</td><td>Yes</td><td>Yes</td></tr>
+          <tr><td><strong>Templates · analytics</strong></td><td>—</td><td>Yes</td><td>Yes</td></tr>
+          <tr><td><strong>REST API · webhooks</strong></td><td>—</td><td>—</td><td>Yes</td></tr>
+          <tr><td><strong>White-label · custom game presets</strong></td><td>—</td><td>—</td><td>Yes</td></tr>
+          <tr><td><strong>Servers per plan</strong></td><td>1</td><td>1</td><td>5</td></tr>
         </tbody>
       </table>
     </div>
+
+    <p><em>During the launch period, tournament count / entrant / concurrency limits are not yet
+    enforced — feature access follows the table above.</em> Studio is our partner plan for game
+    studios and esports orgs: <a href="/contact">get in touch</a>.</p>
 
     <p>Run <code>/admin help</code> in Discord for a quick in-server reference, or <code>/help</code> for the player-facing guide.</p>
   </section>

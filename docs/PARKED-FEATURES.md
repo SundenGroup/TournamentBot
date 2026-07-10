@@ -1,22 +1,28 @@
 # Parked Features
 
-These features are **temporarily disabled for the initial testing phase** so they
-don't interfere with core tournament testing. Nothing has been deleted — the
-implementation is intact and feature-flagged, and everything needed to restore it
-is documented here.
+Features parked here are disabled but preserved — the implementation is intact
+and everything needed to restore them is documented below.
 
-Both features are gated by flags in [`src/config/index.js`](../src/config/index.js):
+> **Battle Royale is no longer parked.** It shipped as BR v2 in July 2026:
+> config-driven scoring (ALGS / SUPER / Warzone / kill race / placement),
+> single- and multi-lobby stages with advancement, tap-to-report buttons,
+> public standings page and dashboard grid. The old `FEATURE_BATTLE_ROYALE`
+> flag was removed. See the Battle Royale section of the
+> [admin manual](../public/admin-manual.html).
+
+Flags in [`src/config/index.js`](../src/config/index.js):
 
 ```js
 const features = {
-  tokens: process.env.FEATURE_TOKENS === 'true',         // default: OFF
-  battleRoyale: process.env.FEATURE_BATTLE_ROYALE === 'true', // default: OFF
+  tokens: process.env.FEATURE_TOKENS === 'true',        // parked add-on system, default OFF
+  enforceTiers: process.env.ENFORCE_TIERS === 'true',   // pricing-v2 LIMIT enforcement, default OFF
 };
 ```
 
-To re-enable a feature, set the corresponding env var to `true` **and** follow the
-"How to fully restore" steps for that feature below (some UI/commands were
-unregistered and need to be re-added so Discord re-publishes them).
+`enforceTiers` is not a parked feature — it is the deliberate post-GOALS (July 20,
+2026) switch that turns on the Free-plan limits (5 tournaments/month, 64 entrants,
+2 concurrent). Feature gates (seeding, captain mode, multi-lobby BR, …) are always
+active per docs/PRODUCT-STRATEGY.md §6a.
 
 ---
 
@@ -80,98 +86,25 @@ flows did not need changes. When `features.tokens` is false:
 
 ---
 
-## 2. Battle Royale format
+## 2. Battle Royale format — UNPARKED (shipped as v2)
 
-### What it was
-A multi-team, multi-game lobby format (placement-points scoring) for BR titles,
-with group stage → finals progression.
-
-### User-facing surface (now removed)
-- `battle_royale` removed from the wizard format list (`ALL_FORMATS` in
-  `src/components/wizardSettings.js`)
-- `/tournament br-report` subcommand (definition removed from `src/commands/tournament/create.js`)
-- `/match games` subcommand (definition removed from `src/commands/match/match.js`)
-- BR options in the advanced wizard (lobby size / games per stage / advancing per
-  group) — these only render when format is `battle_royale`, which is now
-  unreachable
-- Battle Royale removed from `/help` formats list
-- The 4 Battle-Royale games removed from the picker (see §3)
-
-### What still exists (dormant, preserved)
-- `src/services/battleRoyaleService.js` — the full BR engine (unchanged)
-- BR handling branches throughout `create.js`, `startTournament.js`, `viewBracket.js`,
-  `viewResults.js`, `matchReport.js`, `match.js` (`handleGames`), `channelService.js`,
-  `templateService.js`, `analyticsService.js` — all intact but unreachable because no
-  game offers the format and the format isn't selectable
-- BR settings persistence (`lobbySize`, `gamesPerStage`, `advancingPerGroup`) in
-  `tournamentService.js`, `templates.js`, `templateService.js`
-
-> Battle Royale also had its own correctness issues noted in review (placement
-> input not validated, uneven-group scoring, biased shuffle, `assignTeamsToGroups`
-> stub throws). **Fix these before re-enabling** — they were intentionally left as-is
-> since the feature is parked.
-
-### How to fully restore
-1. Set `FEATURE_BATTLE_ROYALE=true`.
-2. Add `'battle_royale'` back to `ALL_FORMATS` in `src/components/wizardSettings.js`.
-3. Re-add the `br-report` subcommand in `src/commands/tournament/create.js` and the
-   `games` subcommand in `src/commands/match/match.js` (see git history).
-4. Re-add the BR games to `src/config/games.json` (see §3) — restoring a game with
-   `"battle_royale"` in its `formatOptions` and/or as `defaultFormat` is what makes
-   the format reachable again.
-5. Restore the Battle Royale lines in `/help`.
-6. `npm run deploy-commands`.
+Restored and rebuilt in July 2026. The v1 engine's known issues (unvalidated
+placement input, lobby-size-relative scoring across uneven groups, biased
+shuffle, `assignTeamsToGroups` stub) were all fixed in the rewrite; standings
+are now derived from raw per-game inputs, so corrections are safe by
+construction. The four BR game presets (PUBG, PUBG Mobile, Apex Legends,
+Warzone) live in `src/config/games.json` with `brDefaults`, and custom games
+can pick the `battle_royale` format.
 
 ---
 
 ## 3. Removed games (preserved JSON)
 
-The default game set was trimmed to 15 + Custom for the first release. The 4 Battle
-Royale games are parked with the BR feature; **Call of Duty, StarCraft, and Rainbow
-Six Siege** were simply not part of the initial set. To restore any, paste its entry
+The default game set is 19 + Custom (the 4 Battle Royale games shipped with BR v2).
+**Call of Duty, StarCraft, and Rainbow Six Siege** were simply not part of the
+initial set. To restore any, paste its entry
 back into `src/config/games.json` (add a `"category"` and `"featured": true` to match
 the new schema).
-
-### Battle Royale games (restore with the BR feature)
-
-```json
-"pubg": {
-  "displayName": "PUBG: Battlegrounds", "shortName": "PUBG", "icon": "🪖", "logo": null,
-  "defaultTeamSize": 4, "teamSizeOptions": [1, 2, 4],
-  "defaultFormat": "battle_royale", "formatOptions": ["battle_royale"],
-  "defaultBestOf": 1, "bestOfOptions": [1],
-  "mapPool": ["Erangel", "Miramar", "Taego", "Deston", "Vikendi"], "mapPickProcess": "random",
-  "ruleset": "WWCD format. Placement points scoring.",
-  "customFields": { "gamesPerStage": { "type": "number", "default": 6, "label": "Games per Stage" }, "lobbySize": { "type": "number", "default": 16, "label": "Lobby Size (Teams)" } }
-},
-"pubg_mobile": {
-  "displayName": "PUBG Mobile", "shortName": "PUBGM", "icon": "📱", "logo": null,
-  "defaultTeamSize": 4, "teamSizeOptions": [1, 2, 4],
-  "defaultFormat": "battle_royale", "formatOptions": ["battle_royale"],
-  "defaultBestOf": 1, "bestOfOptions": [1],
-  "mapPool": ["Erangel", "Miramar", "Sanhok", "Vikendi", "Livik"], "mapPickProcess": "random",
-  "ruleset": "Placement + kill points scoring.",
-  "customFields": { "gamesPerStage": { "type": "number", "default": 6, "label": "Games per Stage" }, "lobbySize": { "type": "number", "default": 16, "label": "Lobby Size (Teams)" } }
-},
-"apex_legends": {
-  "displayName": "Apex Legends", "shortName": "APEX", "icon": "🔺", "logo": null,
-  "defaultTeamSize": 3, "teamSizeOptions": [1, 2, 3],
-  "defaultFormat": "battle_royale", "formatOptions": ["battle_royale"],
-  "defaultBestOf": 1, "bestOfOptions": [1],
-  "mapPool": ["World's Edge", "Storm Point", "Broken Moon", "Kings Canyon", "Olympus"], "mapPickProcess": "random",
-  "ruleset": "ALGS format. Placement + kill points.",
-  "customFields": { "gamesPerStage": { "type": "number", "default": 6, "label": "Games per Stage" }, "lobbySize": { "type": "number", "default": 20, "label": "Lobby Size (Teams)" } }
-},
-"fortnite": {
-  "displayName": "Fortnite", "shortName": "FN", "icon": "🏝️", "logo": null,
-  "defaultTeamSize": 4, "teamSizeOptions": [1, 2, 3, 4],
-  "defaultFormat": "battle_royale", "formatOptions": ["battle_royale", "single_elimination", "double_elimination"],
-  "defaultBestOf": 1, "bestOfOptions": [1, 3],
-  "mapPool": null, "mapPickProcess": null,
-  "ruleset": "Battle Royale format. Placement points scoring.",
-  "customFields": { "gamesPerStage": { "type": "number", "default": 3, "label": "Games per Stage" }, "lobbySize": { "type": "number", "default": 25, "label": "Lobby Size" } }
-}
-```
 
 ### Other games not in the initial set (bracket formats, safe to restore any time)
 
@@ -205,7 +138,7 @@ the new schema).
 }
 ```
 
-### Current default game set (15 + Custom)
+### Current default game set (19 + Custom)
 
 | Category | Games |
 |---|---|
@@ -214,5 +147,6 @@ the new schema).
 | MOBA | League of Legends, Dota 2, Mobile Legends |
 | Fighting | Street Fighter 6, Tekken 8, 2XKO |
 | Sports | Rocket League, GOALS, EA Sports FC |
+| Battle Royale | PUBG: Battlegrounds, PUBG Mobile, Apex Legends, Call of Duty: Warzone |
 | Casual | GeoGuessr |
 | Custom | (user-defined) |

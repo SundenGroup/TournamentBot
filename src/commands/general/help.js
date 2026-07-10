@@ -51,6 +51,7 @@ module.exports = {
           '**Double Elimination** — Lose twice to be eliminated',
           '**Swiss** — Fixed rounds, matched by record',
           '**Round Robin** — Everyone plays everyone',
+          '**Battle Royale** — Shared lobbies, points per game (PUBG, Apex, Warzone…)',
         ].join('\n'),
         inline: false,
       },

@@ -279,6 +279,13 @@ tournament creation rather than requiring `/subscribe trial`.
 
 Decisions and refinements after reviewing §1–5 with Simon.
 
+> **Execution status (July 10, 2026):** §6a and §6b are IMPLEMENTED.
+> Battle Royale v2 shipped (engine, presets, tap-to-report, dashboard grid,
+> public standings page). Pricing v2 shipped in code — Free/Pro/Studio with
+> legacy mapping; limit enforcement waits behind `ENFORCE_TIERS` (off) until
+> after GOALS per §6c. Remaining: Stripe product swap (Simon), post-GOALS
+> enforcement flip + dashboard/footer gating, Event Pass (later).
+
 ### 6a. Pricing, simplified: two SKUs + B2B *(v2 — revised after founder challenge)*
 
 Direction: **B2B is the real revenue; consumer subscriptions exist for a
