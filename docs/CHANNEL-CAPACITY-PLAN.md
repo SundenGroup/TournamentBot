@@ -75,9 +75,15 @@ Port the Support bot's model into a `transcriptService`:
    (frees capacity, keeps history). The old move-to-category behavior remains
    available as `mode:category` for whoever wants it, with a warning that it
    does not free capacity.
-3. **Where history lives**:
-   - Web dashboard: per-match **Transcript** view (admin-authed endpoint,
-     rendered in dashboard style) — decided results list links straight to it.
+3. **Where history lives — the dashboard is the canonical viewer**:
+   - Run view: every decided match row (and BR game) gets a **Transcript**
+     link → full room history rendered in dashboard style (authors,
+     timestamps, attachment links) plus match context (players, score,
+     reporter). Admin-authed via the standard guard stack.
+   - History survives the event: transcripts are in Postgres, so completed
+     tournaments stay fully browsable long after the channels are deleted.
+   - Phase 3 tie-in: a contested result's transcript is one click away from
+     the dashboard attention list — review, then confirm or correct.
    - Optional server setting: also post the HTML transcript file to a
      `#match-logs` channel, mirroring the Support bot.
 4. Retention: transcripts kept 90 days (constant for now), daily prune job.
