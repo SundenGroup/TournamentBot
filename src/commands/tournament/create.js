@@ -993,16 +993,23 @@ async function handleCreateRooms(interaction) {
     return interaction.editReply({ content: `❌ ${error.message}` });
   }
 
-  const { created, failed, existing } = result;
+  const { created, failed, existing, capacityHit, capacity } = result;
   let response = `🔧 **${tournament.title}** — match rooms:\n`;
   response += `• ${created} created\n`;
   if (existing > 0) response += `• ${existing} already existed\n`;
-  if (failed > 0) {
+  if (capacityHit) {
+    response += `• 🚨 **Server channel limit reached** — Discord caps servers at ${capacity?.cap ?? 500} channels (${capacity?.used ?? '?'} in use). ` +
+      `Free slots with \`/admin cleanup mode:archive\` (history is saved) and run this again. ` +
+      `\`/admin set-auto-archive\` keeps big events under the cap automatically.`;
+  } else if (failed > 0) {
     response += `• ⚠️ ${failed} still failed — confirm the bot has **Manage Channels** + **Manage Roles**, that its role sits above the others, and that the match-room category (if set) isn't full.`;
   } else if (created === 0 && existing > 0) {
     response += `\nAll current matches already have rooms. ✅`;
   } else if (created === 0 && existing === 0) {
     response += `\nNo active matches need rooms right now.`;
+  }
+  if (!capacityHit && capacity && capacity.used > 400) {
+    response += `\n📊 Channel capacity: **${capacity.used}/${capacity.cap}** used.`;
   }
 
   return interaction.editReply({ content: response });

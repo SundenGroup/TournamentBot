@@ -1,6 +1,7 @@
 const { Events } = require('discord.js');
 const cron = require('node-cron');
 const { rescheduleAllReminders } = require('../services/reminderService');
+const { startArchiveSweeper } = require('../services/archiveSweeper');
 const { getSubscriptionsNeedingReset, resetMonthlyUsage, cleanupExpiredTokens } = require('../data/subscriptions');
 const { cleanupExpiredSessions } = require('../data/wizardSessions');
 
@@ -35,6 +36,10 @@ module.exports = {
     console.log(`Serving ${client.guilds.cache.size} guild(s)`);
 
     rescheduleAllReminders(client);
+
+    // Rolling auto-archive: archiveAt stamps are persisted with brackets, so
+    // pending archives survive restarts — the sweeper picks them up.
+    startArchiveSweeper(client);
 
     // Run maintenance on startup
     await runSubscriptionMaintenance();

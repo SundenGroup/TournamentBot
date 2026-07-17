@@ -200,6 +200,7 @@
   <div class="sidebar-section">
     <div class="sidebar-section-title">Server Config</div>
     <a href="#settings"><span class="n">07</span>Server Settings</a>
+    <a href="#capacity"><span class="n">CH</span>Channels &amp; Archiving</a>
     <a href="#debug"><span class="n">08</span>Debug &amp; Testing</a>
     <a href="#templates"><span class="n">09</span>Templates</a>
   </div>
@@ -509,6 +510,54 @@
   </section>
 
   <!-- ================================================================
+       Channels & Archiving
+       ================================================================ -->
+  <section id="capacity">
+    <h2><span class="secnum">CH</span>Channels, Capacity &amp; Archiving</h2>
+
+    <p>Every match gets its own private room — great for players, but <strong>Discord caps
+    servers at 500 channels</strong>. A 512-player double-elimination needs 256 rooms for
+    round&nbsp;1 alone, so big events need a plan. The bot handles this for you:</p>
+
+    <h3>Capacity checks &amp; warnings</h3>
+    <ul class="steps">
+      <li><strong>Before start:</strong> if the first round's rooms don't fit, the start is blocked
+      with exact numbers ("needs 256 rooms, 117 slots free") and the fixes.</li>
+      <li><strong>Mid-event:</strong> if the server fills up, the bot stops cleanly, posts one clear
+      notice in the tournament channel, and shows a capacity banner on the web dashboard.
+      Matches without a room can still be reported normally.</li>
+      <li>The dashboard's Run view shows a channel meter whenever usage passes 400.</li>
+    </ul>
+
+    <h3>Archiving — free capacity, keep the history</h3>
+    <p><code>/admin cleanup mode:archive</code> saves each room's <strong>full chat history</strong>,
+    then deletes the channel. History lives in two places:</p>
+    <ul class="steps">
+      <li><strong>Web dashboard</strong> — every decided match gets a 📜 transcript link (authors,
+      timestamps, attachments). Browsable during the event and forever after.</li>
+      <li><strong>#match-logs</strong> — an auto-created, admin-only Discord channel that receives each
+      transcript as an HTML file. Toggle with <code>/admin set-match-logs</code>.</li>
+    </ul>
+    <p>Auto-cleanup on completion supports the same modes:
+    <strong>archive</strong> (recommended), <strong>delete</strong> (no history), and
+    <strong>category</strong> (legacy move — note it does <em>not</em> free the 500-channel cap).</p>
+
+    <h3>Rolling auto-archive <span class="tag tag-pro">Pro</span></h3>
+    <pre><code><span class="cmd">/admin set-auto-archive</span> <span class="param">minutes:</span><span class="value">10</span></code></pre>
+    <p>Closes each match room <strong>X minutes after its result is reported</strong> (history saved
+    first). The room posts a notice with two buttons:</p>
+    <ul class="steps">
+      <li><strong>⚠️ Contest result</strong> — players of that match can pause the countdown and alert
+      the admins. The match is flagged on the dashboard; settle it with
+      <code>/tournament correct</code> or the dashboard's <strong>Confirm</strong> button.</li>
+      <li><strong>🗄️ Close now</strong> — admins can archive immediately.</li>
+    </ul>
+    <p>With rolling auto-archive on, a server only ever holds rooms for matches actually being
+    played — which is what makes multiple 512-player events on one server possible. A
+    per-tournament override lives in <code>/tournament create-advanced</code> → More Options.</p>
+  </section>
+
+  <!-- ================================================================
        9. Debug & Testing
        ================================================================ -->
   <section id="debug">
@@ -772,6 +821,7 @@
           <tr><td><strong>Seeding</strong></td><td>—</td><td>Yes</td><td>Yes</td></tr>
           <tr><td><strong>Captain Mode</strong></td><td>—</td><td>Yes</td><td>Yes</td></tr>
           <tr><td><strong>Auto-cleanup · required roles</strong></td><td>—</td><td>Yes</td><td>Yes</td></tr>
+          <tr><td><strong>Rolling auto-archive (close rooms after results)</strong></td><td>—</td><td>Yes</td><td>Yes</td></tr>
           <tr><td><strong>Web admin dashboard</strong></td><td>—</td><td>Yes</td><td>Yes</td></tr>
           <tr><td><strong>Templates · analytics</strong></td><td>—</td><td>Yes</td><td>Yes</td></tr>
           <tr><td><strong>REST API · webhooks</strong></td><td>—</td><td>—</td><td>Yes</td></tr>

@@ -116,6 +116,10 @@ async function createTournament(data) {
       // Single elimination only: semifinal losers play a third-place match
       // instead of sharing 3rd. Advanced-mode toggle (More Options).
       thirdPlaceMatch: data.thirdPlaceMatch ?? false,
+
+      // Rolling auto-archive override (Pro): minutes after a result before
+      // the room is archived. null = inherit the server setting.
+      autoArchiveMinutes: data.autoArchiveMinutes ?? null,
     },
 
     setupMode: data.setupMode || 'simple',
@@ -195,6 +199,14 @@ async function getActiveTournaments(guildId) {
     tournaments.set(t.id, t);
   }
 
+  return results;
+}
+
+/** All running tournaments across every guild (archive sweeper). */
+async function getAllRunningTournaments() {
+  const rows = await db('tournaments').where('status', 'active');
+  const results = rows.map(rowToTournament);
+  for (const t of results) tournaments.set(t.id, t);
   return results;
 }
 
@@ -599,6 +611,7 @@ module.exports = {
   getTournament,
   getTournamentsByGuild,
   getActiveTournaments,
+  getAllRunningTournaments,
   updateTournament,
   deleteTournament,
   addParticipant,

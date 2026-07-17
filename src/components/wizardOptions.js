@@ -96,6 +96,29 @@ function buildOptionsMessage(session) {
     );
   }
 
+  if (!isBR) {
+    // Rolling auto-archive override (Pro): close rooms X min after results.
+    const aaOptions = [
+      { label: 'Auto-archive: server default', value: 'inherit' },
+      { label: 'Auto-archive: off for this tournament', value: '0' },
+      ...[5, 10, 15, 30, 60].map(min => ({ label: `Close rooms ${min} min after result 💎`, value: String(min) })),
+    ].map(opt => ({
+      ...opt,
+      default: data.autoArchiveMinutes == null
+        ? opt.value === 'inherit'
+        : String(data.autoArchiveMinutes) === opt.value,
+    }));
+
+    rows.push(
+      new ActionRowBuilder().addComponents(
+        new StringSelectMenuBuilder()
+          .setCustomId(`wizardOptions:${session.id}:autoArchive`)
+          .setPlaceholder('Auto-archive rooms after results')
+          .addOptions(aaOptions)
+      )
+    );
+  }
+
   // Third-place match toggle — single elimination only
   if (data.format === 'single_elimination') {
     rows.push(
@@ -194,6 +217,11 @@ module.exports = {
           break;
         case 'checkinWindow':
           updated = await updateSession(sessionId, { checkinWindow: parseInt(value, 10) });
+          break;
+        case 'autoArchive':
+          updated = await updateSession(sessionId, {
+            autoArchiveMinutes: value === 'inherit' ? null : parseInt(value, 10),
+          });
           break;
       }
 

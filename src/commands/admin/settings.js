@@ -58,8 +58,9 @@ module.exports = {
             .setDescription('Cleanup mode')
             .setRequired(true)
             .addChoices(
-              { name: 'Delete channels', value: 'delete' },
-              { name: 'Archive channels', value: 'archive' }
+              { name: 'Archive — save history, then delete (recommended)', value: 'archive' },
+              { name: 'Delete channels (no history saved)', value: 'delete' },
+              { name: 'Move to Archived category (does NOT free the 500-channel cap)', value: 'category' }
             )
         )
     )
@@ -76,9 +77,37 @@ module.exports = {
           option.setName('mode')
             .setDescription('Cleanup mode (default: delete)')
             .addChoices(
-              { name: 'Delete channels', value: 'delete' },
-              { name: 'Archive channels', value: 'archive' }
+              { name: 'Archive — save history, then delete (recommended)', value: 'archive' },
+              { name: 'Delete channels (no history saved)', value: 'delete' },
+              { name: 'Move to Archived category (does NOT free the 500-channel cap)', value: 'category' }
             )
+        )
+    )
+    .addSubcommand(subcommand =>
+      subcommand
+        .setName('set-auto-archive')
+        .setDescription('Pro: auto-close match rooms X minutes after their result (history is saved)')
+        .addIntegerOption(option =>
+          option.setName('minutes')
+            .setDescription('Minutes after a result before the room closes (0 = off)')
+            .setRequired(true)
+            .setMinValue(0)
+            .setMaxValue(1440)
+        )
+    )
+    .addSubcommand(subcommand =>
+      subcommand
+        .setName('set-match-logs')
+        .setDescription('Post archived room transcripts to an admin-only #match-logs channel')
+        .addBooleanOption(option =>
+          option.setName('enabled')
+            .setDescription('Enable the #match-logs transcript mirror')
+            .setRequired(true)
+        )
+        .addChannelOption(option =>
+          option.setName('channel')
+            .setDescription('Use an existing channel instead of auto-creating #match-logs')
+            .setRequired(false)
         )
     )
     .addSubcommand(subcommand =>
@@ -180,7 +209,7 @@ module.exports = {
         await handleCleanup(interaction);
         break;
       case 'set-auto-cleanup': {
-        // Premium feature gate
+        // Pro feature gate
         const autoCleanupCheck = await checkFeature(interaction.guildId, 'auto_cleanup');
         if (!autoCleanupCheck.allowed) {
           return interaction.reply(getUpgradeEmbed('auto_cleanup', await getEffectiveTier(interaction.guildId)));
@@ -188,6 +217,18 @@ module.exports = {
         await handleSetAutoCleanup(interaction);
         break;
       }
+      case 'set-auto-archive': {
+        // Pro feature gate (rolling auto-archive)
+        const autoArchiveCheck = await checkFeature(interaction.guildId, 'auto_archive');
+        if (!autoArchiveCheck.allowed) {
+          return interaction.reply(getUpgradeEmbed('auto_archive', await getEffectiveTier(interaction.guildId)));
+        }
+        await handleSetAutoArchive(interaction);
+        break;
+      }
+      case 'set-match-logs':
+        await handleSetMatchLogs(interaction);
+        break;
       case 'add-test-players':
         await handleAddPlayers(interaction);
         break;
@@ -376,20 +417,76 @@ async function handleCleanup(interaction) {
 
   await interaction.deferReply({ ephemeral: true });
 
-  const success = await bulkCleanupChannels(interaction.guild, channelIds, mode);
-  const action = mode === 'delete' ? 'deleted' : 'archived';
+  // 'archive' = transcript + delete (frees the 500-channel cap, history kept
+  // on the dashboard + #match-logs). 'category' = legacy move (does not).
+  if (mode === 'archive') {
+    const { archiveTournamentChannels } = require('../../services/transcriptService');
+    const res = await archiveTournamentChannels(interaction.guild, tournament);
+    await updateTournament(tournamentId, { bracket: tournament.bracket });
+    return interaction.editReply({
+      content:
+        `✅ Cleanup complete: **${res.archived}** room(s) archived (${res.messages} messages saved)` +
+        `${res.failed ? `, ${res.failed} failed` : ''}.\n` +
+        `📜 History: web dashboard → tournament → Transcripts${res.archived ? ', and #match-logs' : ''}.`,
+    });
+  }
 
-  if (mode === 'delete') {
+  const success = await bulkCleanupChannels(interaction.guild, channelIds, mode);
+  const action = mode === 'category' ? 'moved to the Archived category' : 'deleted';
+
+  if (mode !== 'category') {
     clearBracketChannelIds(tournament.bracket);
   }
   await updateTournament(tournamentId, { bracket: tournament.bracket });
 
   let reply = `✅ Cleanup complete: ${success}/${channelIds.length} channels ${action}.`;
-  if (mode === 'archive') {
-    reply += `\nUse \`/admin cleanup\` with **Delete channels** to remove them later.`;
+  if (mode === 'category') {
+    reply += `\n⚠️ Moved channels still count toward Discord's 500-channel cap — use **Archive** to save history and free capacity.`;
   }
 
   await interaction.editReply({ content: reply });
+}
+
+async function handleSetAutoArchive(interaction) {
+  const minutes = interaction.options.getInteger('minutes');
+  await updateServerSettings(interaction.guildId, { autoArchiveMinutes: minutes });
+
+  if (minutes === 0) {
+    return interaction.reply({
+      content: '✅ Rolling auto-archive **disabled** — match rooms stay open until cleanup.',
+      ephemeral: true,
+    });
+  }
+  return interaction.reply({
+    content:
+      `✅ Rolling auto-archive **enabled**: match rooms close **${minutes} min** after their result is recorded.\n` +
+      `• Full chat history is saved first — browse it on the web dashboard (and #match-logs if enabled).\n` +
+      `• Players can tap **⚠️ Contest result** in the room to pause the timer and alert admins.\n` +
+      `• This keeps big tournaments inside Discord's 500-channel limit.`,
+    ephemeral: true,
+  });
+}
+
+async function handleSetMatchLogs(interaction) {
+  const enabled = interaction.options.getBoolean('enabled');
+  const channel = interaction.options.getChannel('channel');
+
+  const updates = { matchLogsEnabled: enabled };
+  if (channel) updates.matchLogsChannelId = channel.id;
+  await updateServerSettings(interaction.guildId, updates);
+
+  if (!enabled) {
+    return interaction.reply({
+      content: '✅ #match-logs mirror **disabled** — transcripts remain available on the web dashboard.',
+      ephemeral: true,
+    });
+  }
+  return interaction.reply({
+    content:
+      `✅ #match-logs mirror **enabled**${channel ? ` in ${channel}` : ' — the bot will auto-create an admin-only **#match-logs** channel on first archive'}.\n` +
+      `Every archived room posts its full transcript there as an HTML file.`,
+    ephemeral: true,
+  });
 }
 
 async function handleSetAutoCleanup(interaction) {
@@ -758,8 +855,10 @@ async function handleHelp(interaction) {
         '`set-announcement-channel` — Set announcement channel (add `game:` for per-game)',
         '`set-match-category` — Set match room category',
         '`set-role` — Add/remove tournament admin roles',
-        '`cleanup` — Clean up match rooms',
+        '`cleanup` — Clean up match rooms (**archive** saves history, then deletes)',
         '`set-auto-cleanup` — Auto-cleanup on completion *(Pro)*',
+        '`set-auto-archive` — Close rooms X min after results, history saved *(Pro)*',
+        '`set-match-logs` — Mirror transcripts to an admin-only #match-logs channel',
         '`set-captain-mode` — Deferred member resolution *(Pro)*',
         '`add-test-players/add-test-teams` — Debug: add FAKE test entrants',
         '`clear-participants` — Debug: clear all participants',

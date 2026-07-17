@@ -195,7 +195,22 @@ router.get('/admin/api/tournaments/:id/manage', requireSession, async (req, res)
     isWalkover: !!match.isWalkover,
     isDQ: !!match.isDQ,
     hasRoom: !!match.channelId,
+    matchId: String(match.id),
+    contested: !!match.contested,
+    archiveAt: match.archiveAt ?? null,
   }));
+
+  // Channel capacity + archived transcripts (docs/CHANNEL-CAPACITY-PLAN.md)
+  const guildForCap = getClient()?.guilds.cache.get(t.guildId);
+  const { getChannelCapacity } = require('../services/channelService');
+  const channels = guildForCap ? getChannelCapacity(guildForCap) : null;
+  let transcripts = [];
+  try {
+    const { listTranscripts } = require('../services/transcriptService');
+    transcripts = await listTranscripts(t.id);
+  } catch (err) {
+    console.error('[web-admin] transcript list failed:', err.message);
+  }
 
   // Battle Royale: stage/game/standings payload for the dashboard grid.
   // Admin-only surface — raw entrant ids are fine here (they're needed to
@@ -205,6 +220,7 @@ router.get('/admin/api/tournaments/:id/manage', requireSession, async (req, res)
     const b = t.bracket;
     const stagePayload = (stage, key) => ({
       key,
+      id: stage.id,
       name: stage.name,
       teams: stage.teams.map(team => ({ id: team.id, name: isSolo ? team.username : team.name })),
       games: stage.games.map(g => ({
@@ -263,6 +279,10 @@ router.get('/admin/api/tournaments/:id/manage', requireSession, async (req, res)
     entrants,
     matches,
     br,
+    channels,
+    capacityHit: !!t.bracket?.capacityHit,
+    transcripts,
+    autoArchiveMinutes: t.settings.autoArchiveMinutes ?? null,
     counts: {
       entrants: entrants.length,
       pending: isBR
@@ -507,6 +527,50 @@ router.post('/admin/api/tournaments/:id/correct', ...mutate, async (req, res) =>
   } catch (err) {
     console.error(`[web-admin] ${req.method} ${req.path} failed:`, err.message);
     res.status(400).json({ error: err.message.replace(/\*\*|`/g, '') });
+  }
+});
+
+// ── Transcripts + contested results (docs/CHANNEL-CAPACITY-PLAN.md) ──────────
+
+// Full transcript of an archived room. Admin-only (same guard as manage).
+router.get('/admin/api/tournaments/:id/transcripts/:key', requireSession, async (req, res) => {
+  const t = await loadOwned(req, res);
+  if (!t) return;
+  try {
+    const { getTranscript } = require('../services/transcriptService');
+    const transcript = await getTranscript(t.id, req.params.key);
+    if (!transcript) return res.status(404).json({ error: 'Transcript not found' });
+    res.set('Cache-Control', 'no-store');
+    res.json(transcript);
+  } catch (err) {
+    console.error('[web-admin] transcript fetch failed:', err.message);
+    res.status(500).json({ error: 'Failed to load transcript' });
+  }
+});
+
+// Confirm a contested result: clears the contest and re-arms auto-archive.
+router.post('/admin/api/tournaments/:id/confirm-result', ...mutate, async (req, res) => {
+  const t = await loadOwnedForMutation(req, res);
+  if (!t) return;
+  if (!t.bracket) return res.status(400).json({ error: 'Tournament has not started yet.' });
+
+  const matchNumber = parseInt(req.body?.matchNumber, 10);
+  const match = findMatchByNumber(t.bracket, matchNumber);
+  if (!match) return res.status(404).json({ error: 'Match not found.' });
+  if (!match.contested) return res.status(400).json({ error: 'This match is not contested.' });
+
+  try {
+    match.contested = false;
+    match.contestedBy = null;
+    const { scheduleMatchArchive } = require('../services/lifecycleService');
+    await scheduleMatchArchive(getClient(), t, match);
+    const { updateTournament } = require('../services/tournamentService');
+    await updateTournament(t.id, { bracket: t.bracket });
+    await audit(req, t, 'confirm-result', { matchNumber });
+    res.json({ ok: true });
+  } catch (err) {
+    console.error(`[web-admin] ${req.method} ${req.path} failed:`, err.message);
+    res.status(400).json({ error: err.message });
   }
 });
 

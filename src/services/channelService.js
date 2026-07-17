@@ -4,6 +4,38 @@ const { getServerSettings } = require('../data/serverSettings');
 // Track in-progress channel creations to prevent race conditions
 const pendingCreations = new Set();
 
+// ============================================================================
+// Guild channel capacity (Discord caps servers at 500 channels — categories
+// included, threads excluded). docs/CHANNEL-CAPACITY-PLAN.md Phase 1.
+// ============================================================================
+
+const GUILD_CHANNEL_CAP = 500;
+const CAPACITY_MARGIN = 5; // leave headroom for logs/announcement channels
+
+function getChannelCapacity(guild) {
+  const used = guild.channels.cache.size;
+  return {
+    used,
+    cap: GUILD_CHANNEL_CAP,
+    available: Math.max(0, GUILD_CHANNEL_CAP - CAPACITY_MARGIN - used),
+  };
+}
+
+/** Discord error 30013 = maximum guild channels reached. */
+function isCapacityError(error) {
+  return error?.code === 30013 || error?.capacity === true;
+}
+
+function capacityError(guild) {
+  const { used, cap } = getChannelCapacity(guild);
+  const err = new Error(
+    `This server has hit Discord's ${cap}-channel limit (${used} in use) — no more rooms can be created. ` +
+    'Free slots with `/admin cleanup mode:archive` (saves history, deletes rooms), then run `/tournament create-rooms`.'
+  );
+  err.capacity = true;
+  return err;
+}
+
 const PLAYER_ALLOW = [
   PermissionFlagsBits.ViewChannel,
   PermissionFlagsBits.SendMessages,
@@ -28,17 +60,30 @@ async function createPrivateChannel(guild, { name, parentId, baseOverwrites, mem
   try {
     return await guild.channels.create(options);
   } catch (error) {
+    // Server-wide 500-channel cap: nothing to retry — surface a typed error
+    // so callers stop the creation loop and inform admins once.
+    if (isCapacityError(error)) throw capacityError(guild);
+
     const noParentRetry = error.code === 50035 && /MAX_CHANNELS/.test(error.message || '');
     if (noParentRetry) {
       delete options.parent;
-      try { return await guild.channels.create(options); } catch { /* fall through */ }
+      try { return await guild.channels.create(options); } catch (retryErr) {
+        if (isCapacityError(retryErr)) throw capacityError(guild);
+        /* fall through */
+      }
     }
 
     // Resilient fallback: base channel first, then members one at a time.
     console.error(`createPrivateChannel bulk create failed for "${name}", falling back to per-member:`, error.message);
-    const channel = await guild.channels.create({
-      name, type: ChannelType.GuildText, parent: parentId || undefined, permissionOverwrites: baseOverwrites,
-    });
+    let channel;
+    try {
+      channel = await guild.channels.create({
+        name, type: ChannelType.GuildText, parent: parentId || undefined, permissionOverwrites: baseOverwrites,
+      });
+    } catch (fallbackErr) {
+      if (isCapacityError(fallbackErr)) throw capacityError(guild);
+      throw fallbackErr;
+    }
     for (const id of memberIds) {
       try {
         await channel.permissionOverwrites.edit(id, { ViewChannel: true, SendMessages: true, ReadMessageHistory: true }, { type: OverwriteType.Member });
@@ -642,23 +687,25 @@ async function archiveMatchRoom(guild, channelId, archiveCategory) {
   }
 }
 
+/**
+ * Raw channel cleanup. Modes:
+ *   'delete'   — delete channels (frees capacity, loses history)
+ *   'category' — legacy move to an "Archived Matches" category. NOTE: moved
+ *                channels still count toward Discord's 500-channel cap.
+ * Transcript-archiving (save history + delete) lives in transcriptService —
+ * it needs tournament context for match labels.
+ */
 async function bulkCleanupChannels(guild, channelIds, mode) {
   let success = 0;
   let archiveCategory = null;
 
-  if (mode === 'archive') {
+  if (mode === 'category') {
     archiveCategory = await findOrCreateArchiveCategory(guild);
   }
 
   for (const channelId of channelIds) {
     try {
-      if (mode === 'delete') {
-        const channel = await guild.channels.fetch(channelId);
-        if (channel) {
-          await channel.delete();
-          success++;
-        }
-      } else if (mode === 'archive') {
+      if (mode === 'category') {
         const archived = await archiveMatchRoom(guild, channelId, archiveCategory);
         if (archived) {
           // Check if archive category is full, get a new one
@@ -668,6 +715,12 @@ async function bulkCleanupChannels(guild, channelIds, mode) {
               archiveCategory = await findOrCreateArchiveCategory(guild);
             }
           }
+          success++;
+        }
+      } else {
+        const channel = await guild.channels.fetch(channelId);
+        if (channel) {
+          await channel.delete();
           success++;
         }
       }
@@ -725,4 +778,8 @@ module.exports = {
   archiveMatchRoom,
   bulkCleanupChannels,
   clearBracketChannelIds,
+  // Capacity (docs/CHANNEL-CAPACITY-PLAN.md)
+  getChannelCapacity,
+  isCapacityError,
+  GUILD_CHANNEL_CAP,
 };

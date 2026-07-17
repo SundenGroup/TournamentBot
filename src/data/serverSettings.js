@@ -15,6 +15,10 @@ const DEFAULT_SETTINGS = {
   tournamentAdminRoles: [],
   captainMode: false,
   gameAnnouncementChannels: {},
+  // Channel-capacity plan: transcript mirror + rolling auto-archive
+  matchLogsEnabled: true,
+  matchLogsChannelId: null,
+  autoArchiveMinutes: 0, // 0 = off (Pro/Studio feature)
 };
 
 // ============================================================================
@@ -35,6 +39,9 @@ function settingsToRow(guildId, settings) {
     tournament_admin_roles: JSON.stringify(settings.tournamentAdminRoles || []),
     captain_mode: settings.captainMode,
     game_announcement_channels: JSON.stringify(settings.gameAnnouncementChannels || {}),
+    match_logs_enabled: settings.matchLogsEnabled,
+    match_logs_channel_id: settings.matchLogsChannelId,
+    auto_archive_minutes: settings.autoArchiveMinutes,
   };
 }
 
@@ -51,6 +58,9 @@ function rowToSettings(row) {
     tournamentAdminRoles: row.tournament_admin_roles || [],
     captainMode: row.captain_mode,
     gameAnnouncementChannels: row.game_announcement_channels || {},
+    matchLogsEnabled: row.match_logs_enabled ?? true,
+    matchLogsChannelId: row.match_logs_channel_id ?? null,
+    autoArchiveMinutes: row.auto_archive_minutes ?? 0,
   };
 }
 

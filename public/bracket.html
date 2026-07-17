@@ -177,9 +177,40 @@
   footer img { width: 14px; height: 14px; }
   footer a { color: var(--text-2); }
 
+  .ctrl-btn { display: none; border: 1px solid var(--border-strong); background: var(--bg-card); color: var(--text); font-weight: 600; font-size: 12px; padding: 8px 12px; border-radius: 8px; cursor: pointer; font-family: var(--sans); }
+  .ctrl-btn.on { border-color: var(--accent); color: var(--accent-soft); }
+
+  /* ── Mobile: get to the bracket fast ── */
   @media (max-width: 700px) {
-    .searchbox { margin-left: 0; align-items: flex-start; }
+    .topbar { padding: 0 12px; height: 44px; }
+    .topbar .sub { display: none; }
+    .updated { font-size: 9.5px; }
+
+    .hero { padding: 10px 12px 10px; }
+    .hero-logo { display: none; }
+    .hero h1 { font-size: 17px; }
+    .hero-row { gap: 10px; }
+    .meta-line { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+
+    .searchbox { margin-left: 0; align-items: stretch; width: 100%; }
+    .searchbox .row { width: 100%; }
+    .searchbox input { flex: 1; width: auto; min-width: 0; padding: 7px 10px; }
+    .searchbox button { padding: 7px 11px; }
+    .search-hint { display: none; }
+    .ctrl-btn { display: inline-block; }
+
+    /* Toolbar is collapsed behind the ⚙ button (JS) — compact when open */
+    .toolbar { padding: 8px 12px; gap: 10px; }
     .legend { display: none; }
+    .toolbar input[type=range] { width: 90px; }
+
+    /* Live strip: one horizontally-scrolling line instead of a tall stack */
+    .strip { flex-wrap: nowrap; overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; padding: 7px 12px; }
+    .strip::-webkit-scrollbar { display: none; }
+    .strip-chip, .podium-chip, .strip-label, .strip-more { flex-shrink: 0; }
+
+    .panel-scroll { padding: 12px; }
+    footer { padding: 8px 12px; font-size: 10px; }
   }
 </style>
 </head>
@@ -210,6 +241,7 @@
       <div class="row">
         <input type="text" id="searchInput" placeholder="Find a player… (Enter jumps)">
         <button id="jumpBtn">Jump</button>
+        <button id="ctrlBtn" class="ctrl-btn" title="Zoom, rounds & view options">⚙</button>
       </div>
       <span class="search-hint" id="searchHint"></span>
     </div>
@@ -276,7 +308,17 @@ const FORMAT_NAMES = {
 };
 
 // ── App state (survives polls) ──────────────────────────────────────────────
-const S = { zoom: 0.6, fromRound: 1, q: '', hitIdx: 0, fitted: false };
+const S = { zoom: 0.6, fromRound: 1, q: '', hitIdx: 0, fitted: false, controlsOpen: false };
+const isMobile = () => window.matchMedia('(max-width: 700px)').matches;
+/** On phones the toolbar is collapsed behind the ⚙ button so the bracket is
+ *  reachable without scrolling past three rows of controls. */
+function applyToolbarVisibility(canvasMode) {
+  const tb = document.getElementById('toolbar');
+  const btn = document.getElementById('ctrlBtn');
+  if (!canvasMode) { tb.style.display = 'none'; return; }
+  tb.style.display = (isMobile() && !S.controlsOpen) ? 'none' : '';
+  if (btn) btn.classList.toggle('on', S.controlsOpen);
+}
 let DATA = null;
 let MODEL = null;           // normalized elimination model, null for panel formats
 let LAYOUT = null;
@@ -673,6 +715,10 @@ function wireEvents() {
   };
   $('searchInput').addEventListener('keydown', e => { if (e.key === 'Enter') cycle(); });
   $('jumpBtn').addEventListener('click', cycle);
+  $('ctrlBtn').addEventListener('click', () => {
+    S.controlsOpen = !S.controlsOpen;
+    applyToolbarVisibility(true);
+  });
 
   window.addEventListener('resize', () => { if (MODEL && !S.q) fitWidth(); });
 }
@@ -954,7 +1000,7 @@ function render() {
   // Elimination canvas mode
   $('panelScroll').style.display = 'none';
   $('bx-scroll').style.display = '';
-  $('toolbar').style.display = '';
+  applyToolbarVisibility(true);
   $('searchBox').style.display = '';
   renderCanvas();
   syncToolbar();

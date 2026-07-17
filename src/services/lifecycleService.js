@@ -14,7 +14,7 @@
 const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const { getTournament, updateTournament, adminRemoveEntrant, resolveTeamMembers } = require('./tournamentService');
 const { getServiceForBracket, findMatchByNumber, normalizeSeriesScore } = require('../utils/matchUtils');
-const { createMatchRoom, createBRGroupRoom, collectTournamentChannels, bulkCleanupChannels, clearBracketChannelIds } = require('./channelService');
+const { createMatchRoom, createBRGroupRoom, collectTournamentChannels, bulkCleanupChannels, clearBracketChannelIds, getChannelCapacity, isCapacityError } = require('./channelService');
 const { notifyByesAndWalkovers, getStartByeSummary } = require('../utils/byeNotifier');
 const { updateTournamentMessages } = require('../utils/tournamentUpdater');
 const { createTournamentEmbed, createTournamentButtons, getBracketUrl } = require('../utils/embedBuilder');
@@ -68,11 +68,28 @@ async function startTournamentFlow({ client, guild, tournamentId }) {
     const service = getServiceForBracket({ type: format });
     const bracket = service.generateBracket(participants, tournament.settings);
 
+    // ── Capacity pre-flight (docs/CHANNEL-CAPACITY-PLAN.md Phase 1) ─────────
+    // Block a start that can't fit its first-round rooms instead of failing
+    // one channel at a time with generic errors.
+    const roomsNeeded = format === 'battle_royale'
+      ? bracket.groups.length
+      : service.getActiveMatches(bracket).filter(m => m.participant1 && m.participant2).length;
+    const capacity = getChannelCapacity(guild);
+    if (roomsNeeded > capacity.available) {
+      throw new Error(
+        `Starting needs **${roomsNeeded}** ${format === 'battle_royale' ? 'lobby' : 'match'} rooms, but this server ` +
+        `only has **${capacity.available}** channel slots free (${capacity.used}/${capacity.cap} used — Discord caps servers at ${capacity.cap} channels). ` +
+        'Free slots with `/admin cleanup mode:archive` (saves history, deletes rooms), enable rolling auto-archive ' +
+        '(`/admin set-auto-archive`), or reduce the field — then start again.'
+      );
+    }
+
     tournament.bracket = bracket;
     tournament.status = 'active';
 
     let roomsCreated = 0;
     let roomsFailed = 0;
+    let capacityHit = false;
     if (format === 'battle_royale') {
       for (const group of bracket.groups) {
         try {
@@ -85,21 +102,31 @@ async function startTournamentFlow({ client, guild, tournamentId }) {
         } catch (error) {
           console.error('Error creating BR group room:', error);
           roomsFailed++;
+          if (isCapacityError(error)) { capacityHit = true; break; }
         }
       }
     } else {
-      for (const match of service.getActiveMatches(bracket)) {
-        if (match.participant1 && match.participant2) {
-          try {
-            const channel = await createMatchRoom(guild, match, tournament);
-            match.channelId = channel.id;
-            roomsCreated++;
-          } catch (error) {
-            console.error('Error creating match room:', error);
-            roomsFailed++;
+      const ready = service.getActiveMatches(bracket).filter(m => m.participant1 && m.participant2);
+      for (const match of ready) {
+        try {
+          const channel = await createMatchRoom(guild, match, tournament);
+          match.channelId = channel.id;
+          roomsCreated++;
+        } catch (error) {
+          console.error('Error creating match room:', error);
+          roomsFailed++;
+          if (isCapacityError(error)) {
+            // Stop hammering the API — every further create will fail too
+            capacityHit = true;
+            roomsFailed = ready.length - roomsCreated;
+            break;
           }
         }
       }
+    }
+    if (capacityHit) {
+      bracket.capacityHit = true;
+      await announceCapacityIssue(client, tournament, roomsFailed);
     }
 
     // DM players/teams that start with a bye (marks matches byeNotified,
@@ -123,6 +150,8 @@ async function startTournamentFlow({ client, guild, tournamentId }) {
         formatName: FORMAT_NAMES[format] || format,
         roomsCreated,
         roomsFailed,
+        capacityHit,
+        capacity: getChannelCapacity(guild),
         byeSummary: getStartByeSummary(tournament),
         bracketUrl: getBracketUrl(tournament),
       },
@@ -140,14 +169,20 @@ async function startTournamentFlow({ client, guild, tournamentId }) {
 
 /** The "Tournament Started" embed — shared copy for slash + button + logs. */
 function buildStartEmbed(tournament, summary) {
-  const { participantCount, isSolo, format, formatName, roomsCreated, roomsFailed, byeSummary, bracketUrl } = summary;
+  const { participantCount, isSolo, format, formatName, roomsCreated, roomsFailed, byeSummary, bracketUrl, capacityHit, capacity } = summary;
   const bracket = tournament.bracket;
 
   let description = `**${tournament.title}** is now live!\n\n`;
   description += `• ${participantCount} ${isSolo ? 'players' : 'teams'} competing\n`;
   description += `• ${roomsCreated} ${format === 'battle_royale' ? 'lobby' : 'match'} rooms created\n`;
-  if (roomsFailed > 0) {
+  if (capacityHit) {
+    description += `• 🚨 **Server channel limit reached (Discord caps servers at 500)** — ${roomsFailed} room(s) missing. ` +
+      `Free slots with \`/admin cleanup mode:archive\`, then run \`/tournament create-rooms\`.\n`;
+  } else if (roomsFailed > 0) {
     description += `• ⚠️ **${roomsFailed} room(s) failed to create** — run \`/tournament create-rooms\` to retry, and check the bot has Manage Channels + Manage Roles.\n`;
+  }
+  if (!capacityHit && capacity && capacity.used > 400) {
+    description += `• 📊 Channel capacity: **${capacity.used}/${capacity.cap}** used — consider \`/admin set-auto-archive\` for big events.\n`;
   }
   description += `• Format: ${formatName}\n`;
 
@@ -233,6 +268,9 @@ async function applyMatchReport({ client, guild, tournament, match, winnerId, sc
   }
 
   if (service.isComplete(bracket)) {
+    // The final room follows the same rolling-archive rules
+    await scheduleMatchArchive(client, tournament, match);
+
     const results = service.getResults(bracket);
     await updateTournament(tournament.id, { bracket, status: 'completed' });
     tournament.status = 'completed';
@@ -261,9 +299,21 @@ async function applyMatchReport({ client, guild, tournament, match, winnerId, sc
         newRooms++;
       } catch (error) {
         console.error('Error creating match room:', error);
+        if (isCapacityError(error)) {
+          // Server is at the 500-channel cap — stop, tell admins once
+          if (!bracket.capacityHit) {
+            bracket.capacityHit = true;
+            await announceCapacityIssue(client, tournament, null);
+          }
+          break;
+        }
       }
     }
   }
+
+  // Rolling auto-archive (Phase 3): this room's job is done — schedule it
+  await scheduleMatchArchive(client, tournament, match);
+
   await updateTournament(tournament.id, { bracket });
 
   return { winner, loser, isSolo, swissRoundStarted, completed: false, results: null, newRooms };
@@ -298,6 +348,14 @@ async function correctMatchFlow({ client, tournament, matchNumber, winnerId, sco
     tournament.bracket = snapshot;
     throw error;
   }
+
+  // A correction settles any contest on this match and re-arms auto-archive
+  if (match.contested) {
+    match.contested = false;
+    match.contestedBy = null;
+  }
+  match.archiveAt = null;
+  await scheduleMatchArchive(client, tournament, match);
 
   await updateTournament(tournament.id, { bracket });
   await updateTournamentMessages(client, tournament);
@@ -468,7 +526,7 @@ async function createRoomsFlow({ guild, tournament }) {
   }
 
   const bracket = tournament.bracket;
-  let created = 0, failed = 0, existing = 0;
+  let created = 0, failed = 0, existing = 0, capacityHit = false;
 
   if (bracket.type === 'battle_royale') {
     for (const group of bracket.groups || []) {
@@ -480,6 +538,7 @@ async function createRoomsFlow({ guild, tournament }) {
       } catch (error) {
         console.error('create-rooms BR error:', error);
         failed++;
+        if (isCapacityError(error)) { capacityHit = true; break; }
       }
     }
   } else {
@@ -494,14 +553,20 @@ async function createRoomsFlow({ guild, tournament }) {
       } catch (error) {
         console.error('create-rooms match error:', error);
         failed++;
+        if (isCapacityError(error)) { capacityHit = true; break; }
       }
     }
   }
 
-  if (created > 0) {
+  // A successful full retry clears the capacity flag; hitting the cap sets it
+  if (capacityHit) bracket.capacityHit = true;
+  else if (failed === 0 && bracket.capacityHit) bracket.capacityHit = false;
+
+  if (created > 0 || capacityHit || (failed === 0 && bracket.capacityHit === false)) {
     await updateTournament(tournament.id, { bracket });
   }
-  return { created, failed, existing };
+  const capacity = getChannelCapacity(guild);
+  return { created, failed, existing, capacityHit, capacity };
 }
 
 // ─── Battle Royale: game reports, corrections, kills ─────────────────────────
@@ -572,7 +637,8 @@ async function finishBRMutation({ client, guild, tournament, result, groupKey, g
   const bracket = tournament.bracket;
   const { stage, finalsCreated, tournamentComplete, finalsRegenerated } = result;
 
-  // New finals stage → create its lobby room + board
+  // New finals stage → create its lobby room + board; group lobbies are done,
+  // so the rolling auto-archive can reclaim them.
   if (finalsCreated && guild) {
     try {
       const channel = await createBRGroupRoom(guild, bracket.finals, tournament);
@@ -580,8 +646,13 @@ async function finishBRMutation({ client, guild, tournament, result, groupKey, g
       await refreshBRBoard(client, tournament, bracket.finals);
     } catch (error) {
       console.error('Error creating finals room:', error);
+      if (isCapacityError(error) && !bracket.capacityHit) {
+        bracket.capacityHit = true;
+        await announceCapacityIssue(client, tournament, 1);
+      }
     }
     await announceBRFinals(client, tournament, bracket);
+    await scheduleBRStageArchives(tournament, bracket.groups);
   }
 
   if (tournamentComplete) {
@@ -768,6 +839,82 @@ async function announceBRFinals(client, tournament, bracket) {
   }
 }
 
+// ─── Channel capacity + rolling auto-archive ─────────────────────────────────
+// docs/CHANNEL-CAPACITY-PLAN.md Phases 1 & 3.
+
+/** One clear admin-facing message when the 500-channel cap interrupts rooms. */
+async function announceCapacityIssue(client, tournament, missingCount) {
+  try {
+    const channel = await client.channels.fetch(tournament.channelId);
+    if (!channel) return;
+    const missing = missingCount != null ? `**${missingCount}** room(s) could not be created. ` : '';
+    await channel.send(
+      `🚨 **Server channel limit reached** — Discord caps servers at 500 channels, and this server is full. ${missing}` +
+      `Matches without a room can still be reported with \`/tournament report\` or from the web dashboard.\n` +
+      `**To fix:** free slots with \`/admin cleanup mode:archive\` (saves history to #match-logs + the dashboard, then deletes rooms) ` +
+      `and run \`/tournament create-rooms\` to create the missing rooms. Rolling auto-archive (\`/admin set-auto-archive\`) prevents this.`
+    );
+  } catch (error) {
+    console.error('Error announcing capacity issue:', error);
+  }
+}
+
+/** Effective auto-archive delay for a tournament (per-tournament override → server setting). */
+async function getAutoArchiveMinutes(tournament) {
+  const own = tournament.settings.autoArchiveMinutes;
+  if (own != null) return own;
+  const settings = await getServerSettings(tournament.guildId);
+  return settings.autoArchiveMinutes || 0;
+}
+
+/**
+ * After a result: stamp `archiveAt` on the match (persisted with the bracket
+ * → restart-safe) and post the closing notice with the contest button.
+ */
+async function scheduleMatchArchive(client, tournament, match) {
+  try {
+    if (!match?.channelId || match.contested) return;
+    const minutes = await getAutoArchiveMinutes(tournament);
+    if (!minutes) return;
+
+    match.archiveAt = Date.now() + minutes * 60 * 1000;
+
+    const isSolo = tournament.settings.teamSize === 1;
+    const winnerName = isSolo ? match.winner?.username : match.winner?.name;
+    const channel = await client.channels.fetch(match.channelId).catch(() => null);
+    if (!channel) return;
+
+    const row = new ActionRowBuilder().addComponents(
+      new ButtonBuilder()
+        .setCustomId(`contestResult:${tournament.id}:${match.id}`)
+        .setLabel('⚠️ Contest result')
+        .setStyle(ButtonStyle.Secondary),
+      new ButtonBuilder()
+        .setCustomId(`archiveNow:${tournament.id}:${match.id}`)
+        .setLabel('🗄️ Close now (admin)')
+        .setStyle(ButtonStyle.Secondary)
+    );
+    await channel.send({
+      content:
+        `✅ Result recorded${winnerName ? `: **${winnerName}** wins` : ''}${match.score ? ` (${match.score})` : ''}. ` +
+        `This room closes in **${minutes} min** — the full chat history is saved and stays available to admins.\n` +
+        `Spot a problem with the result? Tap **⚠️ Contest result** to keep the room open and alert the admins.`,
+      components: [row],
+    });
+  } catch (error) {
+    console.error('Error scheduling match archive:', error);
+  }
+}
+
+/** BR: lobbies whose stage is over get the same rolling treatment. */
+async function scheduleBRStageArchives(tournament, stages) {
+  const minutes = await getAutoArchiveMinutes(tournament);
+  if (!minutes) return;
+  for (const stage of stages) {
+    if (stage?.channelId) stage.archiveAt = Date.now() + minutes * 60 * 1000;
+  }
+}
+
 // ─── Completion side-effects (shared) ────────────────────────────────────────
 
 /** Post the "TOURNAMENT COMPLETE" podium embed to the tournament's channel. */
@@ -835,7 +982,12 @@ async function updateTournamentAnnouncement(client, tournament) {
   }
 }
 
-/** Auto-cleanup (Premium): delete/archive match rooms 30s after completion. */
+/**
+ * Auto-cleanup (Pro): reclaim match rooms 30s after completion.
+ * Modes: 'delete' (plain), 'archive' (transcript + delete — history saved to
+ * the dashboard and #match-logs), 'category' (legacy move — does NOT free
+ * Discord's 500-channel cap).
+ */
 async function triggerAutoCleanup(guild, tournament) {
   const settings = await getServerSettings(guild.id);
   if (!settings.autoCleanup) return;
@@ -844,20 +996,27 @@ async function triggerAutoCleanup(guild, tournament) {
   if (channelIds.length === 0) return;
 
   const mode = settings.autoCleanupMode || 'delete';
-  const action = mode === 'delete' ? 'Deleting' : 'Archiving';
-  console.log(`Auto-cleanup: ${action} ${channelIds.length} channels for "${tournament.title}" in 30s`);
+  console.log(`Auto-cleanup (${mode}): ${channelIds.length} channels for "${tournament.title}" in 30s`);
 
   setTimeout(async () => {
     try {
+      // Re-fetch the current bracket — an admin correction/report in the last
+      // 30s must not be overwritten by the snapshot captured at completion.
+      const fresh = await getTournament(tournament.id);
+      if (!fresh?.bracket) return;
+
+      if (mode === 'archive') {
+        const { archiveTournamentChannels } = require('./transcriptService');
+        const res = await archiveTournamentChannels(guild, fresh);
+        await updateTournament(tournament.id, { bracket: fresh.bracket });
+        console.log(`Auto-cleanup complete: archived ${res.archived} rooms (${res.messages} messages) for "${tournament.title}"`);
+        return;
+      }
+
       const count = await bulkCleanupChannels(guild, channelIds, mode);
-      if (mode === 'delete') {
-        // Re-fetch the current bracket — an admin correction/report in the last
-        // 30s must not be overwritten by the snapshot captured at completion.
-        const fresh = await getTournament(tournament.id);
-        if (fresh?.bracket) {
-          clearBracketChannelIds(fresh.bracket);
-          await updateTournament(tournament.id, { bracket: fresh.bracket });
-        }
+      if (mode !== 'category') {
+        clearBracketChannelIds(fresh.bracket);
+        await updateTournament(tournament.id, { bracket: fresh.bracket });
       }
       console.log(`Auto-cleanup complete: ${count}/${channelIds.length} channels processed for "${tournament.title}"`);
     } catch (error) {
@@ -888,4 +1047,7 @@ module.exports = {
   brStageKey,
   buildBRBoard,
   refreshBRBoard,
+  // Capacity + rolling auto-archive (docs/CHANNEL-CAPACITY-PLAN.md)
+  scheduleMatchArchive,
+  getAutoArchiveMinutes,
 };
