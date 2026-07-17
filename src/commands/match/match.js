@@ -62,17 +62,21 @@ module.exports = {
 
   async autocomplete(interaction) {
     const focused = interaction.options.getFocused(true);
-
-    if (focused.name === 'tournament') {
-      const tournaments = await getActiveTournaments(interaction.guildId);
-      const choices = tournaments.map(t => ({
-        name: `${t.game.icon} ${t.title}`,
-        value: t.id,
-      }));
-      const filtered = choices.filter(choice =>
-        choice.name.toLowerCase().includes(focused.value.toLowerCase())
-      );
-      await interaction.respond(filtered.slice(0, 25));
+    const q = String(focused.value || '').toLowerCase();
+    try {
+      if (focused.name === 'tournament') {
+        const tournaments = await getActiveTournaments(interaction.guildId);
+        // Choice name must be 1–100 chars; guard null game + clamp length.
+        const choices = tournaments.map(t => ({
+          name: `${t.game?.icon || '🎮'} ${t.title || 'Untitled'}`.slice(0, 100),
+          value: t.id,
+        }));
+        return interaction.respond(choices.filter(c => c.name.toLowerCase().includes(q)).slice(0, 25));
+      }
+      return interaction.respond([]);
+    } catch (error) {
+      console.error('[match autocomplete] failed:', error);
+      try { await interaction.respond([]); } catch { /* expired */ }
     }
   },
 };

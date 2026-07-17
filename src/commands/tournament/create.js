@@ -410,86 +410,53 @@ module.exports = {
 
   async autocomplete(interaction) {
     const focused = interaction.options.getFocused(true);
+    const q = String(focused.value || '').toLowerCase();
+    // Discord choice names must be 1–100 chars; any overflow (or an unhandled
+    // throw) makes the client show "Loading options failed". Clip everything.
+    const clip = (s) => String(s ?? '').slice(0, 100) || '—';
+    const respondFiltered = (choices) =>
+      interaction.respond(choices.filter(c => c.name.toLowerCase().includes(q)).slice(0, 25));
 
-    if (focused.name === 'game') {
-      const presetKeys = getPresetKeys();
-      const choices = presetKeys.map(key => ({
-        name: `${GAME_PRESETS[key].icon} ${GAME_PRESETS[key].displayName}`,
-        value: key,
-      }));
-      choices.push({ name: '🎮 Other Game...', value: 'custom' });
-
-      const filtered = choices.filter(choice =>
-        choice.name.toLowerCase().includes(focused.value.toLowerCase())
-      );
-      await interaction.respond(filtered.slice(0, 25));
-    }
-
-    if (focused.name === 'tournament') {
-      const tournaments = await getActiveTournaments(interaction.guildId);
-      const choices = tournaments.map(t => ({
-        name: `${t.game.icon} ${t.title}`,
-        value: t.id,
-      }));
-
-      const filtered = choices.filter(choice =>
-        choice.name.toLowerCase().includes(focused.value.toLowerCase())
-      );
-      await interaction.respond(filtered.slice(0, 25));
-    }
-
-    if (focused.name === 'winner') {
-      const tournamentId = interaction.options.getString('tournament');
-      const tournament = await getTournament(tournamentId);
-
-      if (!tournament || !tournament.bracket) {
-        return interaction.respond([]);
+    try {
+      if (focused.name === 'game') {
+        const choices = getPresetKeys().map(key => ({
+          name: clip(`${GAME_PRESETS[key].icon} ${GAME_PRESETS[key].displayName}`),
+          value: key,
+        }));
+        choices.push({ name: '🎮 Other Game...', value: 'custom' });
+        return respondFiltered(choices);
       }
 
-      const isSolo = tournament.settings.teamSize === 1;
-      const list = isSolo ? tournament.participants : tournament.teams;
-
-      const choices = list.map(p => ({
-        name: isSolo ? p.username : p.name,
-        value: p.id,
-      }));
-
-      const filtered = choices.filter(choice =>
-        choice.name.toLowerCase().includes(focused.value.toLowerCase())
-      );
-      await interaction.respond(filtered.slice(0, 25));
-    }
-
-    if (focused.name === 'participant') {
-      const tournamentId = interaction.options.getString('tournament');
-      const tournament = await getTournament(tournamentId);
-
-      if (!tournament) {
-        return interaction.respond([]);
+      if (focused.name === 'tournament') {
+        const tournaments = await getActiveTournaments(interaction.guildId);
+        return respondFiltered(tournaments.map(t => ({
+          name: clip(`${t.game?.icon || '🎮'} ${t.title || 'Untitled'}`),
+          value: t.id,
+        })));
       }
 
-      const isSolo = tournament.settings.teamSize === 1;
-      const list = isSolo ? tournament.participants : tournament.teams;
+      if (focused.name === 'winner' || focused.name === 'participant') {
+        const tournament = await getTournament(interaction.options.getString('tournament'));
+        if (!tournament) return interaction.respond([]);
+        if (focused.name === 'winner' && !tournament.bracket) return interaction.respond([]);
+        const isSolo = tournament.settings.teamSize === 1;
+        const list = isSolo ? tournament.participants : tournament.teams;
+        return respondFiltered((list || []).map(p => ({
+          name: clip(isSolo ? p.username : p.name),
+          value: p.id,
+        })));
+      }
 
-      const choices = list.map(p => ({
-        name: isSolo ? p.username : p.name,
-        value: p.id,
-      }));
+      if (focused.name === 'team') {
+        const tournament = await getTournament(interaction.options.getString('tournament'));
+        if (!tournament) return interaction.respond([]);
+        return respondFiltered((tournament.teams || []).map(t => ({ name: clip(t.name), value: t.id })));
+      }
 
-      const filtered = choices.filter(choice =>
-        choice.name.toLowerCase().includes(focused.value.toLowerCase())
-      );
-      await interaction.respond(filtered.slice(0, 25));
-    }
-
-    if (focused.name === 'team') {
-      const tournamentId = interaction.options.getString('tournament');
-      const tournament = await getTournament(tournamentId);
-      if (!tournament) return interaction.respond([]);
-
-      const choices = (tournament.teams || []).map(t => ({ name: t.name, value: t.id }));
-      const filtered = choices.filter(c => c.name.toLowerCase().includes(focused.value.toLowerCase()));
-      await interaction.respond(filtered.slice(0, 25));
+      return interaction.respond([]);
+    } catch (error) {
+      console.error('[tournament autocomplete] failed:', error);
+      try { await interaction.respond([]); } catch { /* expired */ }
     }
   },
 };

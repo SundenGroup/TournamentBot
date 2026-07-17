@@ -513,18 +513,21 @@
        ================================================================ -->
   <section id="debug">
     <h2><span class="secnum">08</span>Debug &amp; Testing Tools</h2>
-    <p>These add fake participants so you can test the full tournament flow without needing real players.</p>
+    <p>These add fake participants so you can test the full tournament flow without needing real players.
+    Pick the tournament from the autocomplete list (it shows tournaments still in registration, check-in, or running),
+    then set how many to add — the bot fills up to the tournament's max size.</p>
 
     <div class="table-wrap">
       <table>
-        <thead><tr><th>Command</th><th>Description</th></tr></thead>
+        <thead><tr><th>Command</th><th>Options</th><th>Description</th></tr></thead>
         <tbody>
-          <tr><td><code>/admin add-test-players</code></td><td>Add fake players to a solo tournament (1–64)</td></tr>
-          <tr><td><code>/admin add-test-teams</code></td><td>Add fake teams to a team tournament (1–32)</td></tr>
-          <tr><td><code>/admin clear-participants</code></td><td>Remove all participants (real and fake)</td></tr>
+          <tr><td><code>/admin add-test-players</code></td><td><code>tournament</code>, <code>count</code> (1–512)</td><td>Add fake players to a <strong>solo</strong> tournament</td></tr>
+          <tr><td><code>/admin add-test-teams</code></td><td><code>tournament</code>, <code>count</code> (1–512)</td><td>Add fake teams to a <strong>team</strong> tournament</td></tr>
+          <tr><td><code>/admin clear-participants</code></td><td><code>tournament</code></td><td>Remove all participants (real and fake)</td></tr>
         </tbody>
       </table>
     </div>
+    <p style="color:var(--fg-subtle);font-size:14px">Solo vs. team is decided by the tournament's team size — use <code>add-test-players</code> for 1v1 events and <code>add-test-teams</code> for team events (the bot tells you if you pick the wrong one). Fake entrants never receive DMs and are skipped by check-in.</p>
 
     <div class="card success">
       <div class="card-title">Recommended testing flow</div>

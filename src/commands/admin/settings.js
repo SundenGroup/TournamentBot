@@ -216,47 +216,44 @@ module.exports = {
   },
 
   async autocomplete(interaction) {
+    // Discord shows "Loading options failed" if this throws or doesn't respond
+    // within 3s — so every path is guarded and we always respond exactly once.
     const focused = interaction.options.getFocused(true);
+    const q = String(focused.value || '').toLowerCase();
+    // A Discord choice name must be 1–100 chars; build + clamp safely.
+    const choiceName = (t) => `${t.game?.icon || '🎮'} ${t.title || 'Untitled'}`.slice(0, 100);
 
-    if (focused.name === 'game') {
-      const { getPresetKeys, GAME_PRESETS } = require('../../config/gamePresets');
-      const choices = getPresetKeys().map(key => ({
-        name: `${GAME_PRESETS[key].icon} ${GAME_PRESETS[key].displayName}`,
-        value: key,
-      }));
-      const filtered = choices.filter(c => c.name.toLowerCase().includes(focused.value.toLowerCase()));
-      return interaction.respond(filtered.slice(0, 25));
-    }
-
-    if (focused.name === 'tournament') {
-      const subcommand = interaction.options.getSubcommand();
-
-      if (subcommand === 'cleanup') {
-        // Show tournaments with channels to clean up
-        const tournaments = await getTournamentsByGuild(interaction.guildId);
-        const withChannels = tournaments.filter(t =>
-          t.bracket && collectTournamentChannels(t.bracket).length > 0
-        );
-        const choices = withChannels.map(t => ({
-          name: `${t.game.icon} ${t.title} (${t.status})`,
-          value: t.id,
+    try {
+      if (focused.name === 'game') {
+        const { getPresetKeys, GAME_PRESETS } = require('../../config/gamePresets');
+        const choices = getPresetKeys().map(key => ({
+          name: `${GAME_PRESETS[key].icon} ${GAME_PRESETS[key].displayName}`.slice(0, 100),
+          value: key,
         }));
-        const filtered = choices.filter(choice =>
-          choice.name.toLowerCase().includes(focused.value.toLowerCase())
-        );
-        await interaction.respond(filtered.slice(0, 25));
-      } else {
-        // Debug subcommands — show active tournaments
-        const tournaments = await getActiveTournaments(interaction.guildId);
-        const choices = tournaments.map(t => ({
-          name: `${t.game.icon} ${t.title}`,
-          value: t.id,
-        }));
-        const filtered = choices.filter(choice =>
-          choice.name.toLowerCase().includes(focused.value.toLowerCase())
-        );
-        await interaction.respond(filtered.slice(0, 25));
+        return interaction.respond(choices.filter(c => c.name.toLowerCase().includes(q)).slice(0, 25));
       }
+
+      if (focused.name === 'tournament') {
+        const subcommand = interaction.options.getSubcommand();
+        let list;
+        if (subcommand === 'cleanup') {
+          const tournaments = await getTournamentsByGuild(interaction.guildId);
+          list = tournaments
+            .filter(t => t.bracket && collectTournamentChannels(t.bracket).length > 0)
+            .map(t => ({ name: `${choiceName(t)} (${t.status})`.slice(0, 100), value: t.id }));
+        } else {
+          // Debug subcommands (add-test-players/teams, clear-participants)
+          const tournaments = await getActiveTournaments(interaction.guildId);
+          list = tournaments.map(t => ({ name: choiceName(t), value: t.id }));
+        }
+        return interaction.respond(list.filter(c => c.name.toLowerCase().includes(q)).slice(0, 25));
+      }
+
+      return interaction.respond([]);
+    } catch (error) {
+      console.error('[settings autocomplete] failed:', error);
+      // Respond empty rather than let Discord show "Loading options failed"
+      try { await interaction.respond([]); } catch { /* already responded / expired */ }
     }
   },
 };
