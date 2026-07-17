@@ -194,31 +194,45 @@ ${rows || '<div class="msg"><div class="content"><i>No messages.</i></div></div>
 // ============================================================================
 
 /**
- * Archive one room: history → DB → optional #match-logs mirror → delete
- * channel. Never throws for history/mirror problems — a full server must
- * still be freeable even if a fetch fails (we archive what we can).
- * @returns {{deleted: boolean, saved: boolean, messageCount: number}}
+ * Archive one room: fetch history → store in DB → mirror to #match-logs →
+ * delete the channel.
+ *
+ * Safety rule: the channel is ONLY deleted once the history is preserved
+ * somewhere (DB and/or the #match-logs file). If both fail, the room is left
+ * untouched and the failure is reported — never silent data loss. The
+ * #match-logs mirror is independent of the DB save, so the log channel gets
+ * created (and receives the HTML) even when the database write fails.
+ *
+ * @returns {{deleted, saved, mirrored, preserved, messageCount, missing?}}
  */
 async function archiveChannel({ guild, tournament, matchKey, matchLabel, channelId, participants = [] }) {
   const channel = await guild.channels.fetch(channelId).catch(() => null);
-  if (!channel) return { deleted: false, saved: false, messageCount: 0, missing: true };
+  if (!channel) return { deleted: false, saved: false, mirrored: false, preserved: false, messageCount: 0, missing: true };
 
-  let messages = [];
-  let saved = false;
+  let messages = null; // null = fetch failed; [] = empty room
   try {
     messages = await fetchChannelHistory(channel);
-    await saveTranscript({
-      tournament, matchKey, matchLabel,
-      channelName: channel.name, participants, messages,
-    });
-    saved = true;
   } catch (error) {
-    console.error(`[transcript] history save failed for ${channel.name}:`, error.message);
+    console.error(`[transcript] history fetch failed for ${channel.name}:`, error.message);
   }
 
-  // Mirror to #match-logs (best-effort)
+  let saved = false;
+  if (messages !== null) {
+    try {
+      await saveTranscript({
+        tournament, matchKey, matchLabel,
+        channelName: channel.name, participants, messages,
+      });
+      saved = true;
+    } catch (error) {
+      console.error(`[transcript] DB save failed for ${channel.name}:`, error.message);
+    }
+  }
+
+  // Mirror to #match-logs — independent of the DB save, so history survives
+  // (and the channel gets auto-created) even when the database is unhappy.
   let mirrored = false;
-  if (saved) {
+  if (messages !== null) {
     try {
       const logs = await getOrCreateMatchLogsChannel(guild);
       if (logs) {
@@ -236,15 +250,20 @@ async function archiveChannel({ guild, tournament, matchKey, matchLabel, channel
     }
   }
 
+  const preserved = saved || mirrored;
   let deleted = false;
-  try {
-    await channel.delete();
-    deleted = true;
-  } catch (error) {
-    console.error(`[transcript] delete failed for ${channel.name}:`, error.message);
+  if (preserved) {
+    try {
+      await channel.delete();
+      deleted = true;
+    } catch (error) {
+      console.error(`[transcript] delete failed for ${channel.name}:`, error.message);
+    }
+  } else {
+    console.error(`[transcript] NOT deleting ${channel.name} — history could not be preserved (DB and mirror both failed)`);
   }
 
-  return { deleted, saved, mirrored, messageCount: messages.length };
+  return { deleted, saved, mirrored, preserved, messageCount: messages?.length ?? 0 };
 }
 
 // ============================================================================

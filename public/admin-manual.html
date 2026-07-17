@@ -540,6 +540,8 @@
       <li><strong>Whole tournament:</strong> <code>/admin cleanup mode:archive</code> sweeps every
       remaining room at once.</li>
     </ul>
+    <p><strong>Safety guarantee:</strong> a room is only ever deleted once its history has been
+    safely stored — if saving fails, the channel is left untouched and the failure is reported.</p>
     <p>History lives in two places:</p>
     <ul class="steps">
       <li><strong>Web dashboard</strong> — every decided match gets a 📜 transcript link (authors,

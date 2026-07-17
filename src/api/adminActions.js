@@ -601,7 +601,11 @@ router.post('/admin/api/tournaments/:id/archive-room', ...mutate, async (req, re
       participants: [match.participant1, match.participant2].filter(Boolean).map(p => ({ id: p.id, name: name(p) })),
     });
     if (!result.deleted && !result.missing) {
-      return res.status(500).json({ error: 'Could not delete the channel — check the bot has Manage Channels.' });
+      return res.status(500).json({
+        error: result.preserved
+          ? 'History saved, but the channel could not be deleted — check the bot has Manage Channels.'
+          : 'The chat history could not be saved, so the room was left untouched. Check the bot logs.',
+      });
     }
     match.channelId = null;
     match.archiveAt = null;

@@ -51,24 +51,24 @@ module.exports = {
       await updateTournament(tournamentId, { bracket: tournament.bracket });
     }
 
-    // The room (and our reply) is gone — confirm somewhere that survives:
-    // the tournament's announcement channel.
-    try {
-      const channel = await interaction.client.channels.fetch(tournament.channelId);
-      if (res.deleted && res.saved) {
+    // Success is receipted by the transcript post in #match-logs itself (and
+    // the dashboard) — announcing every archive would spam the tournament
+    // channel 500× on big events. Only FAILURES surface there.
+    if (!res.deleted && !res.missing) {
+      try {
+        const channel = await interaction.client.channels.fetch(tournament.channelId);
         await channel.send(
-          `🗄️ **${label}** room archived by <@${interaction.user.id}> — ${res.messageCount} messages saved. ` +
-          `📜 View: web dashboard → tournament → decided matches${res.mirrored ? ', or #match-logs' : ''}.`
+          res.preserved
+            ? `❌ Could not archive **${label}** — the channel couldn't be deleted. Check the bot has **Manage Channels**. (History was saved.)`
+            : `❌ Could not archive **${label}** — the chat history could not be saved, so the room was left untouched. Check the bot logs and try again.`
         );
-      } else if (res.deleted && !res.saved) {
-        await channel.send(
-          `⚠️ **${label}** room was deleted but the chat history could **not** be saved (check the bot logs). Archived by <@${interaction.user.id}>.`
-        );
-      } else if (!res.deleted && !res.missing) {
-        await channel.send(
-          `❌ Could not archive **${label}** — the channel couldn't be deleted. Check the bot has **Manage Channels**.`
-        );
-      }
-    } catch { /* announcement channel gone — nothing more we can do */ }
+      } catch { /* announcement channel gone — the in-room reply stands */ }
+      // The room still exists in this case, so update the in-room reply too
+      await interaction.editReply({
+        content: res.preserved
+          ? '❌ History saved, but the channel could not be deleted — check the bot has **Manage Channels**.'
+          : '❌ The chat history could not be saved, so this room was **not** deleted. Check the bot logs and try again.',
+      }).catch(() => {});
+    }
   },
 };
