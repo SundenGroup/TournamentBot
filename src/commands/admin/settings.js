@@ -93,10 +93,10 @@ module.exports = {
         )
         .addIntegerOption(option =>
           option.setName('count')
-            .setDescription('Number of fake players to add')
+            .setDescription('Number of fake players to add (up to the tournament size)')
             .setRequired(true)
             .setMinValue(1)
-            .setMaxValue(64)
+            .setMaxValue(512)
         )
     )
     .addSubcommand(subcommand =>
@@ -111,10 +111,10 @@ module.exports = {
         )
         .addIntegerOption(option =>
           option.setName('count')
-            .setDescription('Number of fake teams to add')
+            .setDescription('Number of fake teams to add (up to the tournament size)')
             .setRequired(true)
             .setMinValue(1)
-            .setMaxValue(32)
+            .setMaxValue(512)
         )
     )
     .addSubcommand(subcommand =>
