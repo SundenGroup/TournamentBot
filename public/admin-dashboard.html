@@ -158,6 +158,9 @@
   .caught-up { border: 1px dashed var(--border-strong); border-radius: 12px; padding: 18px; color: var(--text-muted); font-size: 13px; text-align: center; }
 
   .dec-row { border: 1px solid var(--hairline); border-radius: 10px; background: #10141D; margin-bottom: 6px; }
+  .dec-line { display: flex; align-items: center; }
+  .dec-line .dec-head { flex: 1; min-width: 0; }
+  .dec-actions { display: flex; align-items: center; gap: 2px; padding-right: 8px; flex-shrink: 0; }
   .dec-head { display: flex; align-items: center; gap: 9px; padding: 9px 12px; font-size: 12.5px; width: 100%; background: none; border: 0; color: var(--text); cursor: pointer; text-align: left; font-family: var(--sans); }
   .dec-head:hover { background: var(--bg-hover); }
   .dec-head .n { font-family: var(--mono); color: var(--text-faint); font-size: 10px; min-width: 26px; }
@@ -352,6 +355,7 @@
 </div>
 
 <div class="toast" id="toast"></div>
+<div id="trOverlay" class="tr-overlay" style="display:none"></div>
 
 <script>
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -809,20 +813,22 @@ function renderRunLeft() {
       const auto = m.isBye ? 'bye' : m.isWalkover ? 'walkover' : m.isDQ ? 'DQ' : null;
       const fixable = !auto && m.matchNumber != null && m.participant1 && m.participant2;
       const fix = openFix === m.matchNumber ? (SEL['fix' + m.matchNumber] || {}) : {};
-      const extras =
-        (m.contested ? `<span class="chip-contested">⚠ contested</span><button class="btn-confirm" data-confirm="${m.matchNumber}" title="Confirm the reported result and close the room">Confirm</button>` : '') +
+      // Action buttons are SIBLINGS of the row button — nesting <button>
+      // inside <button> is invalid HTML and breaks every click.
+      const actions =
+        (m.contested ? `<button class="btn-confirm" data-confirm="${m.matchNumber}" title="Confirm the reported result and close the room">Confirm</button>` : '') +
         (trKeys.has(m.matchId) ? `<button class="btn-tr" data-tr="${esc(m.matchId)}" title="View room transcript">📜</button>` : '') +
         (m.hasRoom ? `<button class="btn-tr" data-arch="${m.matchNumber}" title="Archive room — saves the chat history, then deletes the channel">🗄</button>` : '');
       const head = `<span class="n">#${m.matchNumber ?? '—'}</span>
-        <span class="who"><b>${esc(winner?.name ?? '?')}</b> <span class="d">def.</span> <span class="l">${esc(loser?.name ?? (auto || '—'))}</span>${extras}</span>
+        <span class="who"><b>${esc(winner?.name ?? '?')}</b> <span class="d">def.</span> <span class="l">${esc(loser?.name ?? (auto || '—'))}</span>${m.contested ? '<span class="chip-contested">⚠ contested</span>' : ''}</span>
         <span class="sc">${esc(m.score || '')}${auto ? ` · ${auto}` : ''}</span>`;
-      if (!fixable) return `<div class="dec-row"><div class="dec-head" style="cursor:default">${head}</div></div>`;
+      if (!fixable) return `<div class="dec-row"><div class="dec-line"><div class="dec-head" style="cursor:default">${head}</div><span class="dec-actions">${actions}</span></div></div>`;
       const fw = fix.winner || m.winnerId;
       const scoreChips = d.validScores
         ? d.validScores.map(s => `<button class="schip ${fix.score === s ? 'on' : ''}" data-fscore="${s}" style="font-size:11px;padding:6px 10px">${s}</button>`).join('')
         : `<input class="free" data-ffree placeholder="score" value="${esc(fix.score || '')}" style="width:80px">`;
       return `<div class="dec-row" data-fix="${m.matchNumber}">
-        <button class="dec-head" data-toggle>${head}</button>
+        <div class="dec-line"><button class="dec-head" data-toggle>${head}</button><span class="dec-actions">${actions}</span></div>
         <div class="dec-fix ${openFix === m.matchNumber ? 'open' : ''}">
           <button class="wsm ${fw === m.participant1.id ? 'on' : ''}" data-fwin="${esc(m.participant1.id)}">${esc(m.participant1.name)}</button>
           <button class="wsm ${fw === m.participant2.id ? 'on' : ''}" data-fwin="${esc(m.participant2.id)}">${esc(m.participant2.name)}</button>
@@ -1013,8 +1019,20 @@ function wireBR(d, left) {
   });
 }
 
+function trOverlayEl() {
+  let ov = document.getElementById('trOverlay');
+  if (!ov) {
+    ov = document.createElement('div');
+    ov.id = 'trOverlay';
+    ov.className = 'tr-overlay';
+    ov.style.display = 'none';
+    document.body.appendChild(ov);
+  }
+  return ov;
+}
+
 async function openTranscript(tournamentId, key) {
-  const ov = document.getElementById('trOverlay');
+  const ov = trOverlayEl();
   ov.style.display = '';
   ov.innerHTML = `<div class="tr-panel"><div class="tr-head"><b>Loading transcript…</b><button class="x" onclick="closeTranscript()">✕</button></div></div>`;
   const r = await api(`/admin/api/tournaments/${tournamentId}/transcripts/${encodeURIComponent(key)}`);
@@ -1034,7 +1052,7 @@ async function openTranscript(tournamentId, key) {
   ov.onclick = (e) => { if (e.target === ov) closeTranscript(); };
 }
 function closeTranscript() {
-  const ov = document.getElementById('trOverlay');
+  const ov = trOverlayEl();
   ov.style.display = 'none';
   ov.innerHTML = '';
 }
