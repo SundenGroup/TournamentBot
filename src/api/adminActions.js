@@ -574,6 +574,49 @@ router.post('/admin/api/tournaments/:id/confirm-result', ...mutate, async (req, 
   }
 });
 
+// Archive one match room (transcript + delete). Manual counterpart of the
+// in-room 🗄️ button; also settles any contest on that match.
+router.post('/admin/api/tournaments/:id/archive-room', ...mutate, async (req, res) => {
+  const t = await loadOwnedForMutation(req, res);
+  if (!t) return;
+  const guild = getGuildOr503(t.guildId, res);
+  if (!guild) return;
+  if (!t.bracket) return res.status(400).json({ error: 'Tournament has not started yet.' });
+
+  const matchNumber = parseInt(req.body?.matchNumber, 10);
+  const match = findMatchByNumber(t.bracket, matchNumber);
+  if (!match) return res.status(404).json({ error: 'Match not found.' });
+  if (!match.channelId) return res.status(400).json({ error: 'This match has no room (already archived).' });
+
+  try {
+    const isSolo = t.settings.teamSize === 1;
+    const name = (p) => (p ? (isSolo ? p.username : p.name) : 'TBD');
+    const { archiveChannel } = require('../services/transcriptService');
+    const result = await archiveChannel({
+      guild,
+      tournament: t,
+      matchKey: String(match.id),
+      matchLabel: `Match #${match.matchNumber ?? '?'} — ${name(match.participant1)} vs ${name(match.participant2)}`,
+      channelId: match.channelId,
+      participants: [match.participant1, match.participant2].filter(Boolean).map(p => ({ id: p.id, name: name(p) })),
+    });
+    if (!result.deleted && !result.missing) {
+      return res.status(500).json({ error: 'Could not delete the channel — check the bot has Manage Channels.' });
+    }
+    match.channelId = null;
+    match.archiveAt = null;
+    match.contested = false;
+    match.contestedBy = null;
+    const { updateTournament } = require('../services/tournamentService');
+    await updateTournament(t.id, { bracket: t.bracket });
+    await audit(req, t, 'archive-room', { matchNumber, messages: result.messageCount });
+    res.json({ ok: true, saved: result.saved, messageCount: result.messageCount });
+  } catch (err) {
+    console.error(`[web-admin] ${req.method} ${req.path} failed:`, err.message);
+    res.status(400).json({ error: err.message });
+  }
+});
+
 // ── Battle Royale: report / correct / kills (the dashboard grid) ─────────────
 
 /** Shared validation for BR grid submissions. Returns null + responds on error. */

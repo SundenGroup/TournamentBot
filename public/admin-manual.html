@@ -530,8 +530,17 @@
     </ul>
 
     <h3>Archiving — free capacity, keep the history</h3>
-    <p><code>/admin cleanup mode:archive</code> saves each room's <strong>full chat history</strong>,
-    then deletes the channel. History lives in two places:</p>
+    <p>Three ways to archive, all of which save the room's <strong>full chat history</strong> before
+    deleting the channel:</p>
+    <ul class="steps">
+      <li><strong>Per room:</strong> after every reported result, the room posts a
+      <strong>🗄️ Archive room</strong> button (admins only) — one tap closes that room.</li>
+      <li><strong>Per match on the web:</strong> the dashboard's decided list has a 🗄 action on any
+      match whose room is still open.</li>
+      <li><strong>Whole tournament:</strong> <code>/admin cleanup mode:archive</code> sweeps every
+      remaining room at once.</li>
+    </ul>
+    <p>History lives in two places:</p>
     <ul class="steps">
       <li><strong>Web dashboard</strong> — every decided match gets a 📜 transcript link (authors,
       timestamps, attachments). Browsable during the event and forever after.</li>

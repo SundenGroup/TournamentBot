@@ -811,7 +811,8 @@ function renderRunLeft() {
       const fix = openFix === m.matchNumber ? (SEL['fix' + m.matchNumber] || {}) : {};
       const extras =
         (m.contested ? `<span class="chip-contested">⚠ contested</span><button class="btn-confirm" data-confirm="${m.matchNumber}" title="Confirm the reported result and close the room">Confirm</button>` : '') +
-        (trKeys.has(m.matchId) ? `<button class="btn-tr" data-tr="${esc(m.matchId)}" title="View room transcript">📜</button>` : '');
+        (trKeys.has(m.matchId) ? `<button class="btn-tr" data-tr="${esc(m.matchId)}" title="View room transcript">📜</button>` : '') +
+        (m.hasRoom ? `<button class="btn-tr" data-arch="${m.matchNumber}" title="Archive room — saves the chat history, then deletes the channel">🗄</button>` : '');
       const head = `<span class="n">#${m.matchNumber ?? '—'}</span>
         <span class="who"><b>${esc(winner?.name ?? '?')}</b> <span class="d">def.</span> <span class="l">${esc(loser?.name ?? (auto || '—'))}</span>${extras}</span>
         <span class="sc">${esc(m.score || '')}${auto ? ` · ${auto}` : ''}</span>`;
@@ -1045,6 +1046,15 @@ function wireRunLeft(d, left) {
   left.querySelectorAll('[data-tr]').forEach(btn => btn.addEventListener('click', (e) => {
     e.stopPropagation();
     openTranscript(d.id, btn.dataset.tr);
+  }));
+  left.querySelectorAll('[data-arch]').forEach(btn => btn.addEventListener('click', async (e) => {
+    e.stopPropagation();
+    btn.disabled = true;
+    const r = await api(`/admin/api/tournaments/${d.id}/archive-room`, { method: 'POST', body: { matchNumber: btn.dataset.arch } });
+    btn.disabled = false;
+    if (!r.ok) return toast(r.error, true);
+    toast(`Room archived — ${r.data.messageCount} messages saved.`);
+    refreshRun();
   }));
   left.querySelectorAll('[data-confirm]').forEach(btn => btn.addEventListener('click', async (e) => {
     e.stopPropagation();

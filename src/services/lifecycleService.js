@@ -868,21 +868,42 @@ async function getAutoArchiveMinutes(tournament) {
 }
 
 /**
- * After a result: stamp `archiveAt` on the match (persisted with the bracket
- * → restart-safe) and post the closing notice with the contest button.
+ * After a result, post the room's closing controls. With rolling auto-archive
+ * on (Pro), the room gets a countdown + contest button and `archiveAt` is
+ * stamped on the match (persisted → restart-safe). Without it, admins still
+ * get a manual "🗄️ Archive room" button — history is saved either way.
  */
 async function scheduleMatchArchive(client, tournament, match) {
   try {
     if (!match?.channelId || match.contested) return;
     const minutes = await getAutoArchiveMinutes(tournament);
-    if (!minutes) return;
-
-    match.archiveAt = Date.now() + minutes * 60 * 1000;
 
     const isSolo = tournament.settings.teamSize === 1;
     const winnerName = isSolo ? match.winner?.username : match.winner?.name;
     const channel = await client.channels.fetch(match.channelId).catch(() => null);
     if (!channel) return;
+
+    const resultLine = `✅ Result recorded${winnerName ? `: **${winnerName}** wins` : ''}${match.score ? ` (${match.score})` : ''}. `;
+
+    if (!minutes) {
+      // Manual mode: no timer — just hand admins the archive button.
+      const row = new ActionRowBuilder().addComponents(
+        new ButtonBuilder()
+          .setCustomId(`archiveNow:${tournament.id}:${match.id}`)
+          .setLabel('🗄️ Archive room (admin)')
+          .setStyle(ButtonStyle.Secondary)
+      );
+      await channel.send({
+        content:
+          resultLine +
+          `Admins can archive this room when it's no longer needed — the full chat history is saved to the web dashboard` +
+          ` (and #match-logs) before the channel is deleted.`,
+        components: [row],
+      });
+      return;
+    }
+
+    match.archiveAt = Date.now() + minutes * 60 * 1000;
 
     const row = new ActionRowBuilder().addComponents(
       new ButtonBuilder()
@@ -896,7 +917,7 @@ async function scheduleMatchArchive(client, tournament, match) {
     );
     await channel.send({
       content:
-        `✅ Result recorded${winnerName ? `: **${winnerName}** wins` : ''}${match.score ? ` (${match.score})` : ''}. ` +
+        resultLine +
         `This room closes in **${minutes} min** — the full chat history is saved and stays available to admins.\n` +
         `Spot a problem with the result? Tap **⚠️ Contest result** to keep the room open and alert the admins.`,
       components: [row],
