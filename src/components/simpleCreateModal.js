@@ -51,9 +51,11 @@ module.exports = {
     }
 
     const maxParticipants = parseInt(maxParticipantsStr, 10);
-    if (isNaN(maxParticipants) || maxParticipants < 2 || maxParticipants > 128) {
+    // Only the platform hard cap is enforced here; the per-plan limit is
+    // applied by runCreationChecks below (respects the server's tier).
+    if (isNaN(maxParticipants) || maxParticipants < 2 || maxParticipants > 512) {
       return interaction.reply({
-        content: '❌ Max participants must be a number between 2 and 128.',
+        content: '❌ Max participants must be a number between 2 and 512.',
         ephemeral: true,
       });
     }

@@ -48,11 +48,12 @@ module.exports = {
       });
     }
 
-    // Validate max participants
+    // Validate max participants against the platform hard cap only; the
+    // per-plan limit is applied later by runCreationChecks (respects tier).
     const maxParticipants = parseInt(maxParticipantsStr, 10);
-    if (isNaN(maxParticipants) || maxParticipants < 2 || maxParticipants > 128) {
+    if (isNaN(maxParticipants) || maxParticipants < 2 || maxParticipants > 512) {
       return interaction.reply({
-        content: '❌ Max participants must be a number between 2 and 128.',
+        content: '❌ Max participants must be a number between 2 and 512.',
         ephemeral: true,
       });
     }
