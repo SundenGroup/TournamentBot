@@ -31,13 +31,14 @@ module.exports = {
 
     const isSolo = tournament.settings.teamSize === 1;
     const name = (p) => (p ? (isSolo ? p.username : p.name) : 'TBD');
+    const label = `Match #${match.matchNumber ?? '?'} — ${name(match.participant1)} vs ${name(match.participant2)}`;
     const { archiveChannel } = require('../services/transcriptService');
 
     const res = await archiveChannel({
       guild: interaction.guild,
       tournament,
       matchKey: String(match.id),
-      matchLabel: `Match #${match.matchNumber ?? '?'} — ${name(match.participant1)} vs ${name(match.participant2)}`,
+      matchLabel: label,
       channelId: match.channelId,
       participants: [match.participant1, match.participant2].filter(Boolean).map(p => ({ id: p.id, name: name(p) })),
     });
@@ -49,6 +50,25 @@ module.exports = {
       match.contestedBy = null;
       await updateTournament(tournamentId, { bracket: tournament.bracket });
     }
-    // The channel is gone — no follow-up edit possible (the reply died with it)
+
+    // The room (and our reply) is gone — confirm somewhere that survives:
+    // the tournament's announcement channel.
+    try {
+      const channel = await interaction.client.channels.fetch(tournament.channelId);
+      if (res.deleted && res.saved) {
+        await channel.send(
+          `🗄️ **${label}** room archived by <@${interaction.user.id}> — ${res.messageCount} messages saved. ` +
+          `📜 View: web dashboard → tournament → decided matches${res.mirrored ? ', or #match-logs' : ''}.`
+        );
+      } else if (res.deleted && !res.saved) {
+        await channel.send(
+          `⚠️ **${label}** room was deleted but the chat history could **not** be saved (check the bot logs). Archived by <@${interaction.user.id}>.`
+        );
+      } else if (!res.deleted && !res.missing) {
+        await channel.send(
+          `❌ Could not archive **${label}** — the channel couldn't be deleted. Check the bot has **Manage Channels**.`
+        );
+      }
+    } catch { /* announcement channel gone — nothing more we can do */ }
   },
 };

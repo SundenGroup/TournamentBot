@@ -217,6 +217,7 @@ async function archiveChannel({ guild, tournament, matchKey, matchLabel, channel
   }
 
   // Mirror to #match-logs (best-effort)
+  let mirrored = false;
   if (saved) {
     try {
       const logs = await getOrCreateMatchLogsChannel(guild);
@@ -226,6 +227,9 @@ async function archiveChannel({ guild, tournament, matchKey, matchLabel, channel
           content: `📜 **${matchLabel}** — ${tournament.title} · ${messages.length} messages`,
           files: [new AttachmentBuilder(Buffer.from(html), { name: `transcript-${channel.name}.html` })],
         });
+        mirrored = true;
+      } else {
+        console.log('[transcript] match-logs mirror skipped (disabled for this server)');
       }
     } catch (error) {
       console.error('[transcript] match-logs mirror failed:', error.message);
@@ -240,7 +244,7 @@ async function archiveChannel({ guild, tournament, matchKey, matchLabel, channel
     console.error(`[transcript] delete failed for ${channel.name}:`, error.message);
   }
 
-  return { deleted, saved, messageCount: messages.length };
+  return { deleted, saved, mirrored, messageCount: messages.length };
 }
 
 // ============================================================================
