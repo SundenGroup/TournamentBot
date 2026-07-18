@@ -42,6 +42,41 @@ const PLAYER_ALLOW = [
   PermissionFlagsBits.ReadMessageHistory,
 ];
 
+// Discord rejects a channel create outright (50013) if any overwrite
+// references a permission the creator doesn't hold — so one stale bit in an
+// allow-list kills every room on a server that invited the bot with minimal
+// permissions. Dropping unheld ALLOW bits keeps rooms working; the @everyone
+// ViewChannel DENY is never filtered, so a bot that can't make rooms private
+// fails loudly instead of silently creating public ones.
+function filterAllowsToHeld(guild, overwrites) {
+  const held = guild.members.me?.permissions;
+  if (!held || held.has(PermissionFlagsBits.Administrator)) return overwrites;
+  return overwrites.map(ow => {
+    if (!ow.allow) return ow;
+    const allow = (Array.isArray(ow.allow) ? ow.allow : [ow.allow]).filter(bit => held.has(bit));
+    return { ...ow, allow };
+  });
+}
+
+// Everything the bot needs guild-wide for rooms + announcements + archiving.
+const REQUIRED_BOT_PERMS = [
+  [PermissionFlagsBits.ViewChannel, 'View Channels'],
+  [PermissionFlagsBits.ManageChannels, 'Manage Channels'],
+  [PermissionFlagsBits.ManageRoles, 'Manage Roles'],
+  [PermissionFlagsBits.SendMessages, 'Send Messages'],
+  [PermissionFlagsBits.EmbedLinks, 'Embed Links'],
+  [PermissionFlagsBits.AttachFiles, 'Attach Files'],
+  [PermissionFlagsBits.ReadMessageHistory, 'Read Message History'],
+];
+
+/** Display names of required permissions the bot is missing in this guild. */
+function getMissingBotPerms(guild) {
+  const held = guild.members.me?.permissions;
+  if (!held) return [];
+  if (held.has(PermissionFlagsBits.Administrator)) return [];
+  return REQUIRED_BOT_PERMS.filter(([bit]) => !held.has(bit)).map(([, name]) => name);
+}
+
 /**
  * Create a private channel, adding each player as an explicitly-typed Member
  * overwrite. If the bulk create fails (most commonly because a participant
@@ -54,7 +89,8 @@ async function createPrivateChannel(guild, { name, parentId, baseOverwrites, mem
   const memberOverwrites = memberIds.map(id => ({
     id, type: OverwriteType.Member, allow: PLAYER_ALLOW,
   }));
-  const options = { name, type: ChannelType.GuildText, permissionOverwrites: [...baseOverwrites, ...memberOverwrites] };
+  baseOverwrites = filterAllowsToHeld(guild, baseOverwrites);
+  const options = { name, type: ChannelType.GuildText, permissionOverwrites: [...baseOverwrites, ...filterAllowsToHeld(guild, memberOverwrites)] };
   if (parentId) options.parent = parentId;
 
   try {
@@ -164,7 +200,6 @@ async function _createMatchRoom(guild, match, tournament) {
         PermissionFlagsBits.ViewChannel,
         PermissionFlagsBits.SendMessages,
         PermissionFlagsBits.ManageChannels,
-        PermissionFlagsBits.ManageMessages,
         PermissionFlagsBits.EmbedLinks,
         PermissionFlagsBits.ReadMessageHistory,
       ],
@@ -443,7 +478,6 @@ async function _createBRGroupRoom(guild, group, tournament) {
         PermissionFlagsBits.ViewChannel,
         PermissionFlagsBits.SendMessages,
         PermissionFlagsBits.ManageChannels,
-        PermissionFlagsBits.ManageMessages,
         PermissionFlagsBits.EmbedLinks,
         PermissionFlagsBits.ReadMessageHistory,
       ],
@@ -778,6 +812,7 @@ module.exports = {
   archiveMatchRoom,
   bulkCleanupChannels,
   clearBracketChannelIds,
+  getMissingBotPerms,
   // Capacity (docs/CHANNEL-CAPACITY-PLAN.md)
   getChannelCapacity,
   isCapacityError,

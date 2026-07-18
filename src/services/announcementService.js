@@ -69,7 +69,6 @@ async function getOrCreateAnnouncementChannel(guild, gamePreset = null) {
             PermissionFlagsBits.ViewChannel,
             PermissionFlagsBits.SendMessages,
             PermissionFlagsBits.EmbedLinks,
-            PermissionFlagsBits.ManageMessages,
           ],
         },
       ],

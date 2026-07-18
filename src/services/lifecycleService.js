@@ -14,7 +14,7 @@
 const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const { getTournament, updateTournament, adminRemoveEntrant, resolveTeamMembers } = require('./tournamentService');
 const { getServiceForBracket, findMatchByNumber, normalizeSeriesScore } = require('../utils/matchUtils');
-const { createMatchRoom, createBRGroupRoom, collectTournamentChannels, bulkCleanupChannels, clearBracketChannelIds, getChannelCapacity, isCapacityError } = require('./channelService');
+const { createMatchRoom, createBRGroupRoom, collectTournamentChannels, bulkCleanupChannels, clearBracketChannelIds, getChannelCapacity, isCapacityError, getMissingBotPerms } = require('./channelService');
 const { notifyByesAndWalkovers, getStartByeSummary } = require('../utils/byeNotifier');
 const { updateTournamentMessages } = require('../utils/tournamentUpdater');
 const { createTournamentEmbed, createTournamentButtons, getBracketUrl } = require('../utils/embedBuilder');
@@ -152,6 +152,7 @@ async function startTournamentFlow({ client, guild, tournamentId }) {
         roomsFailed,
         capacityHit,
         capacity: getChannelCapacity(guild),
+        missingPerms: roomsFailed > 0 ? getMissingBotPerms(guild) : [],
         byeSummary: getStartByeSummary(tournament),
         bracketUrl: getBracketUrl(tournament),
       },
@@ -169,7 +170,7 @@ async function startTournamentFlow({ client, guild, tournamentId }) {
 
 /** The "Tournament Started" embed — shared copy for slash + button + logs. */
 function buildStartEmbed(tournament, summary) {
-  const { participantCount, isSolo, format, formatName, roomsCreated, roomsFailed, byeSummary, bracketUrl, capacityHit, capacity } = summary;
+  const { participantCount, isSolo, format, formatName, roomsCreated, roomsFailed, byeSummary, bracketUrl, capacityHit, capacity, missingPerms } = summary;
   const bracket = tournament.bracket;
 
   let description = `**${tournament.title}** is now live!\n\n`;
@@ -179,7 +180,10 @@ function buildStartEmbed(tournament, summary) {
     description += `• 🚨 **Server channel limit reached (Discord caps servers at 500)** — ${roomsFailed} room(s) missing. ` +
       `Free slots with \`/admin cleanup mode:archive\`, then run \`/tournament create-rooms\`.\n`;
   } else if (roomsFailed > 0) {
-    description += `• ⚠️ **${roomsFailed} room(s) failed to create** — run \`/tournament create-rooms\` to retry, and check the bot has Manage Channels + Manage Roles.\n`;
+    const why = missingPerms?.length
+      ? `the bot's role is missing **${missingPerms.join(', ')}** — grant these in Server Settings → Roles (or re-invite via tournaments.clutch.game)`
+      : `check the bot's role position and the match category's permission overrides`;
+    description += `• ⚠️ **${roomsFailed} room(s) failed to create** — ${why}, then run \`/tournament create-rooms\` to retry.\n`;
   }
   if (!capacityHit && capacity && capacity.used > 400) {
     description += `• 📊 Channel capacity: **${capacity.used}/${capacity.cap}** used — consider \`/admin set-auto-archive\` for big events.\n`;

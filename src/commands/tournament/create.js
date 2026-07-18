@@ -543,11 +543,23 @@ async function handleAdvancedCreate(interaction) {
     await updateSession(session.id, { announcementChannelId: overrideChannel.id });
   }
 
-  // Live web bracket (Pro/Business) defaults to ON when the tier allows it;
-  // the settings screen exposes a toggle either way.
+  // Live web bracket defaults to ON when the tier allows it; the settings
+  // screen exposes a toggle either way.
   const bracketEligible = (await checkFeature(interaction.guildId, 'public_bracket')).allowed;
-  if (bracketEligible) {
-    await updateSession(session.id, { publicBracket: true });
+
+  // Snapshot which Pro features this server lacks so the wizard can render
+  // them locked (🔒) instead of letting the user configure a blocked event.
+  // Labels only — every toggle re-checks live before enabling.
+  const lockedPro = [];
+  for (const feature of ['seeding', 'captain_mode', 'auto_archive']) {
+    if (!(await checkFeature(interaction.guildId, feature)).allowed) lockedPro.push(feature);
+  }
+
+  const patch = {};
+  if (bracketEligible) patch.publicBracket = true;
+  if (lockedPro.length) patch.lockedPro = lockedPro;
+  if (Object.keys(patch).length) {
+    await updateSession(session.id, patch);
   }
 
   const featuredKeys = getFeaturedPresetKeys();
@@ -1002,7 +1014,11 @@ async function handleCreateRooms(interaction) {
       `Free slots with \`/admin cleanup mode:archive\` (history is saved) and run this again. ` +
       `\`/admin set-auto-archive\` keeps big events under the cap automatically.`;
   } else if (failed > 0) {
-    response += `• ⚠️ ${failed} still failed — confirm the bot has **Manage Channels** + **Manage Roles**, that its role sits above the others, and that the match-room category (if set) isn't full.`;
+    const { getMissingBotPerms } = require('../../services/channelService');
+    const missing = getMissingBotPerms(interaction.guild);
+    response += missing.length
+      ? `• ⚠️ ${failed} still failed — the bot's role is missing **${missing.join(', ')}**. Grant these in Server Settings → Roles (or re-invite via tournaments.clutch.game) and run this again.`
+      : `• ⚠️ ${failed} still failed — check the bot's role position and that the match-room category (if set) isn't full.`;
   } else if (created === 0 && existing > 0) {
     response += `\nAll current matches already have rooms. ✅`;
   } else if (created === 0 && existing === 0) {
