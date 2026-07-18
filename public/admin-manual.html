@@ -125,9 +125,8 @@
     /* ── Tier tags ── */
     .tag { display: inline-block; font-family: var(--mono); font-size: 9.5px; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; padding: 2px 8px; border-radius: 4px; vertical-align: middle; }
     .tag-free { background: rgba(149,165,166,.15); color: #95a5a6; }
-    .tag-premium { background: rgba(94,107,255,.15); color: #8f9bff; }
     .tag-pro { background: rgba(155,89,182,.15); color: #b07cd8; }
-    .tag-business { background: rgba(241,196,15,.15); color: #f1c40f; }
+    .tag-studio { background: rgba(241,196,15,.15); color: #f1c40f; }
 
     /* ── Steps ── */
     .steps { counter-reset: step; list-style: none; margin-left: 0; }
@@ -317,16 +316,16 @@
           <tr><td><strong>Format</strong></td><td>Single Elimination, Double Elimination, Swiss, Round Robin</td></tr>
           <tr><td><strong>Team Size</strong></td><td>Solo, 2v2, 3v3, up to 10v10 (varies by game)</td></tr>
           <tr><td><strong>Best Of</strong></td><td>Bo1, Bo3, Bo5, Bo7</td></tr>
-          <tr><td><strong>Check-in</strong></td><td>On / Off <span class="tag tag-premium">Premium</span></td></tr>
+          <tr><td><strong>Check-in</strong></td><td>On / Off</td></tr>
           <tr><td><strong>Game Nickname</strong></td><td>Require an in-game name on signup. For <strong>GOALS</strong> this collects two fields — <strong>GOALS Username</strong> and <strong>GOALS User ID</strong> (pasted from the app, Account settings → Goals User ID → Copy, length-checked). The Username shows in the public signup list; the User ID is <strong>private</strong> — it's never shown publicly, only to admins on the <a href="/admin">web dashboard</a> (Manage → Entrants).</td></tr>
-          <tr><td><strong>Captain Mode</strong></td><td>On / Off <span class="tag tag-premium">Premium</span></td></tr>
-          <tr><td><strong>Seeding</strong></td><td>On / Off <span class="tag tag-premium">Premium</span></td></tr>
-          <tr><td><strong>Web Bracket</strong></td><td>On / Off <span class="tag tag-pro">Pro</span> — public auto-updating bracket page at tournaments.clutch.game, linked from the announcement</td></tr>
+          <tr><td><strong>Captain Mode</strong></td><td>On / Off <span class="tag tag-pro">Pro</span></td></tr>
+          <tr><td><strong>Seeding</strong></td><td>On / Off <span class="tag tag-pro">Pro</span></td></tr>
+          <tr><td><strong>Web Bracket</strong></td><td>On / Off — public auto-updating bracket page at tournaments.clutch.game, linked from the announcement</td></tr>
         </tbody>
       </table>
     </div>
 
-    <p>Click <strong>More Options</strong> for check-in window (5–120 min), required roles, and — for single elimination — a <strong>3rd Place Match</strong> toggle (semifinal losers play it out instead of sharing third).</p>
+    <p>Click <strong>More Options</strong> for check-in window (5–120 min), required roles <span class="tag tag-pro">Pro</span>, and — for single elimination — a <strong>3rd Place Match</strong> toggle (semifinal losers play it out instead of sharing third).</p>
   </section>
 
   <!-- ================================================================
@@ -455,7 +454,7 @@
     </div>
     <p>All team commands only work during the <strong>registration</strong> phase.</p>
 
-    <h3>Captain Mode <span class="tag tag-premium">Premium</span></h3>
+    <h3>Captain Mode <span class="tag tag-pro">Pro</span></h3>
     <p>Normally, all team members must be in the server at signup. With Captain Mode enabled, the captain just types names — members don't need to be in the server yet. The bot resolves names to server members immediately when it can (those members are DMed right away); unmatched names show as <em>(pending)</em> on the signup list and are resolved — and DMed — when the tournament starts. Great for cross-server communities.</p>
   </section>
 
@@ -463,7 +462,7 @@
        7. Seeding
        ================================================================ -->
   <section id="seeding">
-    <h2><span class="secnum">06</span>Seeding <span class="tag tag-premium">Premium</span></h2>
+    <h2><span class="secnum">06</span>Seeding <span class="tag tag-pro">Pro</span></h2>
     <p>Seeding must be enabled when creating the tournament (toggle it on in Advanced Mode).</p>
 
     <pre><code><span class="cmd">/tournament seed set</span> <span class="param">tournament:</span><span class="value">Friday Night Fights</span> <span class="param">participant:</span><span class="value">PlayerA</span> <span class="param">seed:</span><span class="value">1</span></code></pre>
@@ -496,8 +495,8 @@
           <tr><td><code>/admin set-announcement-channel</code></td><td>Set where tournament embeds post — add the optional <code>game:</code> parameter to give one game its own channel</td><td><span class="tag tag-free">Free</span></td></tr>
           <tr><td><code>/admin set-match-category</code></td><td>Set where match rooms are created</td><td><span class="tag tag-free">Free</span></td></tr>
           <tr><td><code>/admin set-role</code></td><td>Add/remove tournament admin roles (up to 3)</td><td><span class="tag tag-free">Free</span></td></tr>
-          <tr><td><code>/admin set-auto-cleanup</code></td><td>Auto-delete/archive match rooms after tournaments</td><td><span class="tag tag-premium">Premium</span></td></tr>
-          <tr><td><code>/admin set-captain-mode</code></td><td>Enable captain mode server-wide</td><td><span class="tag tag-premium">Premium</span></td></tr>
+          <tr><td><code>/admin set-auto-cleanup</code></td><td>Auto-delete/archive match rooms after tournaments</td><td><span class="tag tag-pro">Pro</span></td></tr>
+          <tr><td><code>/admin set-captain-mode</code></td><td>Enable captain mode server-wide</td><td><span class="tag tag-pro">Pro</span></td></tr>
           <tr><td><code>/admin cleanup</code></td><td>Manually clean up match rooms</td><td><span class="tag tag-free">Free</span></td></tr>
           <tr><td><code>/admin help</code></td><td>Full command reference</td><td><span class="tag tag-free">Free</span></td></tr>
         </tbody>
@@ -642,7 +641,7 @@
           <tr><td><code>/subscribe plans</code></td><td>Compare all tiers side-by-side</td></tr>
           <tr><td><code>/subscribe upgrade</code></td><td>Purchase a subscription (opens Stripe)</td></tr>
           <tr><td><code>/subscribe manage</code></td><td>Update payment or cancel (Stripe portal)</td></tr>
-          <tr><td><code>/subscribe trial</code></td><td>Start a free 7-day Premium trial</td></tr>
+          <tr><td><code>/subscribe trial</code></td><td>Start a free 7-day Pro trial</td></tr>
         </tbody>
       </table>
     </div>
@@ -704,10 +703,10 @@
           <tr><td><code>/tournament remove-team</code></td><td>Remove a team before the tournament starts</td></tr>
           <tr><td><code>/tournament create-rooms</code></td><td>Retry creating missing match rooms for the current round</td></tr>
           <tr><td><code>/tournament bracket</code></td><td>View bracket / standings</td></tr>
-          <tr><td><code>/tournament seed set</code></td><td>Set a participant's seed <span class="tag tag-premium">Premium</span></td></tr>
-          <tr><td><code>/tournament seed list</code></td><td>View current seeding <span class="tag tag-premium">Premium</span></td></tr>
-          <tr><td><code>/tournament seed randomize</code></td><td>Randomize seeds <span class="tag tag-premium">Premium</span></td></tr>
-          <tr><td><code>/tournament seed clear</code></td><td>Clear all seeds <span class="tag tag-premium">Premium</span></td></tr>
+          <tr><td><code>/tournament seed set</code></td><td>Set a participant's seed <span class="tag tag-pro">Pro</span></td></tr>
+          <tr><td><code>/tournament seed list</code></td><td>View current seeding <span class="tag tag-pro">Pro</span></td></tr>
+          <tr><td><code>/tournament seed randomize</code></td><td>Randomize seeds <span class="tag tag-pro">Pro</span></td></tr>
+          <tr><td><code>/tournament seed clear</code></td><td>Clear all seeds <span class="tag tag-pro">Pro</span></td></tr>
         </tbody>
       </table>
     </div>
@@ -721,8 +720,8 @@
           <tr><td><code>/admin set-announcement-channel</code></td><td>Set announcement channel — add <code>game:</code> for a per-game override</td></tr>
           <tr><td><code>/admin set-match-category</code></td><td>Set match room category</td></tr>
           <tr><td><code>/admin set-role</code></td><td>Manage tournament admin roles</td></tr>
-          <tr><td><code>/admin set-auto-cleanup</code></td><td>Toggle auto-cleanup <span class="tag tag-premium">Premium</span></td></tr>
-          <tr><td><code>/admin set-captain-mode</code></td><td>Toggle captain mode <span class="tag tag-premium">Premium</span></td></tr>
+          <tr><td><code>/admin set-auto-cleanup</code></td><td>Toggle auto-cleanup <span class="tag tag-pro">Pro</span></td></tr>
+          <tr><td><code>/admin set-captain-mode</code></td><td>Toggle captain mode <span class="tag tag-pro">Pro</span></td></tr>
           <tr><td><code>/admin cleanup</code></td><td>Clean up match rooms</td></tr>
           <tr><td><code>/admin help</code></td><td>Full command reference</td></tr>
         </tbody>
@@ -820,7 +819,7 @@
             <th></th>
             <th><span class="tag tag-free">Free</span></th>
             <th><span class="tag tag-pro">Pro — $9.99/mo · $79/yr</span></th>
-            <th><span class="tag tag-business">Studio — contact</span></th>
+            <th><span class="tag tag-studio">Studio — contact</span></th>
           </tr>
         </thead>
         <tbody>
