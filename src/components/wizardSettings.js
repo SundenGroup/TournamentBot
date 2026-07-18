@@ -42,7 +42,10 @@ function buildSettingsMessage(session) {
   content += `**Date:** ${dateDisplay}\n`;
   content += `**Players:** ${data.maxParticipants}\n\n`;
   content += `Customize your tournament settings below, or create with defaults.\n`;
-  content += `-# 💎 Pro features — toggles turn green when on.`;
+  const locked = data.lockedPro || [];
+  content += locked.length
+    ? `-# 💎 = Pro. 🔒 toggles are locked on your plan — \`/subscribe trial\` unlocks them free for 7 days.`
+    : `-# 💎 Pro features — toggles turn green when on.`;
 
   const rows = [];
 
@@ -109,11 +112,11 @@ function buildSettingsMessage(session) {
       .setStyle(data.requireGameNick ? ButtonStyle.Success : ButtonStyle.Secondary),
     new ButtonBuilder()
       .setCustomId(`wizardSettings:${session.id}:toggleCaptain`)
-      .setLabel(`${data.captainMode ? '✅' : '❌'} Captain Mode 💎`)
+      .setLabel(`${locked.includes('captain_mode') ? '🔒' : data.captainMode ? '✅' : '❌'} Captain Mode 💎`)
       .setStyle(data.captainMode ? ButtonStyle.Success : ButtonStyle.Secondary),
     new ButtonBuilder()
       .setCustomId(`wizardSettings:${session.id}:toggleSeeding`)
-      .setLabel(`${data.seedingEnabled ? '✅' : '❌'} Seeding 💎`)
+      .setLabel(`${locked.includes('seeding') ? '🔒' : data.seedingEnabled ? '✅' : '❌'} Seeding 💎`)
       .setStyle(data.seedingEnabled ? ButtonStyle.Success : ButtonStyle.Secondary),
     new ButtonBuilder()
       .setCustomId(`wizardSettings:${session.id}:togglePublicBracket`)
@@ -145,8 +148,23 @@ function buildSettingsMessage(session) {
   return { content, components: rows };
 }
 
+/**
+ * Live entitlement check when a user enables a Pro-gated wizard toggle.
+ * Returns true if allowed; otherwise replies with the upgrade prompt
+ * (leaving the wizard message untouched) and returns false.
+ */
+async function gateProToggle(interaction, feature) {
+  const { checkFeature, getEffectiveTier, getUpgradeEmbed } = require('../services/subscriptionService');
+  const check = await checkFeature(interaction.guildId, feature);
+  if (check.allowed) return true;
+  const tier = await getEffectiveTier(interaction.guildId);
+  await interaction.reply(getUpgradeEmbed(feature, tier));
+  return false;
+}
+
 module.exports = {
   customId: 'wizardSettings',
+  gateProToggle,
 
   // Export for use by wizardBasic
   buildSettingsMessage,
@@ -216,11 +234,13 @@ module.exports = {
         }
 
         case 'toggleCaptain': {
+          if (!session.data.captainMode && !(await gateProToggle(interaction, 'captain_mode'))) return;
           const updated = await updateSession(sessionId, { captainMode: !session.data.captainMode });
           return interaction.update(buildSettingsMessage(updated || session));
         }
 
         case 'toggleSeeding': {
+          if (!session.data.seedingEnabled && !(await gateProToggle(interaction, 'seeding'))) return;
           const updated = await updateSession(sessionId, { seedingEnabled: !session.data.seedingEnabled });
           return interaction.update(buildSettingsMessage(updated || session));
         }

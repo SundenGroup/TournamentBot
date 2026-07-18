@@ -98,10 +98,11 @@ function buildOptionsMessage(session) {
 
   if (!isBR) {
     // Rolling auto-archive override (Pro): close rooms X min after results.
+    const aaLocked = (data.lockedPro || []).includes('auto_archive');
     const aaOptions = [
       { label: 'Auto-archive: server default', value: 'inherit' },
       { label: 'Auto-archive: off for this tournament', value: '0' },
-      ...[5, 10, 15, 30, 60].map(min => ({ label: `Close rooms ${min} min after result 💎`, value: String(min) })),
+      ...[5, 10, 15, 30, 60].map(min => ({ label: `${aaLocked ? '🔒 ' : ''}Close rooms ${min} min after result 💎`, value: String(min) })),
     ].map(opt => ({
       ...opt,
       default: data.autoArchiveMinutes == null
@@ -218,11 +219,21 @@ module.exports = {
         case 'checkinWindow':
           updated = await updateSession(sessionId, { checkinWindow: parseInt(value, 10) });
           break;
-        case 'autoArchive':
-          updated = await updateSession(sessionId, {
-            autoArchiveMinutes: value === 'inherit' ? null : parseInt(value, 10),
-          });
+        case 'autoArchive': {
+          const minutes = value === 'inherit' ? null : parseInt(value, 10);
+          if (minutes > 0) {
+            const { checkFeature, getEffectiveTier, getUpgradeEmbed } = require('../services/subscriptionService');
+            if (!(await checkFeature(interaction.guildId, 'auto_archive')).allowed) {
+              // Re-render to snap the select back to its stored value, then
+              // send the upgrade prompt as a follow-up.
+              await interaction.update(buildOptionsMessage(session));
+              const tier = await getEffectiveTier(interaction.guildId);
+              return interaction.followUp(getUpgradeEmbed('auto_archive', tier));
+            }
+          }
+          updated = await updateSession(sessionId, { autoArchiveMinutes: minutes });
           break;
+        }
       }
 
       // Render with the freshly-updated session, not the stale snapshot.

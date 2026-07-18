@@ -496,7 +496,13 @@ function getUpgradeEmbed(feature, currentTier, customReason = null) {
     .setDescription(customReason || `**${FEATURE_NAMES[feature] || feature}** requires ${capitalize(requiredTier)} tier.`)
     .addFields(
       { name: 'Your Current Tier', value: capitalize(currentTier), inline: true },
-      { name: 'Required Tier', value: capitalize(requiredTier), inline: true }
+      { name: 'Required Tier', value: capitalize(requiredTier), inline: true },
+      {
+        name: 'What you can do',
+        value: requiredTier === 'pro'
+          ? '`/subscribe trial` — try Pro free for 7 days\n`/subscribe upgrade` — from $9.99/mo\nOr leave this feature off and continue on your current plan.'
+          : 'Studio is our partner plan — reach out via `/subscribe plans` → Contact.\nOr leave this feature off and continue on your current plan.',
+      }
     );
 
   const row = new ActionRowBuilder()
