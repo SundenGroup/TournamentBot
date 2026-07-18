@@ -252,6 +252,18 @@
 .br-standings td { padding: 5px 8px; border-bottom: 1px solid var(--border); }
 .br-standings td.num { text-align: center; font-variant-numeric: tabular-nums; }
 .br-standings tr.cut td { border-bottom: 1px dashed var(--accent); }
+/* ── Run-view section tabs (big tournaments: no more endless scroll) ── */
+.run-tabs { display: flex; gap: 6px; position: sticky; top: 0; z-index: 6; background: var(--bg); padding: 10px 0 8px; margin-bottom: 10px; border-bottom: 1px solid var(--hairline); }
+.run-tab { font: inherit; font-size: 12.5px; font-weight: 600; padding: 7px 13px; border-radius: 8px; border: 1px solid var(--border); background: var(--bg-card); color: var(--text-2); cursor: pointer; display: flex; align-items: center; gap: 7px; }
+.run-tab:hover { color: var(--text); border-color: var(--border-strong); }
+.run-tab.on { background: rgba(255,21,77,.10); border-color: rgba(255,21,77,.45); color: var(--accent-soft); }
+.run-tab .ct { font-family: var(--mono); font-size: 10px; color: var(--text-faint); }
+.run-tab.on .ct { color: var(--accent-soft); }
+.run-tab .warn { font-family: var(--mono); font-size: 10px; color: #ffb54d; }
+.tab-filter { width: 100%; margin-bottom: 10px; background: var(--bg-sunken); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font: inherit; font-size: 13px; padding: 8px 12px; }
+.show-more { width: 100%; font: inherit; font-size: 12.5px; font-weight: 600; padding: 9px; margin: 4px 0 12px; border-radius: 8px; border: 1px dashed var(--border-strong); background: none; color: var(--text-2); cursor: pointer; }
+.show-more:hover { color: var(--text); border-color: var(--accent); }
+
 /* ── Capacity banner + contested + transcripts ── */
 .cap-banner { border: 1px solid rgba(255,194,75,.45); background: rgba(255,194,75,.08); color: var(--text); border-radius: 10px; padding: 12px 14px; font-size: 13px; margin-bottom: 14px; }
 .cap-banner.hit { border-color: rgba(255,90,90,.55); background: rgba(255,60,60,.10); }
@@ -390,6 +402,9 @@ let SEL = {};                  // matchNumber -> { winner, score }
 let openFix = null;
 let editOpen = false;
 let openBRGame = null;         // "stageKey:gameNumber" — which BR grid is open
+let runTab = null;             // 'report' | 'decided' | 'entrants' | 'games' (BR)
+let runShow = {};              // per-tab pagination { report: 25, decided: 30, entrants: 60 }
+let runQ = {};                 // per-tab quick filter text
 let BRSEL = {};                // "stageKey:gameNumber" -> { order: [teamId], kills: {teamId: n} }
 
 // ── helpers (api / toast / armConfirm) ──────────────────────────────────────
@@ -619,7 +634,14 @@ async function loadAttention(guildId) {
 }
 
 // ── Run view ────────────────────────────────────────────────────────────────
+function resetRunViewState() {
+  runTab = null;
+  runShow = {};
+  runQ = {};
+}
+
 function openRun(id) {
+  resetRunViewState();
   const t = TOURNEYS.find(x => x.id === id);
   runTournament = t ? { id: t.id, title: t.title, publicBracket: !!t.publicBracket } : { id, title: 'Tournament', publicBracket: false };
   SEL = {}; openFix = null; editOpen = false;
@@ -773,10 +795,39 @@ function renderRunLeft() {
     </div>`;
   }
 
-  if (d.status === 'active' && !isBR) {
+  // ── Section tabs — big events get one tap per section instead of one
+  //    endless scroll (512 entrants = ~800 stacked rows before this) ──
+  const contestedCount = decided.filter(m => m.contested).length;
+  const tabs = [];
+  if (!isBR && d.status === 'active') tabs.push({ id: 'report', label: 'Report', count: pending.length });
+  if (isBR && d.br) tabs.push({ id: 'games', label: 'Games', count: d.counts.pending });
+  if (!isBR && decided.length && d.can.correct) tabs.push({ id: 'decided', label: 'Decided', count: decided.length, warn: contestedCount });
+  tabs.push({ id: 'entrants', label: 'Entrants', count: d.counts.entrants });
+  if (!runTab || !tabs.some(t => t.id === runTab)) runTab = tabs[0].id;
+
+  if (d.status === 'registration' || d.status === 'checkin') {
+    html += `<div class="start-card"><div class="qlabel blue" style="margin-bottom:10px">Before you start</div>
+      <div class="row"><span class="${d.counts.entrants >= 2 ? 'ok' : 'nn'}">${d.counts.entrants >= 2 ? '✓' : '·'}</span> ${d.counts.entrants} of ${d.maxParticipants} ${d.isSolo ? 'players' : 'teams'} signed up${d.status === 'checkin' ? ' · check-in open' : ''}</div>
+      <div class="row"><span class="ok">✓</span> Announcement posted in Discord</div>
+      <div class="row"><span class="nn">·</span> Starting generates the bracket &amp; match rooms</div>
+    </div>`;
+  }
+
+  if (tabs.length > 1) {
+    html += `<div class="run-tabs">` + tabs.map(t =>
+      `<button class="run-tab ${runTab === t.id ? 'on' : ''}" data-runtab="${t.id}">${t.label} <span class="ct">${t.count}</span>${t.warn ? `<span class="warn">⚠ ${t.warn}</span>` : ''}</button>`).join('') + `</div>`;
+  }
+
+  const PAGE_DEFAULTS = { report: 25, decided: 30, entrants: 60 };
+  const shownCount = (key) => runShow[key] || PAGE_DEFAULTS[key];
+  const moreBtn = (key, total, shown) => shown < total
+    ? `<button class="show-more" data-more="${key}">Show more (${total - shown} hidden)</button>` : '';
+
+  if (runTab === 'report' && d.status === 'active' && !isBR) {
     html += `<div><div class="qlabel red">Report a result · ${pending.length} pending</div>`;
     if (pending.length) {
-      html += pending.map(m => {
+      const visible = pending.slice(0, shownCount('report'));
+      html += visible.map(m => {
         const sel = SEL[m.matchNumber] || {};
         const label = `#${m.matchNumber}${m.roundName ? ` · ${esc(m.roundName)}` : m.round ? ` · Round ${m.round}` : ''}${m.section !== 'bracket' ? ` · ${esc(m.section.replace('_', ' '))}` : ''}${m.hasRoom ? '' : ' · ⚠ no room'}`;
         const scoreUi = d.validScores
@@ -794,20 +845,32 @@ function renderRunLeft() {
           <div class="rep-score">${scoreUi}<button class="rep-go ${ready ? '' : 'dim'}" data-report>Report</button></div>
         </div>`;
       }).join('');
+      html += moreBtn('report', pending.length, visible.length);
     } else {
       html += `<div class="caught-up">All caught up — waiting on matches to finish.</div>`;
     }
     html += '</div>';
   }
 
-  if (isBR && d.br) {
+  if (runTab === 'games' && isBR && d.br) {
     html += renderBRStages(d);
   }
 
-  if (d.can.correct && decided.length && !isBR) {
+  if (runTab === 'decided' && d.can.correct && decided.length && !isBR) {
     const trKeys = new Set((d.transcripts || []).map(t => t.key));
+    const q = (runQ.decided || '').toLowerCase();
+    // Contested first, then newest results first (later match numbers on top)
+    let list = [...decided].sort((a, b) => (b.contested - a.contested) || (b.matchNumber ?? 0) - (a.matchNumber ?? 0));
+    if (q) {
+      list = list.filter(m =>
+        String(m.matchNumber ?? '').includes(q.replace('#', '')) ||
+        (m.participant1?.name || '').toLowerCase().includes(q) ||
+        (m.participant2?.name || '').toLowerCase().includes(q));
+    }
     html += `<div><div class="qlabel">Decided · tap to correct</div>`;
-    html += decided.map(m => {
+    html += `<input class="tab-filter" data-qfilter="decided" placeholder="Filter by player or #match…" value="${esc(runQ.decided || '')}">`;
+    const visible = list.slice(0, shownCount('decided'));
+    html += visible.map(m => {
       const winner = m.winnerId === m.participant1?.id ? m.participant1 : m.participant2;
       const loser = m.winnerId === m.participant1?.id ? m.participant2 : m.participant1;
       const auto = m.isBye ? 'bye' : m.isWalkover ? 'walkover' : m.isDQ ? 'DQ' : null;
@@ -837,29 +900,33 @@ function renderRunLeft() {
         </div>
       </div>`;
     }).join('');
+    html += moreBtn('decided', list.length, visible.length);
     html += '</div>';
   }
 
-  if (d.status === 'registration' || d.status === 'checkin') {
-    html += `<div class="start-card"><div class="qlabel blue" style="margin-bottom:10px">Before you start</div>
-      <div class="row"><span class="${d.counts.entrants >= 2 ? 'ok' : 'nn'}">${d.counts.entrants >= 2 ? '✓' : '·'}</span> ${d.counts.entrants} of ${d.maxParticipants} ${d.isSolo ? 'players' : 'teams'} signed up${d.status === 'checkin' ? ' · check-in open' : ''}</div>
-      <div class="row"><span class="ok">✓</span> Announcement posted in Discord</div>
-      <div class="row"><span class="nn">·</span> Starting generates the bracket &amp; match rooms</div>
-    </div>`;
-  }
-
-  html += `<div><div class="qlabel">Entrants · ${d.counts.entrants}${d.nickSummary ? ` · ${esc(d.nickSummary)} shown (admins only)` : ''}</div><div>`;
-  html += d.entrants.map(e => {
-    const fieldLines = (e.fields || []).map(f =>
-      `<span class="idsub">${f.private ? '🔒 ' : ''}${esc(f.label)}: ${esc(f.value)}</span>`).join('');
-    return `
+  if (runTab === 'entrants') {
+    const q = (runQ.entrants || '').toLowerCase();
+    let list = d.entrants;
+    if (q) list = list.filter(e => e.name.toLowerCase().includes(q));
+    html += `<div><div class="qlabel">Entrants · ${d.counts.entrants}${d.nickSummary ? ` · ${esc(d.nickSummary)} shown (admins only)` : ''}</div>`;
+    if (d.entrants.length > 15) {
+      html += `<input class="tab-filter" data-qfilter="entrants" placeholder="Filter entrants…" value="${esc(runQ.entrants || '')}">`;
+    }
+    html += `<div>`;
+    const visible = list.slice(0, shownCount('entrants'));
+    html += visible.map(e => {
+      const fieldLines = (e.fields || []).map(f =>
+        `<span class="idsub">${f.private ? '🔒 ' : ''}${esc(f.label)}: ${esc(f.value)}</span>`).join('');
+      return `
     <div class="ent-row ${e.disqualified ? 'dq' : ''}">
       <span class="nm">${e.disqualified ? '🚫 ' : ''}${esc(e.name)} <span class="sub">${e.checkedIn ? '✓ in' : ''}${e.fake ? ' test' : ''}</span>${fieldLines}</span>
       ${d.can.removeEntrant ? `<button class="btn btn-danger btn-sm" data-remove="${esc(e.id)}">Remove</button>` : ''}
       ${d.can.disqualify && !e.disqualified ? `<button class="btn btn-danger btn-sm" data-dq="${esc(e.id)}">DQ</button>` : ''}
     </div>`;
-  }).join('') || '<div class="caught-up">No entrants yet.</div>';
-  html += '</div></div>';
+    }).join('') || '<div class="caught-up">No entrants match.</div>';
+    html += moreBtn('entrants', list.length, visible.length);
+    html += '</div></div>';
+  }
 
   left.innerHTML = html;
   wireRunLeft(d, left);
@@ -1059,6 +1126,29 @@ function closeTranscript() {
 
 function wireRunLeft(d, left) {
   if (d.format === 'battle_royale' && d.br) wireBR(d, left);
+
+  // Section tabs + pagination + filters
+  left.querySelectorAll('[data-runtab]').forEach(btn => btn.addEventListener('click', () => {
+    runTab = btn.dataset.runtab;
+    renderRunLeft();
+  }));
+  left.querySelectorAll('[data-more]').forEach(btn => btn.addEventListener('click', () => {
+    const key = btn.dataset.more;
+    const defaults = { report: 25, decided: 30, entrants: 60 };
+    runShow[key] = (runShow[key] || defaults[key]) + 100;
+    renderRunLeft();
+  }));
+  left.querySelectorAll('[data-qfilter]').forEach(inp => inp.addEventListener('input', () => {
+    const key = inp.dataset.qfilter;
+    runQ[key] = inp.value;
+    clearTimeout(inp._t);
+    inp._t = setTimeout(() => {
+      renderRunLeft();
+      // Re-rendering replaces the input — restore focus so typing continues
+      const fresh = $('runLeft').querySelector(`[data-qfilter="${key}"]`);
+      if (fresh) { fresh.focus(); fresh.setSelectionRange(fresh.value.length, fresh.value.length); }
+    }, 180);
+  }));
 
   // Transcripts + contested confirmations
   left.querySelectorAll('[data-tr]').forEach(btn => btn.addEventListener('click', (e) => {
