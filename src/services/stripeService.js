@@ -57,7 +57,9 @@ const BOOST_AMOUNTS = {
 // ============================================================================
 
 function isStripeConfigured() {
-  return stripe !== null && process.env.STRIPE_SECRET_KEY;
+  // Boolean() matters: && would return the raw key, and /health serializes
+  // this value into a public, unauthenticated response.
+  return stripe !== null && Boolean(process.env.STRIPE_SECRET_KEY);
 }
 
 function getTierFromPriceId(priceId) {

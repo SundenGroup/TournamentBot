@@ -15,6 +15,21 @@ const adminDashboardRouter = require('./adminDashboard');
 const app = express();
 
 // ============================================================================
+// Security headers (nginx terminates TLS but sets none of these)
+// ============================================================================
+
+app.use((req, res, next) => {
+  res.set({
+    'Strict-Transport-Security': 'max-age=31536000; includeSubDomains',
+    'X-Content-Type-Options': 'nosniff',
+    'X-Frame-Options': 'SAMEORIGIN',
+    'Referrer-Policy': 'strict-origin-when-cross-origin',
+    'Permissions-Policy': 'camera=(), microphone=(), geolocation=()',
+  });
+  next();
+});
+
+// ============================================================================
 // Stripe Webhook Endpoint (raw body required)
 // ============================================================================
 
