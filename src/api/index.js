@@ -87,13 +87,24 @@ app.get('/health', (req, res) => {
 // Public live bracket pages (no auth — gated per-tournament by publicBracket)
 // ============================================================================
 
-app.use(ipRateLimit, publicBracketRouter);
+// IP rate-limit ONLY the anonymous, floodable surfaces: the public bracket
+// pages and the OAuth entry points. Scoped by path so it runs once per request
+// and never touches the authenticated dashboard, which is session-gated, fans
+// out many legitimate reads (one /manage per tournament) + autorefresh, and
+// has its own per-guild limiter on mutations. (Previously mounted as blanket
+// middleware, which throttled — and double-counted — the admin's own session.)
+app.use('/b', ipRateLimit);
+app.use('/api/public', ipRateLimit);
+app.use('/admin/login', ipRateLimit);
+app.use('/admin/callback', ipRateLimit);
+
+app.use(publicBracketRouter);
 
 // ============================================================================
 // Web-admin dashboard (Discord OAuth login + session-gated admin views)
 // ============================================================================
 
-app.use(ipRateLimit, adminAuthRouter);
+app.use(adminAuthRouter);
 app.use(adminDashboardRouter);
 app.use(require('./adminActions'));
 

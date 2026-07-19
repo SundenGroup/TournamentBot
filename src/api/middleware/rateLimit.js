@@ -71,7 +71,13 @@ setInterval(cleanupRateLimits, 5 * 60 * 1000);
 // real client behind nginx, not 127.0.0.1.
 const ipStore = new Map(); // ip -> { count, windowStart }
 const IP_WINDOW_MS = 60000;
-const IP_MAX = 100; // generous: a human browsing brackets never approaches this
+// Only the anonymous, floodable surfaces use this (public bracket pages + the
+// OAuth entry points). Set high: many legitimate spectators share one public
+// IP behind mobile carrier CGNAT / venue NAT during a big event, and each
+// bracket auto-refreshes — a real flood is far higher still. The authenticated
+// dashboard is NOT limited here (session-gated; mutations have their own
+// per-guild limiter).
+const IP_MAX = 600;
 
 function ipRateLimit(req, res, next) {
   const ip = req.ip || req.socket?.remoteAddress || 'unknown';
