@@ -7,10 +7,38 @@
 // resolves them (which re-arms or clears the timestamp).
 
 const { getAllRunningTournaments, updateTournament } = require('./tournamentService');
+const { getServerSettings } = require('../data/serverSettings');
 const { collectArchivables, archiveChannel } = require('./transcriptService');
 
 const SWEEP_INTERVAL_MS = 60 * 1000;
 let timer = null;
+
+/** Effective rolling-archive minutes (per-tournament override ?? server). */
+async function effectiveArchiveMinutes(tournament) {
+  const own = tournament.settings.autoArchiveMinutes;
+  if (own != null) return own;
+  const s = await getServerSettings(tournament.guildId);
+  return s.autoArchiveMinutes || 0;
+}
+
+// Arm any FINISHED match (winner set) that still has a room but no archive
+// timer — e.g. a DQ forfeit, which advances the opponent without going through
+// the report path that stamps `archiveAt`. In double-elim a DQ cascades
+// forfeits into the losers bracket, orphaning those rooms. Only runs when
+// rolling auto-archive is on; manual mode intentionally leaves rooms for the
+// admin. Returns true if it armed anything. `ref.winner` is falsy for BR
+// stages, so they're naturally skipped.
+function reconcileOrphanRooms(tournament, now = Date.now()) {
+  let armed = false;
+  for (const item of collectArchivables(tournament)) {
+    const ref = item.ref;
+    if (ref && ref.winner && ref.channelId && !ref.archiveAt && !ref.contested) {
+      ref.archiveAt = now;
+      armed = true;
+    }
+  }
+  return armed;
+}
 
 /** Pure selector — exported for tests. */
 function collectDueArchives(tournament, now = Date.now()) {
@@ -31,13 +59,24 @@ async function sweepOnce(client) {
   }
 
   for (const tournament of tournaments) {
+    // Rolling auto-archive on → self-heal any finished-match rooms that were
+    // resolved outside the report path (DQ forfeits etc.) and left without a
+    // timer, then archive everything that's now due.
+    let changed = false;
+    try {
+      if ((await effectiveArchiveMinutes(tournament)) > 0) {
+        changed = reconcileOrphanRooms(tournament);
+      }
+    } catch (error) {
+      console.error('[archive-sweeper] reconcile failed:', error.message);
+    }
+
     const due = collectDueArchives(tournament);
-    if (due.length === 0) continue;
+    if (due.length === 0 && !changed) continue;
 
     const guild = client.guilds.cache.get(tournament.guildId);
     if (!guild) continue;
 
-    let changed = false;
     for (const item of due) {
       try {
         const res = await archiveChannel({
