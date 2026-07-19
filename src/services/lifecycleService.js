@@ -925,6 +925,14 @@ async function scheduleMatchArchive(client, tournament, match) {
     if (!match?.channelId || match.contested) return;
     const minutes = await getAutoArchiveMinutes(tournament);
 
+    // Stamp the archive timer BEFORE any Discord API call. Previously the
+    // channels.fetch() below ran first and returned early on failure, leaving
+    // the finished room without a timer — the sweeper only archives timed
+    // rooms, so it was orphaned (needed manual deletion). Setting it first
+    // means a transient fetch/send failure just skips the UX message; the
+    // sweeper still closes the room on schedule.
+    if (minutes) match.archiveAt = Date.now() + minutes * 60 * 1000;
+
     const isSolo = tournament.settings.teamSize === 1;
     const winnerName = isSolo ? match.winner?.username : match.winner?.name;
     const channel = await client.channels.fetch(match.channelId).catch(() => null);
@@ -949,8 +957,6 @@ async function scheduleMatchArchive(client, tournament, match) {
       });
       return;
     }
-
-    match.archiveAt = Date.now() + minutes * 60 * 1000;
 
     const row = new ActionRowBuilder().addComponents(
       new ButtonBuilder()
