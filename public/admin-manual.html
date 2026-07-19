@@ -350,7 +350,8 @@
     <p>The bot posts a signup embed with <strong>Sign Up</strong> (or <strong>Register Team</strong>) and <strong>Withdraw</strong> buttons. Players click to join. The participant count updates in real-time. DM reminders are sent 24 hours and 1 hour before start.</p>
 
     <h3>Check-in (if enabled)</h3>
-    <p>Check-in opens automatically before start time (based on your configured check-in window). The signup button is replaced with a <strong>Check In</strong> button. Players who don't check in are removed when the tournament starts.</p>
+    <p>Check-in opens automatically before start time (based on your configured check-in window). Players tap <strong>Check In</strong> — and tapping again <strong>cancels</strong> it. Signups stay open through the window too, and anyone who signs up during check-in is <strong>checked in automatically</strong>. You keep the <strong>Start Tournament</strong> button available the whole time. Players who don't check in are removed when the tournament starts.</p>
+    <p style="color:var(--fg-subtle);font-size:14px">The check-in window (or turning check-in off entirely) can be changed after creation with <code>/tournament edit</code> or from the web dashboard's edit card.</p>
 
     <h3>Starting</h3>
     <p>When the scheduled time arrives, the bot posts a message saying the tournament is ready. Start it with:</p>
@@ -366,7 +367,7 @@
     <p>Matches are played. Results are reported via buttons in match rooms or slash commands. The bracket advances automatically and new match room channels are created for each round.</p>
 
     <h3>Completed</h3>
-    <p>After the final match, the bot announces results with a podium (champion, runner-up, 3rd place). If auto-cleanup is enabled, match rooms are cleaned up after 30 seconds.</p>
+    <p>After the final match, the bot announces results with a podium (champion, runner-up, 3rd place). If auto-cleanup or rolling auto-archive is on, the remaining match rooms are cleaned up shortly after — their chat history is saved first.</p>
 
     <h3>Cancelling</h3>
     <pre><code><span class="cmd">/tournament cancel</span> <span class="param">tournament:</span><span class="value">Friday Night Fights</span></code></pre>
@@ -468,7 +469,7 @@
        ================================================================ -->
   <section id="seeding">
     <h2><span class="secnum">06</span>Seeding <span class="tag tag-pro">Pro</span></h2>
-    <p>Seeding must be enabled when creating the tournament (toggle it on in Advanced Mode).</p>
+    <p>Seeding must be enabled for the tournament — toggle it on in Advanced Mode at creation, or turn it on later from the web dashboard's <strong>Seeding</strong> tab.</p>
 
     <pre><code><span class="cmd">/tournament seed set</span> <span class="param">tournament:</span><span class="value">Friday Night Fights</span> <span class="param">participant:</span><span class="value">PlayerA</span> <span class="param">seed:</span><span class="value">1</span></code></pre>
 
@@ -484,6 +485,13 @@
       </table>
     </div>
     <p>Seeding affects bracket placement — seed 1 plays the lowest seed in round 1, and so on.</p>
+
+    <h3>From the web dashboard</h3>
+    <p>Open a tournament in the <a href="/admin">dashboard</a> before it starts and pick the
+    <strong>Seeding</strong> tab. Type a seed next to each entrant, or use <strong>🎲 Randomize</strong>
+    / <strong>Clear all</strong>, then <strong>Save seeds</strong>. Duplicate or out-of-range seeds are
+    rejected. If seeding wasn't enabled at creation, an <strong>Enable seeding</strong> button turns it
+    on right there.</p>
   </section>
 
   <!-- ================================================================
@@ -669,7 +677,8 @@
         <tbody>
           <tr><td><strong>＋ New tournament</strong></td><td>Create &amp; announce a tournament — game presets with their defaults, format / team size / best-of, description, live-bracket toggle, and a <strong>channel picker</strong> (one tournament = one channel)</td></tr>
           <tr><td><strong>Bracket tab</strong></td><td>The full live bracket / standings / roster view — including tournaments whose public Web Bracket toggle is off (this view is admin-only)</td></tr>
-          <tr><td><strong>Manage tab</strong></td><td>Edit title/date/size/best-of · remove entrants · <strong>start</strong> · report results with the series score · correct mistakes · disqualify · retry missing match rooms · cancel — destructive actions ask twice</td></tr>
+          <tr><td><strong>Manage tab</strong></td><td>Edit title/date/size/best-of/description, the <strong>check-in</strong> toggle &amp; window, and turn <strong>seeding</strong> on · remove entrants · <strong>start</strong> · report results with the series score · correct mistakes · disqualify · retry missing match rooms · cancel — destructive actions ask twice</td></tr>
+          <tr><td><strong>Seeding tab</strong></td><td>Before start (seeding-enabled tournaments): set a seed per entrant, <strong>Randomize</strong>, <strong>Clear all</strong>, then <strong>Save</strong> <span class="tag tag-pro">Pro</span></td></tr>
         </tbody>
       </table>
     </div>
@@ -698,7 +707,7 @@
           <tr><td><code>/tournament info</code></td><td>View a tournament's details</td></tr>
           <tr><td><code>/tournament start</code></td><td>Start a tournament (generates bracket)</td></tr>
           <tr><td><code>/tournament cancel</code></td><td>Cancel a tournament</td></tr>
-          <tr><td><code>/tournament edit</code></td><td>Edit title, date, size, best-of, description (before start)</td></tr>
+          <tr><td><code>/tournament edit</code></td><td>Edit title, date, size, best-of, and check-in window (before start)</td></tr>
           <tr><td><code>/tournament report</code></td><td>Report a match result (Bo3+ requires the series score)</td></tr>
           <tr><td><code>/tournament correct</code></td><td>Correct a wrongly reported result (while nothing downstream is played)</td></tr>
           <tr><td><code>/tournament disqualify</code></td><td>DQ a player/team — remaining matches forfeit with the best score, shown as DQ</td></tr>
