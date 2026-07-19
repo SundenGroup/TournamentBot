@@ -777,12 +777,12 @@ async function handleEdit(interaction) {
     ),
     new ActionRowBuilder().addComponents(
       new TextInputBuilder()
-        .setCustomId('description')
-        .setLabel('Description (optional)')
-        .setStyle(TextInputStyle.Paragraph)
-        .setValue(tournament.description || '')
-        .setRequired(false)
-        .setMaxLength(1000)
+        .setCustomId('checkinWindow')
+        .setLabel('Check-in: min before start (0 = off)')
+        .setStyle(TextInputStyle.Short)
+        .setValue(String(tournament.settings.checkinRequired ? (tournament.settings.checkinWindow || 15) : 0))
+        .setPlaceholder('e.g. 15 — or 0 to turn check-in off')
+        .setRequired(true)
     ),
   );
 

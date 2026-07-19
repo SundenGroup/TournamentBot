@@ -280,7 +280,10 @@ async function addParticipant(tournamentId, user) {
 
       const tournament = rowToTournament(row);
 
-      if (tournament.status !== 'registration') {
+      // Signups stay open through the check-in window too — a latecomer who
+      // signs up during check-in is auto-checked-in below so they can't be
+      // silently dropped from the bracket for "not checking in".
+      if (tournament.status !== 'registration' && tournament.status !== 'checkin') {
         return { success: false, error: 'Registration is closed' };
       }
 
@@ -299,7 +302,7 @@ async function addParticipant(tournamentId, user) {
         gameNick: user.gameNick || null,          // public display value
         gameFields: user.gameFields || null,      // full { key: value } map
         seed: null,
-        checkedIn: false,
+        checkedIn: tournament.status === 'checkin', // late signup = present
         joinedAt: new Date(),
       };
 
@@ -352,11 +355,12 @@ async function claimTournamentStart(tournamentId) {
   return false;
 }
 
-// Check-in shares addParticipant's trx+forUpdate shape: the whole field taps
-// the button inside a minutes-long window, and the old read-modify-write on
-// the cached object let concurrent taps last-write-win (lost check-ins became
-// no-shows at start).
-async function setCheckedIn(tournamentId, userId) {
+// Toggle a player's check-in. Shares addParticipant's trx+forUpdate shape:
+// the whole field taps the button inside a minutes-long window, and the old
+// read-modify-write on the cached object let concurrent taps last-write-win
+// (lost check-ins became no-shows at start). Tapping again cancels the
+// check-in — `result.checkedIn` is the NEW state.
+async function toggleCheckedIn(tournamentId, userId) {
   let result;
   try {
     result = await db.transaction(async (trx) => {
@@ -372,39 +376,40 @@ async function setCheckedIn(tournamentId, userId) {
       if (tournament.settings.teamSize === 1) {
         const participant = tournament.participants.find(p => p.id === userId);
         if (!participant) return { success: false, error: 'You are not registered for this tournament.' };
-        if (participant.checkedIn) return { success: false, already: true };
 
-        participant.checkedIn = true;
+        participant.checkedIn = !participant.checkedIn;
         await trx('tournaments')
           .where('id', tournamentId)
           .update({ participants: JSON.stringify(tournament.participants) });
 
-        return { success: true, isSolo: true, tournament, participant };
+        return { success: true, isSolo: true, tournament, participant, checkedIn: participant.checkedIn };
       }
 
       const team = tournament.teams.find(t => t.members.some(m => m.id === userId));
       if (!team) return { success: false, error: 'You are not on a team in this tournament.' };
 
       team.memberCheckins = team.memberCheckins || {};
-      if (team.memberCheckins[userId]) return { success: false, already: true };
+      const nowCheckedIn = !team.memberCheckins[userId];
+      if (nowCheckedIn) team.memberCheckins[userId] = true;
+      else delete team.memberCheckins[userId];
 
-      team.memberCheckins[userId] = true;
       const checkedInCount = Object.keys(team.memberCheckins).length;
       const resolvedCount = team.members.filter(m => m.id && !String(m.id).startsWith('fake_')).length;
-      let teamNowFull = false;
-      if (checkedInCount >= resolvedCount && !team.checkedIn) {
-        team.checkedIn = true;
-        teamNowFull = true;
-      }
+      const wasTeamFull = !!team.checkedIn;
+      team.checkedIn = checkedInCount >= resolvedCount;
 
       await trx('tournaments')
         .where('id', tournamentId)
         .update({ teams: JSON.stringify(tournament.teams) });
 
-      return { success: true, isSolo: false, tournament, team, checkedInCount, teamNowFull };
+      return {
+        success: true, isSolo: false, tournament, team,
+        checkedIn: nowCheckedIn, checkedInCount,
+        teamNowFull: team.checkedIn && !wasTeamFull,
+      };
     });
   } catch (err) {
-    console.error('setCheckedIn transaction failed:', err);
+    console.error('toggleCheckedIn transaction failed:', err);
     return { success: false, error: 'Check-in failed, please try again.' };
   }
 
@@ -412,6 +417,75 @@ async function setCheckedIn(tournamentId, userId) {
     tournaments.set(tournamentId, result.tournament);
   }
 
+  return result;
+}
+
+// Set/clear/randomize seeds (admin, pre-start). `seeds` is a {entrantId: n|null}
+// map; `action` may be 'randomize' or 'clear'. Transactional for consistency
+// with the other entrant mutations.
+async function setTournamentSeeds(tournamentId, { seeds, action } = {}) {
+  let result;
+  try {
+    result = await db.transaction(async (trx) => {
+      const row = await trx('tournaments').where('id', tournamentId).forUpdate().first();
+      if (!row) return { success: false, error: 'Tournament not found.' };
+
+      const tournament = rowToTournament(row);
+      if (tournament.status !== 'registration' && tournament.status !== 'checkin') {
+        return { success: false, error: 'Seeding can only be changed before the tournament starts.' };
+      }
+      if (!tournament.settings.seedingEnabled) {
+        return { success: false, error: 'Seeding is not enabled for this tournament.' };
+      }
+
+      const isSolo = tournament.settings.teamSize === 1;
+      const list = isSolo ? tournament.participants : tournament.teams;
+      const column = isSolo ? 'participants' : 'teams';
+
+      if (action === 'clear') {
+        list.forEach(e => { e.seed = null; });
+      } else if (action === 'randomize') {
+        const order = [...list];
+        for (let i = order.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [order[i], order[j]] = [order[j], order[i]];
+        }
+        order.forEach((e, i) => { e.seed = i + 1; });
+      } else {
+        const map = seeds || {};
+        for (const e of list) {
+          if (!Object.prototype.hasOwnProperty.call(map, e.id)) continue;
+          const val = map[e.id];
+          if (val === null || val === '' || val === undefined) { e.seed = null; continue; }
+          const n = parseInt(val, 10);
+          if (isNaN(n) || n < 1 || n > list.length) {
+            return { success: false, error: `Seed ${val} is out of range (1–${list.length}).` };
+          }
+          e.seed = n;
+        }
+      }
+
+      // Reject duplicate seeds across the whole field (an import may only touch
+      // some entrants, so validate the final state, not just the input map).
+      const seen = new Map();
+      for (const e of list) {
+        if (e.seed == null) continue;
+        if (seen.has(e.seed)) {
+          const other = seen.get(e.seed);
+          return { success: false, error: `Seed ${e.seed} is assigned to more than one entrant (${other} and ${isSolo ? e.username : e.name}).` };
+        }
+        seen.set(e.seed, isSolo ? e.username : e.name);
+      }
+
+      await trx('tournaments').where('id', tournamentId).update({ [column]: JSON.stringify(list) });
+      return { success: true, tournament };
+    });
+  } catch (err) {
+    console.error('setTournamentSeeds failed:', err);
+    return { success: false, error: 'Could not update seeding, please try again.' };
+  }
+
+  if (result.success) tournaments.set(tournamentId, result.tournament);
   return result;
 }
 
@@ -424,8 +498,8 @@ async function removeParticipant(tournamentId, userId) {
 
       const tournament = rowToTournament(row);
 
-      if (tournament.status !== 'registration') {
-        return { success: false, error: 'Cannot withdraw after registration closes' };
+      if (tournament.status !== 'registration' && tournament.status !== 'checkin') {
+        return { success: false, error: 'Cannot withdraw after the tournament starts' };
       }
 
       const index = tournament.participants.findIndex(p => p.id === userId);
@@ -464,7 +538,8 @@ async function addTeam(tournamentId, teamData) {
 
       const tournament = rowToTournament(row);
 
-      if (tournament.status !== 'registration') {
+      // Signups stay open through check-in too (see addParticipant).
+      if (tournament.status !== 'registration' && tournament.status !== 'checkin') {
         return { success: false, error: 'Registration is closed' };
       }
 
@@ -500,14 +575,24 @@ async function addTeam(tournamentId, teamData) {
         }
       }
 
+      // A team registering during the check-in window counts as present:
+      // seed every resolved member's check-in so they aren't dropped.
+      const lateCheckin = tournament.status === 'checkin';
+      const memberCheckins = {};
+      if (lateCheckin) {
+        for (const m of teamData.members.concat(teamData.captain)) {
+          if (m.id && !String(m.id).startsWith('fake_')) memberCheckins[m.id] = true;
+        }
+      }
+
       const team = {
         id: uuidv4(),
         name: teamData.name,
         captain: teamData.captain,
         members: teamData.members,
         seed: null,
-        checkedIn: false,
-        memberCheckins: {},
+        checkedIn: lateCheckin,
+        memberCheckins,
         joinedAt: new Date(),
       };
 
@@ -541,8 +626,8 @@ async function removeTeam(tournamentId, captainId) {
 
       const tournament = rowToTournament(row);
 
-      if (tournament.status !== 'registration') {
-        return { success: false, error: 'Cannot withdraw after registration closes' };
+      if (tournament.status !== 'registration' && tournament.status !== 'checkin') {
+        return { success: false, error: 'Cannot withdraw after the tournament starts' };
       }
 
       const index = tournament.teams.findIndex(t => t.captain.id === captainId);
@@ -706,7 +791,8 @@ module.exports = {
   updateTournament,
   deleteTournament,
   addParticipant,
-  setCheckedIn,
+  toggleCheckedIn,
+  setTournamentSeeds,
   claimTournamentStart,
   getGuildTournament,
   removeParticipant,

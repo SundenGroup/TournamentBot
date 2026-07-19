@@ -8,7 +8,11 @@ function signupNextSteps(tournament) {
   if (tournament.startTime) {
     lines.push(`🗓️ Starts ${toDiscordFullAndRelative(tournament.startTime)}`);
   }
-  if (tournament.settings?.checkinRequired) {
+  // If they signed up during the check-in window, addParticipant/addTeam
+  // already marked them present — say so instead of "check-in opens later".
+  if (tournament.status === 'checkin') {
+    lines.push(`✅ Check-in is open and **you're already checked in** — you're all set.`);
+  } else if (tournament.settings?.checkinRequired) {
     lines.push(`⏰ Check-in opens ${tournament.settings.checkinWindow} minutes before start — watch for the ping, or you'll be dropped from the bracket.`);
   }
   if (tournament.channelId) {

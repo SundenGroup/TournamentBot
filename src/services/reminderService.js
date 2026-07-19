@@ -140,36 +140,19 @@ async function openCheckin(tournament, client) {
 
   // Update tournament message with check-in button
   try {
-    const { ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
-    const { createTournamentEmbed, createParticipantListEmbed } = require('../utils/embedBuilder');
+    const { createTournamentEmbed, createTournamentButtons } = require('../utils/embedBuilder');
 
     const channel = await client.channels.fetch(current.channelId);
 
     const isSolo = current.settings.teamSize === 1;
-    const buttons = new ActionRowBuilder().addComponents(
-      new ButtonBuilder()
-        .setCustomId(`checkin:${current.id}`)
-        .setLabel('Check In')
-        .setEmoji('✅')
-        .setStyle(ButtonStyle.Success),
-      new ButtonBuilder()
-        .setCustomId(`signup:${current.id}`)
-        .setLabel(isSolo ? 'Sign Up' : 'Register Team')
-        .setEmoji(isSolo ? '✅' : '🎯')
-        .setStyle(ButtonStyle.Primary)
-        .setDisabled(true),
-      new ButtonBuilder()
-        .setCustomId(`withdraw:${current.id}`)
-        .setLabel(isSolo ? 'Withdraw' : 'Withdraw Team')
-        .setEmoji('❌')
-        .setStyle(ButtonStyle.Secondary)
-        .setDisabled(true)
-    );
+    // Shared builder: during check-in this renders Check In + Sign Up +
+    // Withdraw and keeps the admin Start button available.
+    const buttons = createTournamentButtons(current);
 
     if (current.messageId) {
       const mainMessage = await channel.messages.fetch(current.messageId);
       const embed = await createTournamentEmbed(current);
-      await mainMessage.edit({ embeds: [embed], components: [buttons] });
+      await mainMessage.edit({ embeds: [embed], components: buttons });
     }
 
     // Notify channel

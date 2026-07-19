@@ -142,7 +142,19 @@ function createTournamentButtons(tournament) {
   // Row 1: Registration/Check-in buttons
   const row1 = new ActionRowBuilder();
 
-  if (status === 'registration') {
+  if (status === 'checkin') {
+    // Check-in is the primary action, but signups stay open through the window
+    // (latecomers are auto-checked-in) and players can still withdraw.
+    row1.addComponents(
+      new ButtonBuilder()
+        .setCustomId(`checkin:${id}`)
+        .setLabel('Check In')
+        .setEmoji('✅')
+        .setStyle(ButtonStyle.Success)
+    );
+  }
+
+  if (status === 'registration' || status === 'checkin') {
     row1.addComponents(
       new ButtonBuilder()
         .setCustomId(`signup:${id}`)
@@ -155,14 +167,6 @@ function createTournamentButtons(tournament) {
         .setEmoji('❌')
         .setStyle(ButtonStyle.Secondary)
     );
-  } else if (status === 'checkin') {
-    row1.addComponents(
-      new ButtonBuilder()
-        .setCustomId(`checkin:${id}`)
-        .setLabel('Check In')
-        .setEmoji('✅')
-        .setStyle(ButtonStyle.Success)
-    );
   }
 
   if (row1.components.length > 0) {
@@ -172,7 +176,9 @@ function createTournamentButtons(tournament) {
   // Row 2: Admin/View buttons
   const row2 = new ActionRowBuilder();
 
-  if (status === 'registration') {
+  // Admins can start from registration AND during check-in (the click is
+  // permission-gated in startTournament.js; non-admins get a polite refusal).
+  if (status === 'registration' || status === 'checkin') {
     row2.addComponents(
       new ButtonBuilder()
         .setCustomId(`startTournament:${id}`)

@@ -448,7 +448,18 @@ async function editTournamentFlow({ client, tournament, fields }) {
   const title = String(fields.title ?? tournament.title).trim();
   if (!title || title.length > 100) throw new Error('Title must be 1-100 characters.');
 
-  const startTime = fields.startTime ? new Date(fields.startTime) : new Date(tournament.startTime);
+  // Web sends an ISO string; Discord sends "YYYY-MM-DD HH:MM UTC" or free text
+  // like "tomorrow 8pm" — fall back to the informal parser when Date() can't.
+  let startTime;
+  if (fields.startTime) {
+    startTime = new Date(fields.startTime);
+    if (isNaN(startTime.getTime())) {
+      const { parseDateTime } = require('../utils/timeUtils');
+      startTime = parseDateTime(String(fields.startTime)) || startTime;
+    }
+  } else {
+    startTime = new Date(tournament.startTime);
+  }
   if (isNaN(startTime.getTime())) throw new Error('Could not parse the date/time.');
 
   const maxParticipants = parseInt(fields.maxParticipants ?? tournament.settings.maxParticipants, 10);
@@ -468,6 +479,33 @@ async function editTournamentFlow({ client, tournament, fields }) {
     ? String(fields.description).trim().slice(0, 1000) || null
     : (tournament.description || null);
 
+  // ── Check-in settings (editable pre-start) ──────────────────────────────
+  // Accepts either an explicit checkinRequired boolean + checkinWindow number
+  // (web form) or just checkinWindow where 0 = off (Discord single field).
+  let checkinRequired = tournament.settings.checkinRequired ?? false;
+  let checkinWindow = tournament.settings.checkinWindow ?? 15;
+  if (fields.checkinWindow !== undefined) {
+    const w = parseInt(fields.checkinWindow, 10);
+    if (isNaN(w) || w < 0 || w > 120 || (w > 0 && w < 5)) {
+      throw new Error('Check-in window must be 0 (off) or between 5 and 120 minutes.');
+    }
+    if (w === 0) {
+      checkinRequired = false;
+    } else {
+      checkinRequired = true;
+      checkinWindow = w;
+    }
+  }
+  if (fields.checkinRequired !== undefined) {
+    checkinRequired = !!fields.checkinRequired;
+  }
+
+  // Seeding toggle (Pro entitlement is checked by the caller before enabling).
+  let seedingEnabled = tournament.settings.seedingEnabled ?? false;
+  if (fields.seedingEnabled !== undefined) {
+    seedingEnabled = !!fields.seedingEnabled;
+  }
+
   const changes = [];
   if (title !== tournament.title) changes.push('title');
   const dateChanged = startTime.getTime() !== new Date(tournament.startTime).getTime();
@@ -475,10 +513,13 @@ async function editTournamentFlow({ client, tournament, fields }) {
   if (maxParticipants !== tournament.settings.maxParticipants) changes.push('max participants');
   if (bestOf !== tournament.settings.bestOf) changes.push('best of');
   if (description !== (tournament.description || null)) changes.push('description');
+  if (checkinRequired !== (tournament.settings.checkinRequired ?? false)) changes.push('check-in');
+  if (checkinRequired && checkinWindow !== tournament.settings.checkinWindow) changes.push('check-in window');
+  if (seedingEnabled !== (tournament.settings.seedingEnabled ?? false)) changes.push('seeding');
 
   if (changes.length === 0) return { updated: tournament, changes, dateChanged: false };
 
-  const settings = { ...tournament.settings, maxParticipants, bestOf };
+  const settings = { ...tournament.settings, maxParticipants, bestOf, checkinRequired, checkinWindow, seedingEnabled };
   const updated = await updateTournament(tournament.id, { title, description, startTime, settings });
   if (!updated) throw new Error('Failed to save changes, please try again.');
 

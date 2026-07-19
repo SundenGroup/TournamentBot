@@ -1,4 +1,4 @@
-const { setCheckedIn } = require('../services/tournamentService');
+const { toggleCheckedIn } = require('../services/tournamentService');
 const { updateTournamentMessages } = require('../utils/tournamentUpdater');
 const webhooks = require('../services/webhookService');
 
@@ -11,32 +11,36 @@ module.exports = {
 
     // All validation + the write happen inside one row-locked transaction so
     // simultaneous taps from the field can't clobber each other's check-ins.
-    const result = await setCheckedIn(tournamentId, interaction.user.id);
+    // Tapping the button again cancels a check-in.
+    const result = await toggleCheckedIn(tournamentId, interaction.user.id);
 
     if (!result.success) {
-      if (result.already) {
-        return interaction.editReply({ content: '✅ You are already checked in!' });
-      }
       return interaction.editReply({ content: `❌ ${result.error}` });
     }
 
     const { tournament } = result;
 
-    if (result.isSolo) {
-      webhooks.onParticipantCheckedIn(tournament, result.participant);
-    } else if (result.teamNowFull) {
-      webhooks.onParticipantCheckedIn(tournament, result.team);
+    // Webhook only fires on a fresh solo check-in / a team reaching full.
+    if (result.checkedIn) {
+      if (result.isSolo) webhooks.onParticipantCheckedIn(tournament, result.participant);
+      else if (result.teamNowFull) webhooks.onParticipantCheckedIn(tournament, result.team);
     }
 
     await updateTournamentMessages(interaction.client, tournament);
 
     if (result.isSolo) {
       return interaction.editReply({
-        content: `✅ You are now checked in for **${tournament.title}**!`,
+        content: result.checkedIn
+          ? `✅ You're checked in for **${tournament.title}**! Tap **Check In** again if you need to cancel.`
+          : `↩️ Check-in cancelled for **${tournament.title}**. Tap **Check In** again to check back in.`,
       });
     }
+
+    const size = tournament.settings.teamSize;
     return interaction.editReply({
-      content: `✅ You are checked in for team **${result.team.name}**! (${result.checkedInCount}/${tournament.settings.teamSize} members)`,
+      content: result.checkedIn
+        ? `✅ You're checked in for team **${result.team.name}**! (${result.checkedInCount}/${size} members)`
+        : `↩️ Check-in cancelled for team **${result.team.name}**. (${result.checkedInCount}/${size} members checked in)`,
     });
   },
 };

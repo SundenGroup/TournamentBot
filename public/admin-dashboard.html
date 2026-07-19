@@ -790,6 +790,10 @@ function renderRunLeft() {
       <div class="field"><label>Start time</label><input type="datetime-local" id="eStart" value="${toDatetimeLocal(d.startTime)}"></div>
       <div style="display:flex;gap:10px"><div class="field" style="flex:1"><label>Max entrants</label><input type="number" id="eMax" min="2" max="512" value="${d.maxParticipants}"></div>
       <div class="field" style="flex:1"><label>Best of</label><input type="number" id="eBestOf" min="1" max="15" step="2" value="${d.bestOf}"></div></div>
+      <div style="display:flex;gap:10px;align-items:flex-end">
+        <div class="field" style="flex:0 0 auto"><label><input type="checkbox" id="eCheckin" ${d.checkinRequired ? 'checked' : ''}> Require check-in</label></div>
+        <div class="field" style="flex:1"><label>Check-in window (min before start)</label><input type="number" id="eCheckinWin" min="5" max="120" value="${d.checkinWindow}" ${d.checkinRequired ? '' : 'disabled'}></div>
+      </div>
       <div class="field"><label>Description</label><textarea id="eDesc" rows="2" maxlength="1000">${esc(d.description)}</textarea></div>
       <div style="display:flex;justify-content:flex-end;gap:8px"><button class="btn btn-sm" id="eCancel">Discard</button><button class="btn btn-accent btn-sm" id="eSave">Save changes</button></div>
     </div>`;
@@ -803,6 +807,10 @@ function renderRunLeft() {
   if (isBR && d.br) tabs.push({ id: 'games', label: 'Games', count: d.counts.pending });
   if (!isBR && decided.length && d.can.correct) tabs.push({ id: 'decided', label: 'Decided', count: decided.length, warn: contestedCount });
   tabs.push({ id: 'entrants', label: 'Entrants', count: d.counts.entrants });
+  // Seeding: manual bracket order, pre-start, non-BR (BR uses lobby snake-seed).
+  if (!isBR && (d.status === 'registration' || d.status === 'checkin')) {
+    tabs.push({ id: 'seed', label: 'Seeding', count: d.entrants.filter(e => e.seed != null).length });
+  }
   if (!runTab || !tabs.some(t => t.id === runTab)) runTab = tabs[0].id;
 
   if (d.status === 'registration' || d.status === 'checkin') {
@@ -926,6 +934,29 @@ function renderRunLeft() {
     }).join('') || '<div class="caught-up">No entrants match.</div>';
     html += moreBtn('entrants', list.length, visible.length);
     html += '</div></div>';
+  }
+
+  if (runTab === 'seed') {
+    if (!d.seedingEnabled) {
+      html += `<div class="edit-card"><div class="qlabel">Seeding</div>
+        <p style="color:var(--text-2);font-size:13px;margin:6px 0 12px">Seeding is off for this tournament. Enable it to set the bracket order by hand or import it from a spreadsheet. <span class="idsub">Pro feature</span></p>
+        <button class="btn btn-accent btn-sm" data-enable-seed>Enable seeding</button></div>`;
+    } else {
+      const ents = d.entrants;
+      const seededCount = ents.filter(e => e.seed != null).length;
+      html += `<div><div class="qlabel">Seeding · ${seededCount}/${ents.length} seeded</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin:2px 0 10px">
+          <button class="btn btn-sm" data-seed-rand>🎲 Randomize</button>
+          <button class="btn btn-sm" data-seed-clear>Clear all</button>
+          <button class="btn btn-accent btn-sm" data-seed-save>Save seeds</button>
+        </div>
+        <div style="max-height:440px;overflow-y:auto">`;
+      ents.forEach(e => {
+        html += `<div class="ent-row"><span class="nm">${e.disqualified ? '🚫 ' : ''}${esc(e.name)}</span>
+          <input type="number" min="1" max="${ents.length}" class="seed-in" data-seed-id="${esc(e.id)}" value="${e.seed != null ? e.seed : ''}" placeholder="—" style="width:64px;text-align:center;background:var(--bg-sunken);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:5px"></div>`;
+      });
+      html += `</div></div>`;
+    }
   }
 
   left.innerHTML = html;
@@ -1177,6 +1208,9 @@ function wireRunLeft(d, left) {
   const eSave = left.querySelector('#eSave');
   if (eSave) {
     left.querySelector('#eCancel').addEventListener('click', () => { editOpen = false; renderRunLeft(); });
+    const eCheckin = left.querySelector('#eCheckin');
+    const eCheckinWin = left.querySelector('#eCheckinWin');
+    if (eCheckin) eCheckin.addEventListener('change', () => { eCheckinWin.disabled = !eCheckin.checked; });
     eSave.addEventListener('click', async () => {
       const startVal = left.querySelector('#eStart').value;
       eSave.disabled = true;
@@ -1188,6 +1222,8 @@ function wireRunLeft(d, left) {
           maxParticipants: left.querySelector('#eMax').value,
           bestOf: left.querySelector('#eBestOf').value,
           description: left.querySelector('#eDesc').value,
+          checkinRequired: eCheckin ? eCheckin.checked : undefined,
+          checkinWindow: eCheckin && eCheckin.checked ? eCheckinWin.value : undefined,
         },
       });
       eSave.disabled = false;
@@ -1197,6 +1233,34 @@ function wireRunLeft(d, left) {
       refreshRun();
     });
   }
+
+  // ── Seeding tab ──
+  const enableSeed = left.querySelector('[data-enable-seed]');
+  if (enableSeed) enableSeed.addEventListener('click', async () => {
+    enableSeed.disabled = true;
+    const r = await api(`/admin/api/tournaments/${d.id}`, { method: 'PATCH', body: { seedingEnabled: true } });
+    enableSeed.disabled = false;
+    if (!r.ok) return toast(r.error, true);
+    toast('Seeding enabled.');
+    refreshRun();
+  });
+
+  const seedPost = async (body, okMsg) => {
+    const r = await api(`/admin/api/tournaments/${d.id}/seed`, { method: 'POST', body });
+    if (!r.ok) return toast(r.error, true);
+    toast(okMsg);
+    refreshRun();
+  };
+  const bRand = left.querySelector('[data-seed-rand]');
+  if (bRand) bRand.addEventListener('click', () => seedPost({ action: 'randomize' }, 'Seeds randomized.'));
+  const bClear = left.querySelector('[data-seed-clear]');
+  if (bClear) bClear.addEventListener('click', () => seedPost({ action: 'clear' }, 'Seeds cleared.'));
+  const bSave = left.querySelector('[data-seed-save]');
+  if (bSave) bSave.addEventListener('click', () => {
+    const seeds = {};
+    left.querySelectorAll('.seed-in').forEach(inp => { seeds[inp.dataset.seedId] = inp.value.trim() === '' ? null : inp.value.trim(); });
+    seedPost({ seeds }, 'Seeds saved.');
+  });
 
   // report cards
   left.querySelectorAll('.rep-card').forEach(card => {

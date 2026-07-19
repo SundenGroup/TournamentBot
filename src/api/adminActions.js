@@ -8,7 +8,9 @@ const { ChannelType, PermissionFlagsBits } = require('discord.js');
 const { getClient } = require('./botClient');
 const { requireSession, requireGuildAdmin, verifyLiveGuildAdmin, requireCsrf, adminRateLimit } = require('./adminAuth');
 const { logWebAction } = require('./audit');
-const { getTournament } = require('../services/tournamentService');
+const { getTournament, setTournamentSeeds } = require('../services/tournamentService');
+const { updateTournamentMessages } = require('../utils/tournamentUpdater');
+const { checkFeature } = require('../services/subscriptionService');
 const { GAME_PRESETS, getPresetKeys, getFeaturedPresetKeys, getNickFields, getNickSummary } = require('../config/gamePresets');
 const { getServiceForBracket, findMatchByNumber, normalizeSeriesScore, listAllMatches, validSeriesScores } = require('../utils/matchUtils');
 const {
@@ -275,6 +277,9 @@ router.get('/admin/api/tournaments/:id/manage', requireSession, async (req, res)
     maxParticipants: t.settings.maxParticipants,
     startTime: t.startTime,
     description: t.description || '',
+    checkinRequired: !!t.settings.checkinRequired,
+    checkinWindow: t.settings.checkinWindow ?? 15,
+    seedingEnabled: !!t.settings.seedingEnabled,
     nickSummary: t.settings.requireGameNick ? getNickSummary(t.game) : null,
     entrants,
     matches,
@@ -408,6 +413,13 @@ router.patch('/admin/api/tournaments/:id', ...mutate, async (req, res) => {
   const t = await loadOwnedForMutation(req, res);
   if (!t) return;
   try {
+    // Turning seeding ON is a Pro feature — gate it (turning it off is free).
+    if (req.body?.seedingEnabled === true && !t.settings.seedingEnabled) {
+      const check = await checkFeature(t.guildId, 'seeding');
+      if (!check.allowed) {
+        return res.status(403).json({ error: 'Seeding is a Pro feature. Upgrade to enable it, or run this tournament without seeds.' });
+      }
+    }
     const { updated, changes } = await editTournamentFlow({
       client: getClient(),
       tournament: t,
@@ -417,6 +429,9 @@ router.patch('/admin/api/tournaments/:id', ...mutate, async (req, res) => {
         startTime: req.body?.startTime,
         maxParticipants: req.body?.maxParticipants,
         bestOf: req.body?.bestOf,
+        checkinRequired: req.body?.checkinRequired,
+        checkinWindow: req.body?.checkinWindow,
+        seedingEnabled: req.body?.seedingEnabled,
       },
     });
     await audit(req, t, 'edit', { changes });
@@ -737,6 +752,27 @@ router.post('/admin/api/tournaments/:id/remove-entrant', ...mutate, async (req, 
     });
     await audit(req, t, 'remove_entrant', { entrantId: req.body?.entrantId, name: result.name });
     res.json({ ok: true, name: result.name, remaining: result.count });
+  } catch (err) {
+    console.error(`[web-admin] ${req.method} ${req.path} failed:`, err.message);
+    res.status(400).json({ error: err.message });
+  }
+});
+
+// Seeding (registration/check-in, seeding-enabled tournaments)
+router.post('/admin/api/tournaments/:id/seed', ...mutate, async (req, res) => {
+  const t = await loadOwnedForMutation(req, res);
+  if (!t) return;
+  try {
+    const result = await setTournamentSeeds(t.id, {
+      seeds: req.body?.seeds,
+      action: req.body?.action,
+    });
+    if (!result.success) return res.status(400).json({ error: result.error });
+    await updateTournamentMessages(getClient(), result.tournament).catch(() => {});
+    await audit(req, t, 'seed', { action: req.body?.action || 'set' });
+    const isSolo = result.tournament.settings.teamSize === 1;
+    const list = isSolo ? result.tournament.participants : result.tournament.teams;
+    res.json({ ok: true, entrants: list.map(e => ({ id: e.id, name: isSolo ? e.username : e.name, seed: e.seed ?? null })) });
   } catch (err) {
     console.error(`[web-admin] ${req.method} ${req.path} failed:`, err.message);
     res.status(400).json({ error: err.message });
