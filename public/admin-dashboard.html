@@ -948,8 +948,12 @@ function renderRunLeft() {
         <div style="display:flex;gap:8px;flex-wrap:wrap;margin:2px 0 10px">
           <button class="btn btn-sm" data-seed-rand>🎲 Randomize</button>
           <button class="btn btn-sm" data-seed-clear>Clear all</button>
+          <button class="btn btn-sm" data-seed-export title="Download all entrants and their signup info as a spreadsheet">⬇ Export CSV</button>
+          <button class="btn btn-sm" data-seed-import title="Fill the seed fields from an exported CSV — nothing is saved until you hit Save seeds">⬆ Import CSV</button>
           <button class="btn btn-accent btn-sm" data-seed-save>Save seeds</button>
+          <input type="file" accept=".csv,.tsv,.txt,text/csv,text/tab-separated-values,text/plain" data-seed-file style="display:none">
         </div>
+        <div data-seed-note style="display:none;background:var(--bg-sunken);border:1px solid var(--border);border-radius:8px;padding:8px 12px;font-size:12.5px;line-height:1.5;color:var(--text-2);margin:0 0 10px"></div>
         <div style="max-height:440px;overflow-y:auto">`;
       ents.forEach(e => {
         html += `<div class="ent-row"><span class="nm">${e.disqualified ? '🚫 ' : ''}${esc(e.name)}</span>
@@ -1260,6 +1264,97 @@ function wireRunLeft(d, left) {
     const seeds = {};
     left.querySelectorAll('.seed-in').forEach(inp => { seeds[inp.dataset.seedId] = inp.value.trim() === '' ? null : inp.value.trim(); });
     seedPost({ seeds }, 'Seeds saved.');
+  });
+
+  // ── Seeding CSV round-trip ──
+  // Export carries every signup field (incl. private ones — this is the admin
+  // view), so it doubles as a participant export. Import only fills the seed
+  // inputs below; nothing is saved until the admin reviews and hits Save seeds,
+  // which goes through the same validated /seed endpoint as manual entry.
+  const bExport = left.querySelector('[data-seed-export]');
+  if (bExport) bExport.addEventListener('click', () => {
+    const labels = [...new Set(d.entrants.flatMap(e => (e.fields || []).map(f => f.label)))];
+    const cell = v => { v = String(v ?? ''); return /[",;\t\n\r]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v; };
+    const rows = [['Seed', 'Name', 'ID', 'Checked in', ...labels]];
+    d.entrants.forEach(e => rows.push([
+      e.seed != null ? e.seed : '',
+      e.name,
+      'id:' + e.id, // prefixed so Excel keeps 18-digit Discord IDs as text
+      e.checkedIn ? 'yes' : 'no',
+      ...labels.map(l => ((e.fields || []).find(f => f.label === l) || {}).value || ''),
+    ]));
+    const csv = '\uFEFF' + rows.map(r => r.map(cell).join(',')).join('\r\n'); // BOM: Excel + non-ASCII names
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+    a.download = `seeding-${String(d.title || 'tournament').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'tournament'}.csv`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+  });
+
+  const bImport = left.querySelector('[data-seed-import]');
+  const seedFile = left.querySelector('[data-seed-file]');
+  const seedNote = left.querySelector('[data-seed-note]');
+  const applySeedCSV = (text) => {
+    text = String(text || '').replace(/^\uFEFF/, '');
+    if (!text.trim()) return toast('That file is empty.', true);
+    // Delimiter = whichever of , ; tab appears most on the header line
+    // (European Excel saves CSV with semicolons; TSV paste uses tabs).
+    const headLine = text.slice(0, text.indexOf('\n') === -1 ? text.length : text.indexOf('\n'));
+    const delim = [',', ';', '\t'].map(ch => [ch, headLine.split(ch).length]).sort((a, b) => b[1] - a[1])[0][0];
+    // Minimal quoted-CSV state machine — names can contain the delimiter or quotes.
+    const rows = []; let row = [], buf = '', inQ = false;
+    for (let i = 0; i < text.length; i++) {
+      const c = text[i];
+      if (inQ) { if (c === '"') { if (text[i + 1] === '"') { buf += '"'; i++; } else inQ = false; } else buf += c; }
+      else if (c === '"') inQ = true;
+      else if (c === delim) { row.push(buf); buf = ''; }
+      else if (c === '\n' || c === '\r') {
+        if (c === '\r' && text[i + 1] === '\n') i++;
+        row.push(buf); buf = '';
+        if (row.some(x => x.trim())) rows.push(row);
+        row = [];
+      } else buf += c;
+    }
+    row.push(buf); if (row.some(x => x.trim())) rows.push(row);
+
+    const header = (rows.shift() || []).map(h => h.trim().toLowerCase());
+    const seedIdx = header.findIndex(h => h === 'seed' || h === 'seeds');
+    const idIdx = header.findIndex(h => h === 'id');
+    const nameIdx = header.findIndex(h => h === 'name' || h === 'team' || h === 'player');
+    if (seedIdx === -1 || (idIdx === -1 && nameIdx === -1)) {
+      return toast('Couldn’t find a Seed column plus an ID or Name column — use ⬇ Export CSV as the template.', true);
+    }
+
+    const byId = new Map(); left.querySelectorAll('.seed-in').forEach(inp => byId.set(String(inp.dataset.seedId), inp));
+    const byName = new Map(); d.entrants.forEach(e => byName.set(String(e.name).trim().toLowerCase(), byId.get(String(e.id))));
+    let filled = 0, cleared = 0; const misses = [], bad = [];
+    rows.forEach(r => {
+      const idRaw = idIdx !== -1 ? String(r[idIdx] || '').trim().replace(/^id:/i, '') : '';
+      const nm = nameIdx !== -1 ? String(r[nameIdx] || '').trim() : '';
+      // Match by ID; fall back to exact name (covers a deleted/Excel-mangled ID column).
+      const inp = byId.get(idRaw) || byName.get(nm.toLowerCase());
+      if (!inp) { misses.push(nm || idRaw || '(empty row)'); return; }
+      const sv = String(r[seedIdx] == null ? '' : r[seedIdx]).trim();
+      if (sv === '') { if (inp.value !== '') cleared++; inp.value = ''; return; } // blank in file = unseeded
+      if (!/^\d+$/.test(sv)) { bad.push(`${nm || idRaw}: “${sv}”`); return; }
+      inp.value = sv; filled++;
+    });
+    const bits = [`<strong>${filled}</strong> seed${filled === 1 ? '' : 's'} filled in from the file`];
+    if (cleared) bits.push(`${cleared} cleared (blank in file)`);
+    if (misses.length) bits.push(`${misses.length} row${misses.length === 1 ? '' : 's'} didn’t match any entrant: ${misses.slice(0, 3).map(esc).join(', ')}${misses.length > 3 ? '…' : ''}`);
+    if (bad.length) bits.push(`skipped non-number seeds: ${bad.slice(0, 3).map(esc).join(', ')}${bad.length > 3 ? '…' : ''}`);
+    seedNote.innerHTML = `\u{1F4C4} ${bits.join(' · ')}. <strong>Nothing is saved yet</strong> — review below, then hit Save seeds.`;
+    seedNote.style.display = '';
+    toast(filled || cleared ? 'Seeds loaded from file — review, then Save seeds.' : 'No seeds found to fill in.', !(filled || cleared));
+  };
+  if (bImport) bImport.addEventListener('click', () => seedFile.click());
+  if (seedFile) seedFile.addEventListener('change', () => {
+    const f = seedFile.files && seedFile.files[0];
+    seedFile.value = '';
+    if (!f) return;
+    const rd = new FileReader();
+    rd.onload = () => applySeedCSV(rd.result);
+    rd.readAsText(f);
   });
 
   // report cards

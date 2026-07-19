@@ -492,6 +492,23 @@
     / <strong>Clear all</strong>, then <strong>Save seeds</strong>. Duplicate or out-of-range seeds are
     rejected. If seeding wasn't enabled at creation, an <strong>Enable seeding</strong> button turns it
     on right there.</p>
+
+    <h3>Seeding from a spreadsheet</h3>
+    <p>For big fields, do the seeding in Excel or Google Sheets instead of typing into the form:</p>
+    <ol>
+      <li><strong>⬇ Export CSV</strong> downloads every entrant with their signup info — name, ID,
+      check-in status and all signup fields, including private ones like a game User ID (this is the
+      admin view). It doubles as a general participant export.</li>
+      <li>Open the file in Excel or Google Sheets, sort it however helps (by rank, say), and fill in the
+      <strong>Seed</strong> column — <code>1</code> is the top seed. Only the numbers matter, not the row
+      order. Leave a seed blank to keep that entrant unseeded, and don't edit the <strong>ID</strong>
+      column — it's how rows are matched back (if an ID does get mangled, the import falls back to the
+      exact name).</li>
+      <li>Save/download as <strong>CSV</strong> and hit <strong>⬆ Import CSV</strong>. The file only
+      fills in the seed fields on screen and reports anything it couldn't match — nothing is saved until
+      you review and hit <strong>Save seeds</strong>. Comma-, semicolon- and tab-separated files all
+      work, so Excel's regional CSV flavors are fine.</li>
+    </ol>
   </section>
 
   <!-- ================================================================
