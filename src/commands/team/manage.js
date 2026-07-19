@@ -1,5 +1,5 @@
 const { SlashCommandBuilder } = require('discord.js');
-const { getTournament, updateTournament } = require('../../services/tournamentService');
+const { getGuildTournament, updateTournament } = require('../../services/tournamentService');
 const { createTournamentEmbed, createParticipantListEmbed } = require('../../utils/embedBuilder');
 
 module.exports = {
@@ -93,7 +93,7 @@ module.exports = {
 async function handleAdd(interaction) {
   const tournamentId = interaction.options.getString('tournament');
   const newMember = interaction.options.getUser('member');
-  const tournament = await getTournament(tournamentId);
+  const tournament = await getGuildTournament(interaction.guildId, tournamentId);
 
   if (!tournament) {
     return interaction.reply({ content: '❌ Tournament not found.', ephemeral: true });
@@ -142,7 +142,7 @@ async function handleAdd(interaction) {
 async function handleRemove(interaction) {
   const tournamentId = interaction.options.getString('tournament');
   const memberToRemove = interaction.options.getUser('member');
-  const tournament = await getTournament(tournamentId);
+  const tournament = await getGuildTournament(interaction.guildId, tournamentId);
 
   if (!tournament) {
     return interaction.reply({ content: '❌ Tournament not found.', ephemeral: true });
@@ -184,7 +184,7 @@ async function handleRemove(interaction) {
 async function handleTransfer(interaction) {
   const tournamentId = interaction.options.getString('tournament');
   const newCaptain = interaction.options.getUser('member');
-  const tournament = await getTournament(tournamentId);
+  const tournament = await getGuildTournament(interaction.guildId, tournamentId);
 
   if (!tournament) {
     return interaction.reply({ content: '❌ Tournament not found.', ephemeral: true });

@@ -1,6 +1,6 @@
 const { SlashCommandBuilder, ActionRowBuilder, StringSelectMenuBuilder, EmbedBuilder, ButtonBuilder, ButtonStyle, ChannelType } = require('discord.js');
 const { getPresetKeys, getFeaturedPresetKeys, getMenuEmoji, GAME_PRESETS } = require('../../config/gamePresets');
-const { getTournament, getActiveTournaments, updateTournament } = require('../../services/tournamentService');
+const { getGuildTournament, getActiveTournaments, updateTournament } = require('../../services/tournamentService');
 const { canManageTournaments } = require('../../utils/permissions');
 const { createTournamentEmbed } = require('../../utils/embedBuilder');
 const singleElim = require('../../services/singleEliminationService');
@@ -436,7 +436,7 @@ module.exports = {
       }
 
       if (focused.name === 'winner' || focused.name === 'participant') {
-        const tournament = await getTournament(interaction.options.getString('tournament'));
+        const tournament = await getGuildTournament(interaction.guildId, interaction.options.getString('tournament'));
         if (!tournament) return interaction.respond([]);
         if (focused.name === 'winner' && !tournament.bracket) return interaction.respond([]);
         const isSolo = tournament.settings.teamSize === 1;
@@ -448,7 +448,7 @@ module.exports = {
       }
 
       if (focused.name === 'team') {
-        const tournament = await getTournament(interaction.options.getString('tournament'));
+        const tournament = await getGuildTournament(interaction.guildId, interaction.options.getString('tournament'));
         if (!tournament) return interaction.respond([]);
         return respondFiltered((tournament.teams || []).map(t => ({ name: clip(t.name), value: t.id })));
       }
@@ -639,7 +639,7 @@ async function handleList(interaction) {
 
 async function handleInfo(interaction) {
   const tournamentId = interaction.options.getString('tournament');
-  const tournament = await getTournament(tournamentId);
+  const tournament = await getGuildTournament(interaction.guildId, tournamentId);
 
   if (!tournament) {
     return interaction.reply({ content: '❌ Tournament not found.', ephemeral: true });
@@ -654,7 +654,7 @@ async function handleCancel(interaction) {
   const { cancelFlow } = require('../../services/lifecycleService');
 
   const tournamentId = interaction.options.getString('tournament');
-  const tournament = await getTournament(tournamentId);
+  const tournament = await getGuildTournament(interaction.guildId, tournamentId);
 
   if (!tournament) {
     return interaction.reply({ content: '❌ Tournament not found.', ephemeral: true });
@@ -674,7 +674,7 @@ async function handleStart(interaction) {
   const { startTournamentFlow, buildStartEmbed } = require('../../services/lifecycleService');
 
   const tournamentId = interaction.options.getString('tournament');
-  const tournament = await getTournament(tournamentId);
+  const tournament = await getGuildTournament(interaction.guildId, tournamentId);
 
   if (!tournament) {
     return interaction.reply({ content: '❌ Tournament not found.', ephemeral: true });
@@ -722,7 +722,7 @@ async function handleEdit(interaction) {
   const { ModalBuilder, TextInputBuilder, TextInputStyle } = require('discord.js');
 
   const tournamentId = interaction.options.getString('tournament');
-  const tournament = await getTournament(tournamentId);
+  const tournament = await getGuildTournament(interaction.guildId, tournamentId);
 
   if (!tournament) {
     return interaction.reply({ content: '❌ Tournament not found.', ephemeral: true });
@@ -798,7 +798,7 @@ async function handleDisqualify(interaction) {
   const participantId = interaction.options.getString('participant');
   const reason = interaction.options.getString('reason');
 
-  const tournament = await getTournament(tournamentId);
+  const tournament = await getGuildTournament(interaction.guildId, tournamentId);
   if (!tournament) return interaction.editReply({ content: '❌ Tournament not found.' });
 
   const { disqualifyFlow } = require('../../services/lifecycleService');
@@ -824,7 +824,7 @@ async function handleCorrect(interaction) {
   const winnerId = interaction.options.getString('winner');
   const score = interaction.options.getString('score');
 
-  const tournament = await getTournament(tournamentId);
+  const tournament = await getGuildTournament(interaction.guildId, tournamentId);
   if (!tournament) return interaction.editReply({ content: '❌ Tournament not found.' });
 
   const { correctMatchFlow } = require('../../services/lifecycleService');
@@ -853,7 +853,7 @@ async function handleAddPlayer(interaction) {
   const user = interaction.options.getUser('user');
   const gameNick = interaction.options.getString('game_nick');
 
-  const tournament = await getTournament(tournamentId);
+  const tournament = await getGuildTournament(interaction.guildId, tournamentId);
   if (!tournament) return interaction.editReply({ content: '❌ Tournament not found.' });
   if (tournament.settings.teamSize > 1) {
     return interaction.editReply({ content: '❌ This is a team tournament — use `/tournament add-team`.' });
@@ -890,7 +890,7 @@ async function handleAddTeam(interaction) {
   const captainUser = interaction.options.getUser('captain');
   const membersInput = interaction.options.getString('members');
 
-  const tournament = await getTournament(tournamentId);
+  const tournament = await getGuildTournament(interaction.guildId, tournamentId);
   if (!tournament) return interaction.editReply({ content: '❌ Tournament not found.' });
   if (tournament.settings.teamSize === 1) {
     return interaction.editReply({ content: '❌ This is a solo tournament — use `/tournament add-player`.' });
@@ -966,7 +966,7 @@ async function handleRemoveEntrant(interaction) {
   const subcommand = interaction.options.getSubcommand();
   const entrantId = interaction.options.getString(subcommand === 'remove-team' ? 'team' : 'participant');
 
-  const tournament = await getTournament(tournamentId);
+  const tournament = await getGuildTournament(interaction.guildId, tournamentId);
   if (!tournament) return interaction.editReply({ content: '❌ Tournament not found.' });
 
   const isSolo = tournament.settings.teamSize === 1;
@@ -994,7 +994,7 @@ async function handleCreateRooms(interaction) {
   await interaction.deferReply({ ephemeral: true });
 
   const tournamentId = interaction.options.getString('tournament');
-  const tournament = await getTournament(tournamentId);
+  const tournament = await getGuildTournament(interaction.guildId, tournamentId);
   if (!tournament) return interaction.editReply({ content: '❌ Tournament not found.' });
 
   const { createRoomsFlow } = require('../../services/lifecycleService');
@@ -1041,7 +1041,7 @@ async function handleReport(interaction) {
   const winnerId = interaction.options.getString('winner');
   const score = interaction.options.getString('score');
 
-  const tournament = await getTournament(tournamentId);
+  const tournament = await getGuildTournament(interaction.guildId, tournamentId);
 
   if (!tournament) {
     return interaction.editReply({ content: '❌ Tournament not found.', ephemeral: true });
@@ -1124,7 +1124,7 @@ async function handleReport(interaction) {
 
 async function handleBracket(interaction) {
   const tournamentId = interaction.options.getString('tournament');
-  const tournament = await getTournament(tournamentId);
+  const tournament = await getGuildTournament(interaction.guildId, tournamentId);
 
   if (!tournament) {
     return interaction.reply({ content: '❌ Tournament not found.', ephemeral: true });
@@ -1449,7 +1449,7 @@ async function handleSeedSet(interaction) {
   const tournamentId = interaction.options.getString('tournament');
   const participantId = interaction.options.getString('participant');
   const seed = interaction.options.getInteger('seed');
-  const tournament = await getTournament(tournamentId);
+  const tournament = await getGuildTournament(interaction.guildId, tournamentId);
 
   if (!tournament) {
     return interaction.reply({ content: '❌ Tournament not found.', ephemeral: true });
@@ -1495,7 +1495,7 @@ async function handleSeedSet(interaction) {
 
 async function handleSeedList(interaction) {
   const tournamentId = interaction.options.getString('tournament');
-  const tournament = await getTournament(tournamentId);
+  const tournament = await getGuildTournament(interaction.guildId, tournamentId);
 
   if (!tournament) {
     return interaction.reply({ content: '❌ Tournament not found.', ephemeral: true });
@@ -1541,7 +1541,7 @@ async function handleSeedList(interaction) {
 
 async function handleSeedRandomize(interaction) {
   const tournamentId = interaction.options.getString('tournament');
-  const tournament = await getTournament(tournamentId);
+  const tournament = await getGuildTournament(interaction.guildId, tournamentId);
 
   if (!tournament) {
     return interaction.reply({ content: '❌ Tournament not found.', ephemeral: true });
@@ -1589,7 +1589,7 @@ async function handleSeedRandomize(interaction) {
 
 async function handleSeedClear(interaction) {
   const tournamentId = interaction.options.getString('tournament');
-  const tournament = await getTournament(tournamentId);
+  const tournament = await getGuildTournament(interaction.guildId, tournamentId);
 
   if (!tournament) {
     return interaction.reply({ content: '❌ Tournament not found.', ephemeral: true });

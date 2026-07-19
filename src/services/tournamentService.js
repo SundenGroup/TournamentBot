@@ -324,6 +324,97 @@ async function addParticipant(tournamentId, user) {
   return result;
 }
 
+// Guild-scoped lookup for Discord slash-command handlers. The bot is public
+// and commands are registered globally, so an unscoped getTournament(id) —
+// a lookup by primary key with no guild check — lets an admin in ANY server
+// act on ANY tournament by its UUID (harvestable from the public /b/<id>
+// bracket link). Returns null for both missing and wrong-guild, so callers'
+// existing "not found" branch already handles the cross-guild case.
+async function getGuildTournament(guildId, tournamentId) {
+  const tournament = await getTournament(tournamentId);
+  if (!tournament || tournament.guildId !== guildId) return null;
+  return tournament;
+}
+
+// Atomically flip registration/checkin → active. A Discord button start and a
+// dashboard start racing both pass the cached-status check; the conditional
+// UPDATE lets exactly one of them win (the loser sees 0 rows and backs off).
+async function claimTournamentStart(tournamentId) {
+  const updated = await db('tournaments')
+    .where('id', tournamentId)
+    .whereIn('status', ['registration', 'checkin'])
+    .update({ status: 'active' });
+  if (updated > 0) {
+    const cached = tournaments.get(tournamentId);
+    if (cached) cached.status = 'active';
+    return true;
+  }
+  return false;
+}
+
+// Check-in shares addParticipant's trx+forUpdate shape: the whole field taps
+// the button inside a minutes-long window, and the old read-modify-write on
+// the cached object let concurrent taps last-write-win (lost check-ins became
+// no-shows at start).
+async function setCheckedIn(tournamentId, userId) {
+  let result;
+  try {
+    result = await db.transaction(async (trx) => {
+      const row = await trx('tournaments').where('id', tournamentId).forUpdate().first();
+      if (!row) return { success: false, error: 'Tournament not found.' };
+
+      const tournament = rowToTournament(row);
+
+      if (!tournament.checkinOpen && tournament.status !== 'checkin') {
+        return { success: false, error: 'Check-in is not open yet.' };
+      }
+
+      if (tournament.settings.teamSize === 1) {
+        const participant = tournament.participants.find(p => p.id === userId);
+        if (!participant) return { success: false, error: 'You are not registered for this tournament.' };
+        if (participant.checkedIn) return { success: false, already: true };
+
+        participant.checkedIn = true;
+        await trx('tournaments')
+          .where('id', tournamentId)
+          .update({ participants: JSON.stringify(tournament.participants) });
+
+        return { success: true, isSolo: true, tournament, participant };
+      }
+
+      const team = tournament.teams.find(t => t.members.some(m => m.id === userId));
+      if (!team) return { success: false, error: 'You are not on a team in this tournament.' };
+
+      team.memberCheckins = team.memberCheckins || {};
+      if (team.memberCheckins[userId]) return { success: false, already: true };
+
+      team.memberCheckins[userId] = true;
+      const checkedInCount = Object.keys(team.memberCheckins).length;
+      const resolvedCount = team.members.filter(m => m.id && !String(m.id).startsWith('fake_')).length;
+      let teamNowFull = false;
+      if (checkedInCount >= resolvedCount && !team.checkedIn) {
+        team.checkedIn = true;
+        teamNowFull = true;
+      }
+
+      await trx('tournaments')
+        .where('id', tournamentId)
+        .update({ teams: JSON.stringify(tournament.teams) });
+
+      return { success: true, isSolo: false, tournament, team, checkedInCount, teamNowFull };
+    });
+  } catch (err) {
+    console.error('setCheckedIn transaction failed:', err);
+    return { success: false, error: 'Check-in failed, please try again.' };
+  }
+
+  if (result.success) {
+    tournaments.set(tournamentId, result.tournament);
+  }
+
+  return result;
+}
+
 async function removeParticipant(tournamentId, userId) {
   let result;
   try {
@@ -615,6 +706,9 @@ module.exports = {
   updateTournament,
   deleteTournament,
   addParticipant,
+  setCheckedIn,
+  claimTournamentStart,
+  getGuildTournament,
   removeParticipant,
   adminRemoveEntrant,
   addTeam,

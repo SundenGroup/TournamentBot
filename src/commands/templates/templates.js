@@ -10,7 +10,7 @@ const {
   createTemplateFromTournament,
   MAX_TEMPLATES_PER_GUILD,
 } = require('../../services/templateService');
-const { getTournament, getTournamentsByGuild } = require('../../services/tournamentService');
+const { getGuildTournament, getTournamentsByGuild } = require('../../services/tournamentService');
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -105,7 +105,7 @@ module.exports = {
       const name = interaction.options.getString('name');
       const description = interaction.options.getString('description');
 
-      const tournament = await getTournament(tournamentId);
+      const tournament = await getGuildTournament(interaction.guildId, tournamentId);
       if (!tournament) {
         return interaction.reply({
           content: '❌ Tournament not found.',

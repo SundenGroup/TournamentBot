@@ -1,6 +1,6 @@
 const { SlashCommandBuilder, PermissionFlagsBits, ChannelType, EmbedBuilder } = require('discord.js');
 const { getServerSettings, updateServerSettings, setAnnouncementChannel } = require('../../data/serverSettings');
-const { getTournament, getTournamentsByGuild, getActiveTournaments, updateTournament } = require('../../services/tournamentService');
+const { getGuildTournament, getTournamentsByGuild, getActiveTournaments, updateTournament } = require('../../services/tournamentService');
 const { collectTournamentChannels, bulkCleanupChannels, clearBracketChannelIds } = require('../../services/channelService');
 const { createTournamentEmbed, createParticipantListEmbed } = require('../../utils/embedBuilder');
 const { v4: uuidv4 } = require('uuid');
@@ -401,7 +401,7 @@ async function handleCleanup(interaction) {
   const tournamentId = interaction.options.getString('tournament');
   const mode = interaction.options.getString('mode');
 
-  const tournament = await getTournament(tournamentId);
+  const tournament = await getGuildTournament(interaction.guildId, tournamentId);
   if (!tournament) {
     return interaction.reply({ content: '❌ Tournament not found.', ephemeral: true });
   }
@@ -628,7 +628,7 @@ async function handleAddPlayers(interaction) {
 
   const tournamentId = interaction.options.getString('tournament');
   const count = interaction.options.getInteger('count');
-  const tournament = await getTournament(tournamentId);
+  const tournament = await getGuildTournament(interaction.guildId, tournamentId);
 
   if (!tournament) {
     return interaction.editReply({ content: '❌ Tournament not found.' });
@@ -684,7 +684,7 @@ async function handleAddTeams(interaction) {
 
   const tournamentId = interaction.options.getString('tournament');
   const count = interaction.options.getInteger('count');
-  const tournament = await getTournament(tournamentId);
+  const tournament = await getGuildTournament(interaction.guildId, tournamentId);
 
   if (!tournament) {
     return interaction.editReply({ content: '❌ Tournament not found.' });
@@ -748,7 +748,7 @@ async function handleAddTeams(interaction) {
 
 async function handleClearParticipants(interaction) {
   const tournamentId = interaction.options.getString('tournament');
-  const tournament = await getTournament(tournamentId);
+  const tournament = await getGuildTournament(interaction.guildId, tournamentId);
 
   if (!tournament) {
     return interaction.reply({ content: '❌ Tournament not found.', ephemeral: true });

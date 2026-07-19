@@ -1,5 +1,5 @@
 const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
-const { getTournament, getActiveTournaments } = require('../../services/tournamentService');
+const { getGuildTournament, getActiveTournaments } = require('../../services/tournamentService');
 const singleElim = require('../../services/singleEliminationService');
 const doubleElim = require('../../services/doubleEliminationService');
 const swiss = require('../../services/swissService');
@@ -99,7 +99,7 @@ function getServiceForBracket(bracket) {
 
 async function handleList(interaction) {
   const tournamentId = interaction.options.getString('tournament');
-  const tournament = await getTournament(tournamentId);
+  const tournament = await getGuildTournament(interaction.guildId, tournamentId);
 
   if (!tournament) {
     return interaction.reply({ content: '❌ Tournament not found.', ephemeral: true });
@@ -145,7 +145,7 @@ async function handleList(interaction) {
 
 async function handleBracket(interaction) {
   const tournamentId = interaction.options.getString('tournament');
-  const tournament = await getTournament(tournamentId);
+  const tournament = await getGuildTournament(interaction.guildId, tournamentId);
 
   if (!tournament) {
     return interaction.reply({ content: '❌ Tournament not found.', ephemeral: true });
@@ -162,7 +162,7 @@ async function handleBracket(interaction) {
 
 async function handleGames(interaction) {
   const tournamentId = interaction.options.getString('tournament');
-  const tournament = await getTournament(tournamentId);
+  const tournament = await getGuildTournament(interaction.guildId, tournamentId);
 
   if (!tournament) {
     return interaction.reply({ content: '❌ Tournament not found.', ephemeral: true });
