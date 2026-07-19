@@ -643,6 +643,11 @@ function collectTournamentChannels(bracket) {
     }
   }
 
+  // Single elimination's optional 3rd-place match lives outside rounds
+  if (bracket.thirdPlaceMatch?.channelId) {
+    channelIds.push(bracket.thirdPlaceMatch.channelId);
+  }
+
   return channelIds;
 }
 
@@ -797,6 +802,10 @@ function clearBracketChannelIds(bracket) {
         }
       }
     }
+  }
+
+  if (bracket.thirdPlaceMatch) {
+    delete bracket.thirdPlaceMatch.channelId;
   }
 }
 

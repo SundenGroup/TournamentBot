@@ -12,7 +12,7 @@
 //   • slash start and cancel never refreshed the announcement embed
 
 const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
-const { getTournament, updateTournament, adminRemoveEntrant, resolveTeamMembers } = require('./tournamentService');
+const { getTournament, updateTournament, adminRemoveEntrant, resolveTeamMembers, claimTournamentStart } = require('./tournamentService');
 const { getServiceForBracket, findMatchByNumber, normalizeSeriesScore } = require('../utils/matchUtils');
 const { createMatchRoom, createBRGroupRoom, collectTournamentChannels, bulkCleanupChannels, clearBracketChannelIds, getChannelCapacity, isCapacityError, getMissingBotPerms } = require('./channelService');
 const { notifyByesAndWalkovers, getStartByeSummary } = require('../utils/byeNotifier');
@@ -48,11 +48,13 @@ async function startTournamentFlow({ client, guild, tournamentId }) {
   const participantCount = participants.length;
   if (participantCount < 2) throw new Error('Need at least 2 participants to start.');
 
-  // Immediately mark as active to prevent concurrent starts. Remember the
-  // prior status so we can roll back if anything below fails — otherwise a
-  // failed start strands the tournament "active" with no bracket.
+  // Atomically claim the start (conditional UPDATE) so a Discord button and
+  // a dashboard start racing can't both generate brackets + rooms. Remember
+  // the prior status so we can roll back if anything below fails — otherwise
+  // a failed start strands the tournament "active" with no bracket.
   const previousStatus = tournament.status;
-  await updateTournament(tournamentId, { status: 'active' });
+  const claimed = await claimTournamentStart(tournamentId);
+  if (!claimed) throw new Error('This tournament is already being started.');
 
   try {
     // Resolve pending team members (captain mode)
@@ -288,7 +290,7 @@ async function applyMatchReport({ client, guild, tournament, match, winnerId, sc
     // Free the concurrent-tournament slot (was never decremented before —
     // free-tier servers would permanently exhaust their concurrent limit)
     const { recordTournamentCompletion } = require('./subscriptionService');
-    await recordTournamentCompletion(tournament.guildId).catch(() => {});
+    await recordTournamentCompletion(tournament.guildId).catch(err => console.error('recordTournamentCompletion failed (concurrent-slot counter may drift):', err.message));
 
     return { winner, loser, isSolo, swissRoundStarted, completed: true, results, newRooms: 0 };
   }
@@ -423,7 +425,7 @@ async function cancelFlow({ client, tournament }) {
 
   // Every creation takes a concurrent slot, so every cancel frees one
   const { recordTournamentCompletion } = require('./subscriptionService');
-  await recordTournamentCompletion(tournament.guildId).catch(() => {});
+  await recordTournamentCompletion(tournament.guildId).catch(err => console.error('recordTournamentCompletion failed (concurrent-slot counter may drift):', err.message));
 
   // Refresh the announcement so the status + buttons reflect the cancellation
   await updateTournamentMessages(client, tournament);
@@ -674,7 +676,7 @@ async function finishBRMutation({ client, guild, tournament, result, groupKey, g
 
     // Free the concurrent-tournament slot
     const { recordTournamentCompletion } = require('./subscriptionService');
-    await recordTournamentCompletion(tournament.guildId).catch(() => {});
+    await recordTournamentCompletion(tournament.guildId).catch(err => console.error('recordTournamentCompletion failed (concurrent-slot counter may drift):', err.message));
 
     return { ...result, groupKey };
   }

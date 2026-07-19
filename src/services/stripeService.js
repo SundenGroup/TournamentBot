@@ -251,6 +251,20 @@ async function handleWebhook(event) {
     console.error('[Stripe] Idempotency check failed, processing anyway:', err.message);
   }
 
+  // The idempotency row was claimed BEFORE processing — if processing throws,
+  // release the claim so Stripe's retry isn't skipped as a "duplicate" (which
+  // would leave a paid checkout permanently unapplied).
+  try {
+    await processWebhookEvent(event);
+  } catch (err) {
+    await db('processed_stripe_events').where('event_id', event.id).del().catch(delErr => {
+      console.error(`[Stripe] Could not release idempotency claim for ${event.id}:`, delErr.message);
+    });
+    throw err;
+  }
+}
+
+async function processWebhookEvent(event) {
   switch (event.type) {
     case 'checkout.session.completed': {
       const session = event.data.object;

@@ -7,8 +7,8 @@ const { getTournamentsByGuild } = require('./tournamentService');
 /**
  * Get analytics data for a guild
  */
-function getGuildAnalytics(guildId) {
-  const tournaments = getTournamentsByGuild(guildId);
+async function getGuildAnalytics(guildId) {
+  const tournaments = await getTournamentsByGuild(guildId);
 
   if (tournaments.length === 0) {
     return null;
@@ -104,8 +104,8 @@ function getGuildAnalytics(guildId) {
 /**
  * Get analytics embed
  */
-function getAnalyticsEmbed(guildId, guildName) {
-  const analytics = getGuildAnalytics(guildId);
+async function getAnalyticsEmbed(guildId, guildName) {
+  const analytics = await getGuildAnalytics(guildId);
 
   const embed = new EmbedBuilder()
     .setColor(0x5865F2)

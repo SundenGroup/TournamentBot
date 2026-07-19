@@ -231,12 +231,29 @@ async function createParticipantListEmbed(tournament) {
   const embed = new EmbedBuilder()
     .setColor(getStatusColor(status));
 
+  // Embed descriptions cap at 4096 chars — a full 512 field would blow past
+  // it and Discord would reject every announcement edit, freezing the public
+  // list mid-registration. Cap the list and say how many more there are.
+  const joinCapped = (entries, sep, total, noun) => {
+    const budget = 3900; // headroom for the "+N more" line
+    const out = [];
+    let used = 0;
+    for (const e of entries) {
+      if (used + e.length + sep.length > budget) break;
+      out.push(e);
+      used += e.length + sep.length;
+    }
+    let text = out.join(sep);
+    if (out.length < total) text += `\n…and **${total - out.length}** more ${noun} (full list on the web bracket)`;
+    return text;
+  };
+
   if (isSolo) {
     embed.setTitle(`📋 Signed Up (${participants.length}/${settings.maxParticipants})`);
     if (participants.length === 0) {
       embed.setDescription('No participants yet.');
     } else {
-      const list = participants.map((p, i) => {
+      const entries = participants.map((p, i) => {
         let entry = `${i + 1}. ${p.username}`;
         if (p.gameNick) entry += ` (${p.gameNick})`;
         if (p.seed) entry += ` [#${p.seed}]`;
@@ -245,15 +262,15 @@ async function createParticipantListEmbed(tournament) {
           entry += p.checkedIn ? ' ✓' : ' ⏳';
         }
         return entry;
-      }).join('\n');
-      embed.setDescription(list);
+      });
+      embed.setDescription(joinCapped(entries, '\n', participants.length, 'players'));
     }
   } else {
     embed.setTitle(`📋 Registered Teams (${teams.length}/${settings.maxParticipants})`);
     if (teams.length === 0) {
       embed.setDescription('No teams registered yet.');
     } else {
-      const list = teams.map((t, i) => {
+      const entries = teams.map((t, i) => {
         const members = t.members.map(m => m.pending ? `${m.username} (pending)` : m.username).join(', ');
         let entry = `**${i + 1}. ${t.name}** (Captain: ${t.captain.username})`;
         if (t.seed) entry += ` [#${t.seed}]`;
@@ -264,8 +281,8 @@ async function createParticipantListEmbed(tournament) {
         }
         entry += `\n└ ${members}`;
         return entry;
-      }).join('\n\n');
-      embed.setDescription(list);
+      });
+      embed.setDescription(joinCapped(entries, '\n\n', teams.length, 'teams'));
     }
   }
 

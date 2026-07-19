@@ -59,6 +59,10 @@ function rowToTournament(row) {
   };
 }
 
+// Must stay field-for-field identical to rowToSettings in serverSettings.js —
+// this one seeds the shared cache at boot, and any column missing here reads
+// as unset for every guild after a restart (and gets persisted over the real
+// value on the next settings write).
 function rowToServerSettings(row) {
   return {
     announcementChannelName: row.announcement_channel_name,
@@ -71,6 +75,10 @@ function rowToServerSettings(row) {
     autoCleanupMode: row.auto_cleanup_mode,
     tournamentAdminRoles: row.tournament_admin_roles || [],
     captainMode: row.captain_mode,
+    gameAnnouncementChannels: row.game_announcement_channels || {},
+    matchLogsEnabled: row.match_logs_enabled ?? true,
+    matchLogsChannelId: row.match_logs_channel_id ?? null,
+    autoArchiveMinutes: row.auto_archive_minutes ?? 0,
   };
 }
 

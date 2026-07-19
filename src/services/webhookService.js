@@ -25,7 +25,19 @@ let isProcessing = false;
 /**
  * Send a webhook event
  */
+// Never rejects: every on* trigger fires this without awaiting, so a rejection
+// (e.g. DB hiccup in getSubscription) would only surface as an unhandled
+// rejection with no context.
 async function sendWebhook(guildId, event, data) {
+  try {
+    return await sendWebhookInner(guildId, event, data);
+  } catch (error) {
+    console.error(`[Webhook] ${event} for guild ${guildId} failed:`, error.message);
+    return { success: false, error: error.message };
+  }
+}
+
+async function sendWebhookInner(guildId, event, data) {
   // Check if guild has webhooks configured and is Business tier
   const sub = await getSubscription(guildId);
   if (!sub?.webhookUrl || !sub?.webhookSecret) {
