@@ -1058,12 +1058,22 @@ async function updateTournamentAnnouncement(client, tournament) {
  */
 async function triggerAutoCleanup(guild, tournament) {
   const settings = await getServerSettings(guild.id);
-  if (!settings.autoCleanup) return;
+
+  // Rolling auto-archive on its own leaves the end-game rooms orphaned: the
+  // final match is armed with `archiveAt` at the same moment the tournament
+  // flips to `completed`, and the archive sweeper only scans ACTIVE
+  // tournaments — so those rooms (final + anything whose countdown hadn't
+  // elapsed yet) are never swept. Run a completion cleanup for them here even
+  // when the separate auto-cleanup setting is off.
+  const rollingOn = (await getAutoArchiveMinutes(tournament)) > 0;
+  if (!settings.autoCleanup && !rollingOn) return;
 
   const channelIds = collectTournamentChannels(tournament.bracket);
   if (channelIds.length === 0) return;
 
-  const mode = settings.autoCleanupMode || 'delete';
+  // Auto-cleanup honours its configured mode; the rolling-archive fallback
+  // always archives (transcripts saved) — never a bare delete.
+  const mode = settings.autoCleanup ? (settings.autoCleanupMode || 'delete') : 'archive';
   console.log(`Auto-cleanup (${mode}): ${channelIds.length} channels for "${tournament.title}" in 30s`);
 
   setTimeout(async () => {
