@@ -8,21 +8,22 @@
   <link rel="icon" type="image/png" href="/clutch-icon.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,400;0,500;0,600;0,700;0,800;1,800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     :root {
-      --bg: #0B0E14; --bg-sunken: #0D111A; --bg-card: #12161F; --bg-hover: #171C27;
-      --bg-table: #10141D; --bg-code: #0D111A; --bg-deep: #05090E;
-      --hairline: #1E2634; --border: #232B3A; --border-strong: #303A4D;
-      --text: #F5F7FA; --text-body: #C6CCD8; --text-2: #9BA3AF; --text-muted: #7C8698; --text-faint: #5B667A;
-      --accent: #FF154D; --accent-soft: #FF6B8E;
+      /* Aligned with the shared site design system (index/faq/user-guide). */
+      --bg: #0A0D12; --bg-sunken: #0C1119; --bg-card: #121620; --bg-hover: #1A2030;
+      --bg-table: #0D1017; --bg-code: #060A0F; --bg-deep: #05090E;
+      --hairline: #1B2230; --border: #222938; --border-strong: #313B4E;
+      --text: #F5F7FA; --text-body: #C6CCD8; --text-2: #9BA3AF; --text-muted: #7C8698; --text-faint: #6B7280;
+      --accent: #FF154D; --accent-soft: #FF4D7A;
       --code-param: #34D399; --code-value: #FBBF24; --code-text: #c8ccde;
       --st-reg: #FF154D; --st-check: #FFC24B; --st-active: #2FD28A; --st-done: #7C8698;
       --sans: 'DM Sans', system-ui, sans-serif;
       --mono: 'JetBrains Mono', ui-monospace, monospace;
-      --header-height: 60px; --sidebar-width: 264px;
+      --header-height: 52px; --sidebar-width: 264px;
     }
 
     html { scroll-behavior: smooth; }
@@ -33,16 +34,18 @@
     input::placeholder { color: var(--text-faint); }
     :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
-    /* ── Header ── */
-    .header { position: fixed; top: 0; left: 0; right: 0; height: var(--header-height); background: rgba(11,14,20,.88); backdrop-filter: blur(12px); border-bottom: 1px solid var(--hairline); z-index: 50; }
-    .header-inner { height: 100%; display: flex; align-items: center; gap: 14px; padding: 0 22px; }
-    .header-logo { display: flex; align-items: center; gap: 10px; }
-    .header-badge { font-family: var(--mono); font-size: 10px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: #fff; background: var(--accent); padding: 4px 10px; border-radius: 4px; }
-    .top-links { margin-left: auto; display: flex; gap: 18px; font-size: 13px; font-weight: 500; align-items: center; }
+    /* ── Header (shared site nav bar) ── */
+    .header { position: fixed; top: 0; left: 0; right: 0; height: var(--header-height); background: rgba(10,13,18,.85); backdrop-filter: blur(12px); border-bottom: 1px solid var(--border); z-index: 50; }
+    .header-inner { height: 100%; display: flex; align-items: center; gap: 12px; padding: 0 22px; }
+    .header-logo { display: flex; align-items: center; gap: 10px; color: var(--text); }
+    .header-logo img.mark { width: 24px; height: 24px; }
+    .header-logo img.word { height: 20px; display: block; }
+    .header-badge { font-family: var(--mono); font-size: 10px; font-weight: 600; letter-spacing: .14em; text-transform: uppercase; color: var(--text-faint); border-left: 1px solid var(--border-strong); padding-left: 10px; }
+    .top-links { margin-left: auto; display: flex; gap: 20px; font-size: 13px; font-weight: 500; align-items: center; }
     .top-links a { color: var(--text-2); }
     .top-links a:hover { color: var(--text); }
-    .top-links a.dash-btn { background: var(--accent); color: #fff; font-weight: 700; padding: 7px 14px; border-radius: 8px; font-size: 12.5px; }
-    .top-links a.dash-btn:hover { background: #e01245; }
+    .top-links a.dash-btn { background: var(--accent); color: #fff; font-weight: 700; padding: 7px 13px; border-radius: 8px; font-size: 12.5px; }
+    .top-links a.dash-btn:hover { background: var(--accent-soft); }
     .menu-toggle { display: none; margin-left: auto; background: none; border: 1px solid var(--border-strong); color: var(--text); border-radius: 8px; width: 36px; height: 36px; cursor: pointer; font-size: 16px; }
 
     /* ── Sidebar ── */
@@ -61,10 +64,10 @@
     .layout { padding-top: var(--header-height); margin-left: var(--sidebar-width); }
     .main { max-width: 860px; margin: 0 auto; padding: 34px 34px 90px; }
 
-    h1 { color: var(--text); font-size: 34px; font-weight: 800; font-style: italic; letter-spacing: -0.6px; margin-bottom: 6px; }
+    h1 { color: var(--text); font-size: 34px; font-weight: 800; letter-spacing: -0.03em; margin-bottom: 6px; }
     .subtitle { color: var(--text-muted); font-size: 15px; margin-bottom: 26px; }
     section { margin-bottom: 46px; }
-    h2 { display: flex; align-items: baseline; gap: 12px; color: var(--text); font-size: 21px; font-weight: 800; font-style: italic; letter-spacing: -0.4px; margin: 0 0 16px; padding-bottom: 10px; border-bottom: 1px solid var(--hairline); }
+    h2 { display: flex; align-items: baseline; gap: 12px; color: var(--text); font-size: 21px; font-weight: 800; letter-spacing: -0.02em; margin: 0 0 16px; padding-bottom: 10px; border-bottom: 1px solid var(--hairline); }
     h2 .secnum { font-family: var(--mono); font-size: 13px; font-weight: 700; font-style: normal; color: var(--accent); letter-spacing: .06em; }
     h3 { color: var(--text); font-size: 15.5px; font-weight: 700; margin: 22px 0 8px; }
     p { margin-bottom: 12px; }
@@ -164,11 +167,12 @@
 <header class="header">
   <div class="header-inner">
     <a href="/" class="header-logo">
-      <img src="/clutch-icon.png" alt="" width="26" height="26">
-      <img src="/clutch-wordmark.png" alt="CLUTCH" style="height:20px;display:block">
+      <img class="mark" src="/clutch-icon.png" alt="">
+      <img class="word" src="/clutch-wordmark.png" alt="CLUTCH">
     </a>
     <span class="header-badge">Admin Guide</span>
     <nav class="top-links">
+      <a href="/getting-started">Get Started</a>
       <a href="/user-guide">User Guide</a>
       <a href="/faq">FAQ</a>
       <a href="/contact">Contact</a>
