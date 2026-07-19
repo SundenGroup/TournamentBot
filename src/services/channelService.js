@@ -285,14 +285,28 @@ async function findOrCreateMatchCategory(guild, tournament) {
     }
   }
 
-  // Look for existing category for this game with space
+  // Reuse an existing category for this game, filling the LOWEST-numbered one
+  // with space first ("CS2 Matches", then "CS2 Matches 2", …). The channel
+  // cache has no guaranteed order, so sort explicitly — otherwise new rooms
+  // drift onto whichever category the cache happened to list first (usually the
+  // most recent), and space freed by archiving in an earlier category is never
+  // reused. Only exact "<name>" or "<name> <n>" categories qualify, so the
+  // "Archived Matches" family and any oddly-named category are ignored.
   const categoryName = `${tournament.game.shortName} Matches`;
-  const existingCategories = guild.channels.cache.filter(
-    c => c.type === ChannelType.GuildCategory &&
-    (c.name === categoryName || c.name.startsWith(categoryName))
-  );
+  const categorySuffixNum = (name) => {
+    if (name === categoryName) return 1;
+    if (name.startsWith(categoryName + ' ')) {
+      const rest = name.slice(categoryName.length + 1);
+      if (/^\d+$/.test(rest)) return parseInt(rest, 10);
+    }
+    return null;
+  };
+  const matchCategories = guild.channels.cache
+    .filter(c => c.type === ChannelType.GuildCategory && categorySuffixNum(c.name) !== null)
+    .map(c => ({ category: c, num: categorySuffixNum(c.name) }))
+    .sort((a, b) => a.num - b.num);
 
-  for (const [, category] of existingCategories) {
+  for (const { category } of matchCategories) {
     const channelsInCategory = guild.channels.cache.filter(c => c.parentId === category.id);
     if (channelsInCategory.size < 50) {
       return category;
