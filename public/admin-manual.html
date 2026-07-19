@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Admin Guide — CLUTCH Tournaments</title>
+  <meta name="description" content="Set up CLUTCH Tournaments, create and run Discord tournaments, report results, archive match rooms, and manage your server.">
   <link rel="icon" type="image/png" href="/clutch-icon.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -296,10 +297,10 @@
     <pre><code><span class="cmd">/tournament create</span></code></pre>
     <ol class="steps">
       <li>A dropdown appears with the supported games (CS2, VALORANT, League of Legends, Rocket League, etc.). Pick one, or choose <strong>"Other Game"</strong> for anything custom.</li>
-      <li>A form pops up asking for <strong>Tournament Title</strong>, <strong>Date &amp; Time</strong> (natural language works: <code>March 10 8pm EST</code>, <code>tomorrow 7pm UTC</code>), and <strong>Max Players/Teams</strong> (2–128).</li>
+      <li>A form pops up asking for <strong>Tournament Title</strong>, <strong>Date &amp; Time</strong> (natural language works: <code>March 10 8pm EST</code>, <code>tomorrow 7pm UTC</code>), and <strong>Max Players/Teams</strong> (2–512).</li>
       <li>Hit submit and the tournament is live with a signup embed in your announcement channel.</li>
     </ol>
-    <p>Simple mode uses the game's default settings (format, team size, best-of-1, no check-in).</p>
+    <p>Simple mode uses the game's default settings (format, team size, and best-of — e.g. Bo3 for CS2, Bo5 for Rocket League — with no check-in).</p>
 
     <h3>One tournament = one channel</h3>
     <pre><code><span class="cmd">/tournament create</span> <span class="param">channel:</span><span class="value">#cs2-eu</span></code></pre>
@@ -313,7 +314,7 @@
       <table>
         <thead><tr><th>Setting</th><th>Options</th></tr></thead>
         <tbody>
-          <tr><td><strong>Format</strong></td><td>Single Elimination, Double Elimination, Swiss, Round Robin</td></tr>
+          <tr><td><strong>Format</strong></td><td>Single Elimination, Double Elimination, Swiss, Round Robin — plus Battle Royale for BR games and Custom</td></tr>
           <tr><td><strong>Team Size</strong></td><td>Solo, 2v2, 3v3, up to 10v10 (varies by game)</td></tr>
           <tr><td><strong>Best Of</strong></td><td>Bo1, Bo3, Bo5, Bo7</td></tr>
           <tr><td><strong>Check-in</strong></td><td>On / Off</td></tr>
@@ -421,7 +422,7 @@
     follows before the result is saved (pick team → pick count — optional but they score).</p>
     <p>Made a mistake? <strong>Tap the reported game again</strong> — the same flow re-runs as a
     correction. Group results can be corrected until the Grand Finals have a reported game.</p>
-    <p>The <a href="/admin/dashboard">web dashboard</a> has the same grid with per-team kill
+    <p>The <a href="/admin">web dashboard</a> has the same grid with per-team kill
     boxes — fastest for full-lobby results with kills.</p>
 
     <h3>Players see</h3>
@@ -669,7 +670,7 @@
       </table>
     </div>
 
-    <p>Battle Royale results are the one exception — report those in Discord with <code>/tournament br-report</code>. Sessions last 7 days; use <strong>Log out</strong> (top right) to end one sooner.</p>
+    <p>Battle Royale results work here too — the Run view has the same tap-to-report grid with per-team kill boxes (in Discord, tap the 🎮 Game buttons on the lobby standings board). Sessions last 7 days; use <strong>Log out</strong> (top right) to end one sooner.</p>
   </section>
 
   <!-- ================================================================
