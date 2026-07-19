@@ -63,9 +63,44 @@ function cleanupRateLimits() {
 // Clean up every 5 minutes
 setInterval(cleanupRateLimits, 5 * 60 * 1000);
 
+// ── IP-based limiter for unauthenticated routes (public bracket + OAuth) ─────
+// The v1 API limiter keys on guildId (post-auth); public routes have no auth,
+// so a flood of distinct random /b/<uuid> ids (each a DB lookup, bypassing the
+// response cache) could hammer the single Node process during a live event.
+// Keyed on client IP — requires `app.set('trust proxy', 1)` so req.ip is the
+// real client behind nginx, not 127.0.0.1.
+const ipStore = new Map(); // ip -> { count, windowStart }
+const IP_WINDOW_MS = 60000;
+const IP_MAX = 100; // generous: a human browsing brackets never approaches this
+
+function ipRateLimit(req, res, next) {
+  const ip = req.ip || req.socket?.remoteAddress || 'unknown';
+  const now = Date.now();
+  let record = ipStore.get(ip);
+  if (!record || now - record.windowStart >= IP_WINDOW_MS) {
+    record = { count: 0, windowStart: now };
+    ipStore.set(ip, record);
+  }
+  record.count++;
+  if (record.count > IP_MAX) {
+    res.setHeader('Retry-After', Math.ceil((record.windowStart + IP_WINDOW_MS - now) / 1000));
+    return res.status(429).json({ error: 'Too many requests', message: 'Slow down and try again shortly.' });
+  }
+  next();
+}
+
+function cleanupIpLimits() {
+  const now = Date.now();
+  for (const [ip, record] of ipStore.entries()) {
+    if (now - record.windowStart >= IP_WINDOW_MS * 2) ipStore.delete(ip);
+  }
+}
+setInterval(cleanupIpLimits, 5 * 60 * 1000);
+
 module.exports = {
   rateLimit,
   cleanupRateLimits,
   WINDOW_MS,
   MAX_REQUESTS,
+  ipRateLimit,
 };

@@ -19,6 +19,18 @@ const features = {
 
 const publicBaseUrl = process.env.PUBLIC_BASE_URL || 'https://tournaments.clutch.game';
 
+// The admin session + CSRF signing key falls back to a token-derived value so
+// the dashboard works without extra config, but that means anyone who obtains
+// the bot token can forge admin sessions for any guild. Warn loudly in prod so
+// SESSION_SECRET gets set to an independent random value.
+if (!process.env.SESSION_SECRET && (process.env.NODE_ENV === 'production')) {
+  console.warn(
+    '[SECURITY] SESSION_SECRET is not set — web-admin session/CSRF keys are ' +
+    'derived from DISCORD_TOKEN. Set SESSION_SECRET to a long random string ' +
+    'so a token leak cannot forge admin sessions.'
+  );
+}
+
 module.exports = {
   discord: {
     token: process.env.DISCORD_TOKEN,

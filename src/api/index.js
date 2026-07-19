@@ -5,7 +5,7 @@ const path = require('path');
 const express = require('express');
 const { handleWebhook, constructWebhookEvent, isStripeConfigured } = require('../services/stripeService');
 const { authenticate } = require('./middleware/auth');
-const { rateLimit } = require('./middleware/rateLimit');
+const { rateLimit, ipRateLimit } = require('./middleware/rateLimit');
 const tournamentsRouter = require('./v1/tournaments');
 const publicBracketRouter = require('./publicBracket');
 const botClient = require('./botClient');
@@ -13,6 +13,10 @@ const { router: adminAuthRouter } = require('./adminAuth');
 const adminDashboardRouter = require('./adminDashboard');
 
 const app = express();
+
+// nginx is a single proxy hop in front of this app — trust it so req.ip is the
+// real client (needed by the IP rate limiter), not 127.0.0.1.
+app.set('trust proxy', 1);
 
 // ============================================================================
 // Security headers (nginx terminates TLS but sets none of these)
@@ -83,13 +87,13 @@ app.get('/health', (req, res) => {
 // Public live bracket pages (no auth — gated per-tournament by publicBracket)
 // ============================================================================
 
-app.use(publicBracketRouter);
+app.use(ipRateLimit, publicBracketRouter);
 
 // ============================================================================
 // Web-admin dashboard (Discord OAuth login + session-gated admin views)
 // ============================================================================
 
-app.use(adminAuthRouter);
+app.use(ipRateLimit, adminAuthRouter);
 app.use(adminDashboardRouter);
 app.use(require('./adminActions'));
 
@@ -107,7 +111,7 @@ app.get('/v1', (req, res) => {
   res.json({
     name: 'Tournament Bot API',
     version: 'v1',
-    documentation: 'https://docs.example.com/api',
+    documentation: 'https://tournaments.clutch.game/admin-manual.html',
     endpoints: {
       tournaments: {
         list: 'GET /v1/tournaments',
