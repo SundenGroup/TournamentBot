@@ -87,6 +87,10 @@ async function createTournament(data) {
       checkinRequired: data.checkinRequired ?? DEFAULT_TOURNAMENT_SETTINGS.checkinRequired,
       checkinWindow: data.checkinWindow ?? DEFAULT_TOURNAMENT_SETTINGS.checkinWindow,
 
+      // Optional separate signup deadline (ISO) — signups close here instead
+      // of at start, leaving a quiet window (e.g. for seeding).
+      signupCloseTime: data.signupCloseTime ?? null,
+
       seedingEnabled: data.seedingEnabled ?? DEFAULT_TOURNAMENT_SETTINGS.seedingEnabled,
 
       requireGameNick: data.requireGameNick ?? false,

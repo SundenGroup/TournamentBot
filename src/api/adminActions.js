@@ -114,6 +114,10 @@ router.get('/admin/api/meta', requireSession, (req, res) => {
       formatOptions: p.formatOptions || ['single_elimination', 'double_elimination', 'swiss', 'round_robin'],
       defaultBestOf: p.defaultBestOf || 1,
       bestOfOptions: p.bestOfOptions || [1, 3, 5],
+      // Signup-fields summary ("GOALS Username + ID") — the create form
+      // defaults its require-IDs toggle on when the preset defines fields,
+      // matching the Discord wizard.
+      nickSummary: (Array.isArray(p.nickFields) && p.nickFields.length) || p.nickField ? getNickSummary({ preset: key }) : null,
     };
   });
   games.push({
@@ -130,8 +134,22 @@ router.get('/admin/api/meta', requireSession, (req, res) => {
       double_elimination: 'Double Elimination',
       swiss: 'Swiss',
       round_robin: 'Round Robin',
+      battle_royale: 'Battle Royale',
     },
   });
+});
+
+// Roles for the required-roles picker (skips @everyone and bot/integration roles)
+router.get('/admin/api/guilds/:guildId/roles', requireSession, requireGuildAdmin, (req, res) => {
+  const guild = getGuildOr503(req.params.guildId, res);
+  if (!guild) return;
+
+  const roles = guild.roles.cache
+    .filter(r => r.id !== guild.id && !r.managed)
+    .sort((a, b) => b.rawPosition - a.rawPosition)
+    .map(r => ({ id: r.id, name: r.name }));
+
+  res.json({ roles });
 });
 
 // Text channels the bot can post in (for the per-tournament channel picker)
@@ -354,10 +372,60 @@ router.post('/admin/api/guilds/:guildId/tournaments', ...mutate, requireGuildAdm
 
   const publicBracket = !!b.publicBracket;
 
+  // ── Advanced options (parity with /tournament create-advanced) ──────────
+  const checkinRequired = !!b.checkinRequired;
+  let checkinWindow = 15;
+  if (checkinRequired && b.checkinWindow !== undefined && b.checkinWindow !== null && b.checkinWindow !== '') {
+    checkinWindow = parseInt(b.checkinWindow, 10);
+    if (isNaN(checkinWindow) || checkinWindow < 5 || checkinWindow > 120) {
+      return res.status(400).json({ error: 'Check-in window must be between 5 and 120 minutes' });
+    }
+  }
+
+  const seedingEnabled = !!b.seedingEnabled;
+  const requireGameNick = !!b.requireGameNick;
+  const captainMode = !!b.captainMode && teamSize > 1;
+  const thirdPlaceMatch = !!b.thirdPlaceMatch && format === 'single_elimination';
+
+  let requiredRoles = [];
+  if (Array.isArray(b.requiredRoles) && b.requiredRoles.length) {
+    requiredRoles = b.requiredRoles.map(String).filter(id => guild.roles.cache.has(id)).slice(0, 10);
+  }
+
+  let signupCloseTime = null;
+  if (b.signupCloseTime) {
+    const close = new Date(b.signupCloseTime);
+    if (isNaN(close.getTime())) return res.status(400).json({ error: 'Invalid signup close time' });
+    if (close.getTime() >= startTime.getTime()) return res.status(400).json({ error: 'Signup close must be before the start time' });
+    if (close.getTime() < Date.now() - 5 * 60 * 1000) return res.status(400).json({ error: 'Signup close time is in the past' });
+    signupCloseTime = close.toISOString();
+  }
+
+  // BR tuning — blank fields fall back to the preset defaults
+  let brScoringModel, gamesPerStage, lobbySize;
+  if (format === 'battle_royale') {
+    if (b.brScoringModel) {
+      const { BR_SCORING_MODELS } = require('../services/battleRoyaleService');
+      if (!BR_SCORING_MODELS[String(b.brScoringModel)]) return res.status(400).json({ error: 'Unknown Battle Royale scoring model' });
+      brScoringModel = String(b.brScoringModel);
+    }
+    if (b.gamesPerStage !== undefined && b.gamesPerStage !== null && b.gamesPerStage !== '') {
+      gamesPerStage = parseInt(b.gamesPerStage, 10);
+      if (isNaN(gamesPerStage) || gamesPerStage < 1 || gamesPerStage > 10) return res.status(400).json({ error: 'Games per stage must be between 1 and 10' });
+    }
+    if (b.lobbySize !== undefined && b.lobbySize !== null && b.lobbySize !== '') {
+      lobbySize = parseInt(b.lobbySize, 10);
+      if (isNaN(lobbySize) || lobbySize < 2 || lobbySize > 100) return res.status(400).json({ error: 'Lobby size must be between 2 and 100' });
+    }
+  }
+
   // Subscription / entitlement checks — same as Discord creation
   const requestedFeatures = publicBracket ? ['public_bracket'] : [];
+  if (seedingEnabled) requestedFeatures.push('seeding');
+  if (captainMode) requestedFeatures.push('captain_mode');
+  if (requiredRoles.length) requestedFeatures.push('required_roles');
   if (format === 'battle_royale') {
-    const lobby = preset?.brDefaults?.lobbySize || 20;
+    const lobby = lobbySize || preset?.brDefaults?.lobbySize || 20;
     if (maxParticipants > lobby) requestedFeatures.push('multi_lobby_br');
   }
   const checks = await runCreationChecks(guild.id, {
@@ -397,6 +465,17 @@ router.post('/admin/api/guilds/:guildId/tournaments', ...mutate, requireGuildAdm
         bestOf,
         startTime,
         publicBracket,
+        checkinRequired,
+        checkinWindow,
+        signupCloseTime,
+        seedingEnabled,
+        requireGameNick,
+        captainMode,
+        thirdPlaceMatch,
+        requiredRoles,
+        brScoringModel,
+        gamesPerStage,
+        lobbySize,
         setupMode: 'web',
         createdBy: req.session.uid,
       },

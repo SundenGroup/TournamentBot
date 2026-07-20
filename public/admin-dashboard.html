@@ -1451,7 +1451,7 @@ function wireRunLeft(d, left) {
 }
 
 // ── Create modal (2 steps) ──────────────────────────────────────────────────
-let createStep = 1, createGame = null, createChannels = null;
+let createStep = 1, createGame = null, createChannels = null, createRoles = null;
 
 $('newBtn').addEventListener('click', openCreate);
 $('createClose').addEventListener('click', closeCreate);
@@ -1466,7 +1466,9 @@ async function openCreate() {
     META = res.data;
   }
   createChannels = null;
+  createRoles = null;
   api(`/admin/api/guilds/${encodeURIComponent(activeGuild)}/channels`).then(r => { if (r.ok) createChannels = r.data.channels; });
+  api(`/admin/api/guilds/${encodeURIComponent(activeGuild)}/roles`).then(r => { if (r.ok) createRoles = r.data.roles; });
   createStep = 1; createGame = null;
   renderCreate();
   $('createModal').classList.add('open');
@@ -1529,6 +1531,35 @@ function renderCreate() {
       <div class="field"><label>Announcement channel</label><select id="cChannel"><option value="">Server default</option>${channels.map(c => `<option value="${esc(c.id)}"># ${esc(c.name)}${c.category ? ` — ${esc(c.category)}` : ''}</option>`).join('')}</select></div>
       <div style="display:flex;align-items:center;gap:8px;margin-top:20px"><label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px"><input type="checkbox" id="cPublic" checked style="accent-color:var(--accent)"> Live web bracket <span class="protag">PRO</span></label></div>
       <div class="field full"><label>Description <span style="font-size:11px;color:var(--text-faint);font-weight:400">(optional)</span></label><textarea id="cDesc" rows="2" maxlength="1000" placeholder="Rules, prize, notes…"></textarea></div>
+
+      <div class="field full" style="border-top:1px solid var(--border);margin-top:6px;padding-top:12px"><label>More options — same as Discord's advanced mode</label></div>
+      <div class="field"><label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;text-transform:none;letter-spacing:0"><input type="checkbox" id="cCheckin" style="accent-color:var(--accent)"> Require check-in</label></div>
+      <div class="field"><label>Check-in window (min before start)</label><input type="number" id="cCheckinWin" min="5" max="120" value="15" disabled></div>
+      <div class="field full"><label>Signups close <span style="font-size:11px;color:var(--text-faint);font-weight:400">(optional — before start, e.g. to leave time for seeding)</span></label><input type="datetime-local" id="cSignupClose"></div>
+      <div class="field full" style="display:flex;flex-wrap:wrap;gap:14px">
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px"><input type="checkbox" id="cSeeding" style="accent-color:var(--accent)"> Seeding <span class="protag">PRO</span></label>
+        <label id="cCaptainWrap" style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px"><input type="checkbox" id="cCaptain" style="accent-color:var(--accent)"> Captain mode <span class="protag">PRO</span></label>
+        <label id="cThirdWrap" style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px"><input type="checkbox" id="cThird" style="accent-color:var(--accent)"> 3rd-place match</label>
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px"><input type="checkbox" id="cNick" ${g.nickSummary ? 'checked' : ''} style="accent-color:var(--accent)"> Require ${esc(g.nickSummary || 'in-game IDs')}</label>
+      </div>
+      <div class="field full" id="cRolesWrap" style="display:none">
+        <label>Required roles <span class="protag">PRO</span> <span style="font-size:11px;color:var(--text-faint);font-weight:400;text-transform:none;letter-spacing:0">— entrants need at least one</span></label>
+        <div id="cRolesList" style="max-height:104px;overflow-y:auto;border:1px solid var(--border);border-radius:8px;padding:8px 10px;display:flex;flex-direction:column;gap:6px"></div>
+      </div>
+      <div class="field full" id="cBRWrap" style="display:none">
+        <label>Battle Royale <span style="font-size:11px;color:var(--text-faint);font-weight:400;text-transform:none;letter-spacing:0">— blank fields use the game's defaults</span></label>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <select id="cBRScoring" style="flex:2;min-width:180px">
+            <option value="">Scoring: game default</option>
+            <option value="placement">Placement points</option>
+            <option value="algs">ALGS (placement + kills)</option>
+            <option value="super">SUPER (placement + kills)</option>
+            <option value="warzone">Kill multiplier (Warzone)</option>
+          </select>
+          <input type="number" id="cBRGames" min="1" max="10" placeholder="Games/stage" title="Games per stage" style="flex:1;min-width:100px">
+          <input type="number" id="cBRLobby" min="2" max="100" placeholder="Lobby size" title="Lobby size (teams per game)" style="flex:1;min-width:100px">
+        </div>
+      </div>
     </div>
   </div>
   <div class="modal-foot">
@@ -1538,6 +1569,30 @@ function renderCreate() {
 
   body.querySelector('#cChange').addEventListener('click', () => { createStep = 1; renderCreate(); });
   body.querySelector('#cBack').addEventListener('click', () => { createStep = 1; renderCreate(); });
+
+  // ── More options wiring ──
+  const cCheckin = body.querySelector('#cCheckin');
+  cCheckin.addEventListener('change', () => { body.querySelector('#cCheckinWin').disabled = !cCheckin.checked; });
+
+  const rolesWrap = body.querySelector('#cRolesWrap');
+  if (createRoles && createRoles.length) {
+    rolesWrap.style.display = '';
+    body.querySelector('#cRolesList').innerHTML = createRoles.map(r =>
+      `<label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;text-transform:none;letter-spacing:0;font-weight:400;color:var(--text)"><input type="checkbox" class="crole" value="${esc(r.id)}" style="accent-color:var(--accent)"> ${esc(r.name)}</label>`).join('');
+  }
+
+  // Format/team-size-dependent options (3rd place = single elim, captain =
+  // teams, BR block = battle royale)
+  const syncCreateOptions = () => {
+    const fmt = body.querySelector('#cFormat').value;
+    const team = parseInt(body.querySelector('#cTeamSize').value, 10) > 1;
+    body.querySelector('#cThirdWrap').style.display = fmt === 'single_elimination' ? '' : 'none';
+    body.querySelector('#cBRWrap').style.display = fmt === 'battle_royale' ? '' : 'none';
+    body.querySelector('#cCaptainWrap').style.display = team ? '' : 'none';
+  };
+  body.querySelector('#cFormat').addEventListener('change', syncCreateOptions);
+  body.querySelector('#cTeamSize').addEventListener('change', syncCreateOptions);
+  syncCreateOptions();
   body.querySelector('#cSubmit').addEventListener('click', async ev => {
     const startVal = body.querySelector('#cStart').value;
     if (!startVal) return toast('Pick a start time', true);
@@ -1556,6 +1611,17 @@ function renderCreate() {
         bestOf: body.querySelector('#cBestOf').value,
         channelId: body.querySelector('#cChannel').value || null,
         publicBracket: body.querySelector('#cPublic').checked,
+        checkinRequired: body.querySelector('#cCheckin').checked,
+        checkinWindow: body.querySelector('#cCheckin').checked ? body.querySelector('#cCheckinWin').value : undefined,
+        signupCloseTime: body.querySelector('#cSignupClose').value ? new Date(body.querySelector('#cSignupClose').value).toISOString() : null,
+        seedingEnabled: body.querySelector('#cSeeding').checked,
+        captainMode: body.querySelector('#cCaptain').checked,
+        thirdPlaceMatch: body.querySelector('#cThird').checked,
+        requireGameNick: body.querySelector('#cNick').checked,
+        requiredRoles: [...body.querySelectorAll('.crole:checked')].map(el => el.value),
+        brScoringModel: body.querySelector('#cBRScoring').value || undefined,
+        gamesPerStage: body.querySelector('#cBRGames').value || undefined,
+        lobbySize: body.querySelector('#cBRLobby').value || undefined,
       },
     });
     ev.target.disabled = false;
