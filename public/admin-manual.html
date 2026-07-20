@@ -356,10 +356,13 @@
     <h3>Closing signups before start</h3>
     <p>By default signups stay open right up to the start (and through check-in). If you need a quiet
     window between the field locking and the first match — most commonly <strong>to seed the bracket</strong> —
-    set an optional <strong>Signups close</strong> time in the web dashboard's edit card. When it passes, the
-    bot announces it in the channel, the <strong>Sign Up</strong> button disappears and the embed shows
-    <em>Signups close: Closed</em>. Withdrawals stay possible, and admins can still add latecomers with
-    <code>/tournament add-player</code> / <code>add-team</code>. Leave the field empty for the default behavior.</p>
+    set an optional <strong>Signups close</strong> time in the web dashboard's edit card — or in Discord:</p>
+    <pre><code><span class="cmd">/tournament signup-close</span> <span class="param">tournament:</span><span class="value">Friday Night Fights</span> <span class="param">time:</span><span class="value">Jul 20 18:00 UTC</span></code></pre>
+    <p><code>time</code> also accepts <code>now</code> (close on the spot — the moment to do it when you're
+    ready to seed) and <code>off</code> (remove the deadline, signups open until start). When the deadline
+    passes, the bot announces it in the channel, the <strong>Sign Up</strong> button disappears and the embed
+    shows <em>Signups close: Closed</em>. Withdrawals stay possible, and admins can still add latecomers with
+    <code>/tournament add-player</code> / <code>add-team</code>.</p>
 
     <h3>Starting</h3>
     <p>When the scheduled time arrives, the bot posts a message saying the tournament is ready. Start it with:</p>
@@ -733,6 +736,7 @@
           <tr><td><code>/tournament start</code></td><td>Start a tournament (generates bracket)</td></tr>
           <tr><td><code>/tournament cancel</code></td><td>Cancel a tournament</td></tr>
           <tr><td><code>/tournament edit</code></td><td>Edit title, date, size, best-of, and check-in window (before start)</td></tr>
+          <tr><td><code>/tournament signup-close</code></td><td>Set when signups close — a time, <code>now</code>, or <code>off</code> to keep them open until start</td></tr>
           <tr><td><code>/tournament report</code></td><td>Report a match result (Bo3+ requires the series score)</td></tr>
           <tr><td><code>/tournament correct</code></td><td>Correct a wrongly reported result (while nothing downstream is played)</td></tr>
           <tr><td><code>/tournament disqualify</code></td><td>DQ a player/team — remaining matches forfeit with the best score, shown as DQ</td></tr>

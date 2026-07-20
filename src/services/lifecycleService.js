@@ -449,14 +449,15 @@ async function editTournamentFlow({ client, tournament, fields }) {
   if (!title || title.length > 100) throw new Error('Title must be 1-100 characters.');
 
   // Web sends an ISO string; Discord sends "YYYY-MM-DD HH:MM UTC" or free text
-  // like "tomorrow 8pm" — fall back to the informal parser when Date() can't.
+  // like "Jul 20 18:00 UTC". parseDateTime MUST run first: it tries the
+  // informal format (defaulting to the current year) before native Date(),
+  // because native Date() "successfully" parses year-less strings to year
+  // 2001 — a valid-looking date that's silently two decades in the past.
+  const { parseDateTime } = require('../utils/timeUtils');
   let startTime;
   if (fields.startTime) {
-    startTime = new Date(fields.startTime);
-    if (isNaN(startTime.getTime())) {
-      const { parseDateTime } = require('../utils/timeUtils');
-      startTime = parseDateTime(String(fields.startTime)) || startTime;
-    }
+    startTime = parseDateTime(String(fields.startTime));
+    if (!startTime) throw new Error('Could not parse the date/time.');
   } else {
     startTime = new Date(tournament.startTime);
   }
@@ -513,12 +514,14 @@ async function editTournamentFlow({ client, tournament, fields }) {
     if (fields.signupCloseTime === null || String(fields.signupCloseTime).trim() === '') {
       signupCloseTime = null;
     } else {
-      let close = new Date(fields.signupCloseTime);
-      if (isNaN(close.getTime())) {
-        const { parseDateTime } = require('../utils/timeUtils');
-        close = parseDateTime(String(fields.signupCloseTime)) || close;
+      const close = parseDateTime(String(fields.signupCloseTime));
+      if (!close || isNaN(close.getTime())) throw new Error('Could not parse the signup close date/time.');
+      // "now" (an as-of-now ISO) must pass; anything clearly in the past is
+      // almost always a mistyped/misparsed date — refuse instead of silently
+      // slamming signups shut.
+      if (close.getTime() < Date.now() - 5 * 60 * 1000) {
+        throw new Error('That signup-close time is in the past — use `now` to close signups immediately, or pick a future time.');
       }
-      if (isNaN(close.getTime())) throw new Error('Could not parse the signup close date/time.');
       if (close.getTime() >= startTime.getTime()) {
         throw new Error('Signup close must be before the tournament start time (leave it empty to keep signups open until start).');
       }
@@ -550,6 +553,13 @@ async function editTournamentFlow({ client, tournament, fields }) {
     scheduleReminders(updated, client);
   }
   await updateTournamentMessages(client, updated);
+
+  // Deadline set to now/past (e.g. `/tournament signup-close time:now`): the
+  // scheduler won't fire for a past timestamp, so announce it here instead.
+  if (closeChanged && signupCloseTime && new Date(signupCloseTime).getTime() <= Date.now()) {
+    const { announceSignupsClosed } = require('./reminderService');
+    await announceSignupsClosed(updated, client);
+  }
 
   return { updated, changes, dateChanged };
 }

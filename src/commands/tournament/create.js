@@ -216,6 +216,22 @@ module.exports = {
     )
     .addSubcommand(subcommand =>
       subcommand
+        .setName('signup-close')
+        .setDescription('Set when signups close (before start, e.g. to seed) — or clear it')
+        .addStringOption(option =>
+          option.setName('tournament')
+            .setDescription('Tournament')
+            .setRequired(true)
+            .setAutocomplete(true)
+        )
+        .addStringOption(option =>
+          option.setName('time')
+            .setDescription('e.g. "Jul 20 18:00 UTC" · "now" closes immediately · "off" keeps signups open until start')
+            .setRequired(true)
+        )
+    )
+    .addSubcommand(subcommand =>
+      subcommand
         .setName('add-player')
         .setDescription('Manually register a real player (solo tournaments)')
         .addStringOption(option =>
@@ -327,7 +343,7 @@ module.exports = {
     const subcommand = interaction.options.getSubcommand();
 
     // Admin subcommands require tournament management permissions
-    const adminSubcommands = ['create', 'create-advanced', 'start', 'cancel', 'edit', 'report', 'disqualify', 'correct', 'add-player', 'add-team', 'remove-player', 'remove-team', 'create-rooms'];
+    const adminSubcommands = ['create', 'create-advanced', 'start', 'cancel', 'edit', 'signup-close', 'report', 'disqualify', 'correct', 'add-player', 'add-team', 'remove-player', 'remove-team', 'create-rooms'];
     const adminSeedSubcommands = ['set', 'randomize', 'clear'];
 
     const needsPermCheck = adminSubcommands.includes(subcommand) ||
@@ -391,6 +407,9 @@ module.exports = {
         break;
       case 'correct':
         await handleCorrect(interaction);
+        break;
+      case 'signup-close':
+        await handleSignupClose(interaction);
         break;
       case 'add-player':
         await handleAddPlayer(interaction);
@@ -844,6 +863,52 @@ async function handleCorrect(interaction) {
     response += '\n⚠️ The tournament was already completed — the original completion announcement is not reposted.';
   }
   return interaction.editReply({ content: response });
+}
+
+async function handleSignupClose(interaction) {
+  await interaction.deferReply({ ephemeral: true });
+
+  const tournamentId = interaction.options.getString('tournament');
+  const raw = interaction.options.getString('time').trim();
+
+  const tournament = await getGuildTournament(interaction.guildId, tournamentId);
+  if (!tournament) return interaction.editReply({ content: '❌ Tournament not found.' });
+
+  // "off" clears the deadline, "now" closes on the spot; anything else goes
+  // through the same parser as /tournament edit ("Jul 20 18:00 UTC", ISO, …).
+  const lower = raw.toLowerCase();
+  let value;
+  if (['off', 'none', 'clear', 'open'].includes(lower)) value = null;
+  else if (lower === 'now') value = new Date().toISOString();
+  else value = raw;
+
+  try {
+    const { editTournamentFlow } = require('../../services/lifecycleService');
+    const { updated, changes } = await editTournamentFlow({
+      client: interaction.client,
+      tournament,
+      fields: { signupCloseTime: value },
+    });
+    if (!changes.length) {
+      return interaction.editReply({ content: 'ℹ️ That’s already the current setting — nothing changed.' });
+    }
+
+    const t = updated.settings.signupCloseTime;
+    if (!t) {
+      return interaction.editReply({ content: `🔓 Signup deadline removed for **${updated.title}** — signups stay open until the start time.` });
+    }
+    const ts = Math.floor(new Date(t).getTime() / 1000);
+    if (new Date(t).getTime() <= Date.now()) {
+      return interaction.editReply({
+        content: `🔒 Signups for **${updated.title}** are closed as of now — announced in the tournament channel. Admins can still add entrants with \`/tournament add-player\` / \`add-team\`.`,
+      });
+    }
+    return interaction.editReply({
+      content: `🕓 Signups for **${updated.title}** now close <t:${ts}:f> (<t:${ts}:R>). The announcement shows the deadline, and the Sign Up button disappears when it passes.`,
+    });
+  } catch (err) {
+    return interaction.editReply({ content: `❌ ${err.message}` });
+  }
 }
 
 async function handleAddPlayer(interaction) {

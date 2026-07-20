@@ -302,4 +302,5 @@ module.exports = {
   cancelReminders,
   rescheduleAllReminders,
   openCheckin,
+  announceSignupsClosed,
 };
