@@ -97,6 +97,7 @@ const STUDIO_FEATURES = [
   'white_label',
   'multi_server',
   'custom_presets',
+  'seed_csv',
 ];
 
 // Legacy aliases (old call sites / display code)
@@ -126,6 +127,7 @@ const FEATURE_NAMES = {
   white_label: 'White-Label Branding',
   multi_server: 'Multi-Server Support',
   custom_presets: 'Custom Game Presets & Private Fields',
+  seed_csv: 'Spreadsheet Seeding (CSV export/import)',
   concurrent: 'More Concurrent Tournaments',
   participants: 'More Participants',
 };

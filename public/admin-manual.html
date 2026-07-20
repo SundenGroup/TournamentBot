@@ -350,8 +350,16 @@
     <p>The bot posts a signup embed with <strong>Sign Up</strong> (or <strong>Register Team</strong>) and <strong>Withdraw</strong> buttons. Players click to join. The participant count updates in real-time. DM reminders are sent 24 hours and 1 hour before start.</p>
 
     <h3>Check-in (if enabled)</h3>
-    <p>Check-in opens automatically before start time (based on your configured check-in window). Players tap <strong>Check In</strong> — and tapping again <strong>cancels</strong> it. Signups stay open through the window too, and anyone who signs up during check-in is <strong>checked in automatically</strong>. You keep the <strong>Start Tournament</strong> button available the whole time. Players who don't check in are removed when the tournament starts.</p>
+    <p>Check-in opens automatically before start time (based on your configured check-in window). Players tap <strong>Check In</strong> — and tapping again <strong>cancels</strong> it. Signups stay open through the window too (unless you've set a separate signup deadline, below), and anyone who signs up during check-in is <strong>checked in automatically</strong>. You keep the <strong>Start Tournament</strong> button available the whole time. Players who don't check in are removed when the tournament starts.</p>
     <p style="color:var(--fg-subtle);font-size:14px">The check-in window (or turning check-in off entirely) can be changed after creation with <code>/tournament edit</code> or from the web dashboard's edit card.</p>
+
+    <h3>Closing signups before start</h3>
+    <p>By default signups stay open right up to the start (and through check-in). If you need a quiet
+    window between the field locking and the first match — most commonly <strong>to seed the bracket</strong> —
+    set an optional <strong>Signups close</strong> time in the web dashboard's edit card. When it passes, the
+    bot announces it in the channel, the <strong>Sign Up</strong> button disappears and the embed shows
+    <em>Signups close: Closed</em>. Withdrawals stay possible, and admins can still add latecomers with
+    <code>/tournament add-player</code> / <code>add-team</code>. Leave the field empty for the default behavior.</p>
 
     <h3>Starting</h3>
     <p>When the scheduled time arrives, the bot posts a message saying the tournament is ready. Start it with:</p>
@@ -493,7 +501,7 @@
     rejected. If seeding wasn't enabled at creation, an <strong>Enable seeding</strong> button turns it
     on right there.</p>
 
-    <h3>Seeding from a spreadsheet</h3>
+    <h3>Seeding from a spreadsheet <span class="tag tag-studio">Studio</span></h3>
     <p>For big fields, do the seeding in Excel or Google Sheets instead of typing into the form:</p>
     <ol>
       <li><strong>⬇ Export CSV</strong> downloads every entrant with their signup info — name, ID,
@@ -694,8 +702,8 @@
         <tbody>
           <tr><td><strong>＋ New tournament</strong></td><td>Create &amp; announce a tournament — game presets with their defaults, format / team size / best-of, description, live-bracket toggle, and a <strong>channel picker</strong> (one tournament = one channel)</td></tr>
           <tr><td><strong>Bracket tab</strong></td><td>The full live bracket / standings / roster view — including tournaments whose public Web Bracket toggle is off (this view is admin-only)</td></tr>
-          <tr><td><strong>Manage tab</strong></td><td>Edit title/date/size/best-of/description, the <strong>check-in</strong> toggle &amp; window, and turn <strong>seeding</strong> on · remove entrants · <strong>start</strong> · report results with the series score · correct mistakes · disqualify · retry missing match rooms · cancel — destructive actions ask twice</td></tr>
-          <tr><td><strong>Seeding tab</strong></td><td>Before start (seeding-enabled tournaments): set a seed per entrant, <strong>Randomize</strong>, <strong>Clear all</strong>, then <strong>Save</strong> <span class="tag tag-pro">Pro</span></td></tr>
+          <tr><td><strong>Manage tab</strong></td><td>Edit title/date/size/best-of/description, an optional <strong>signups-close</strong> time (before start, e.g. for seeding), the <strong>check-in</strong> toggle &amp; window, and turn <strong>seeding</strong> on · remove entrants · <strong>start</strong> · report results with the series score · correct mistakes · disqualify · retry missing match rooms · cancel — destructive actions ask twice</td></tr>
+          <tr><td><strong>Seeding tab</strong></td><td>Before start (seeding-enabled tournaments): set a seed per entrant, <strong>Randomize</strong>, <strong>Clear all</strong>, then <strong>Save</strong> <span class="tag tag-pro">Pro</span> · CSV export/import <span class="tag tag-studio">Studio</span></td></tr>
         </tbody>
       </table>
     </div>

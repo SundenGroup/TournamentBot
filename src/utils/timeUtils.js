@@ -99,6 +99,15 @@ function toDiscordFullAndRelative(date) {
   return `<t:${unix}:F> (<t:${unix}:R>)`;
 }
 
+// Compact two-line variant for embed grid fields: the :F style ("Monday, 20
+// July 2026 at 10:45") wraps to three ragged lines in a third-width inline
+// field; :f + relative on its own line wraps predictably.
+function toDiscordShortAndRelative(date) {
+  const d = new Date(date);
+  const unix = Math.floor(d.getTime() / 1000);
+  return `<t:${unix}:f>\n<t:${unix}:R>`;
+}
+
 /**
  * A live example for date inputs — today's date at 8pm UTC ("Jul 10 8pm UTC"),
  * in exactly the informal format parseDateTime accepts. Used as the modal
@@ -115,5 +124,6 @@ module.exports = {
   formatTimeUntil,
   toDiscordTimestamp,
   toDiscordFullAndRelative,
+  toDiscordShortAndRelative,
   exampleDateTime,
 };

@@ -869,7 +869,7 @@ async function handleAddPlayer(interaction) {
     username: user.username,
     displayName: member?.displayName || user.username,
     gameNick: gameNick || null,
-  });
+  }, { byAdmin: true });
   if (!result.success) return interaction.editReply({ content: `❌ ${result.error}` });
 
   const { updateTournamentMessages } = require('../../utils/tournamentUpdater');
@@ -943,7 +943,7 @@ async function handleAddTeam(interaction) {
   }
 
   const { addTeam } = require('../../services/tournamentService');
-  const result = await addTeam(tournamentId, { name: teamName, captain, members: allMembers });
+  const result = await addTeam(tournamentId, { name: teamName, captain, members: allMembers }, { byAdmin: true });
   if (!result.success) return interaction.editReply({ content: `❌ ${result.error}` });
 
   const { updateTournamentMessages } = require('../../utils/tournamentUpdater');

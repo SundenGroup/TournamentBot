@@ -506,6 +506,26 @@ async function editTournamentFlow({ client, tournament, fields }) {
     seedingEnabled = !!fields.seedingEnabled;
   }
 
+  // ── Separate signup deadline (optional; null/'' clears it) ──────────────
+  // Lets signups close before the start time, e.g. to leave a seeding window.
+  let signupCloseTime = tournament.settings.signupCloseTime ?? null;
+  if (fields.signupCloseTime !== undefined) {
+    if (fields.signupCloseTime === null || String(fields.signupCloseTime).trim() === '') {
+      signupCloseTime = null;
+    } else {
+      let close = new Date(fields.signupCloseTime);
+      if (isNaN(close.getTime())) {
+        const { parseDateTime } = require('../utils/timeUtils');
+        close = parseDateTime(String(fields.signupCloseTime)) || close;
+      }
+      if (isNaN(close.getTime())) throw new Error('Could not parse the signup close date/time.');
+      if (close.getTime() >= startTime.getTime()) {
+        throw new Error('Signup close must be before the tournament start time (leave it empty to keep signups open until start).');
+      }
+      signupCloseTime = close.toISOString();
+    }
+  }
+
   const changes = [];
   if (title !== tournament.title) changes.push('title');
   const dateChanged = startTime.getTime() !== new Date(tournament.startTime).getTime();
@@ -516,14 +536,16 @@ async function editTournamentFlow({ client, tournament, fields }) {
   if (checkinRequired !== (tournament.settings.checkinRequired ?? false)) changes.push('check-in');
   if (checkinRequired && checkinWindow !== tournament.settings.checkinWindow) changes.push('check-in window');
   if (seedingEnabled !== (tournament.settings.seedingEnabled ?? false)) changes.push('seeding');
+  const closeChanged = signupCloseTime !== (tournament.settings.signupCloseTime ?? null);
+  if (closeChanged) changes.push('signup close');
 
   if (changes.length === 0) return { updated: tournament, changes, dateChanged: false };
 
-  const settings = { ...tournament.settings, maxParticipants, bestOf, checkinRequired, checkinWindow, seedingEnabled };
+  const settings = { ...tournament.settings, maxParticipants, bestOf, checkinRequired, checkinWindow, seedingEnabled, signupCloseTime };
   const updated = await updateTournament(tournament.id, { title, description, startTime, settings });
   if (!updated) throw new Error('Failed to save changes, please try again.');
 
-  if (dateChanged) {
+  if (dateChanged || closeChanged) {
     const { scheduleReminders } = require('./reminderService');
     scheduleReminders(updated, client);
   }

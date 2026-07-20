@@ -31,6 +31,18 @@ function scheduleReminders(tournament, client) {
     if (job1h) jobs.push(job1h);
   }
 
+  // Separate signup deadline: re-render the announcement (Sign Up button
+  // disappears, embed flips to "Closed") and tell the channel.
+  if (tournament.settings.signupCloseTime) {
+    const closeTime = new Date(tournament.settings.signupCloseTime).getTime();
+    if (closeTime > now && closeTime < startTime) {
+      const jobClose = scheduleAt(closeTime, () => {
+        announceSignupsClosed(tournament, client);
+      });
+      if (jobClose) jobs.push(jobClose);
+    }
+  }
+
   // Check-in open reminder (if enabled)
   if (tournament.settings.checkinRequired) {
     const checkinTime = startTime - (tournament.settings.checkinWindow * 60 * 1000);
@@ -122,6 +134,31 @@ async function sendReminder(tournament, client, timeString) {
   }
 
   console.log(`Sent ${timeString} reminders for: ${current.title}`);
+}
+
+async function announceSignupsClosed(tournament, client) {
+  const current = tournaments.get(tournament.id);
+  // Only meaningful while the tournament hasn't started (status flips cover
+  // cancel/start races; the deadline may also have been edited away).
+  if (!current || (current.status !== 'registration' && current.status !== 'checkin')) return;
+  const t = current.settings?.signupCloseTime;
+  if (!t || new Date(t).getTime() > Date.now()) return;
+
+  try {
+    const { updateTournamentMessages } = require('../utils/tournamentUpdater');
+    await updateTournamentMessages(client, current);
+
+    const isSolo = current.settings.teamSize === 1;
+    const count = isSolo ? current.participants.length : current.teams.length;
+    const channel = await client.channels.fetch(current.channelId);
+    await channel.send(
+      `🔒 **Signups for ${current.title} are now closed** — ` +
+      `**${count}** ${isSolo ? (count === 1 ? 'player' : 'players') : (count === 1 ? 'team' : 'teams')} locked in. ` +
+      `The bracket is being finalized${current.settings.seedingEnabled ? ' and seeded' : ''} before start.`
+    );
+  } catch (error) {
+    console.error('Error announcing signup close:', error);
+  }
 }
 
 async function openCheckin(tournament, client) {

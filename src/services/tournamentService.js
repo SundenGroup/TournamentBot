@@ -268,7 +268,15 @@ async function deleteTournament(id) {
   return deleted > 0;
 }
 
-async function addParticipant(tournamentId, user) {
+// A separate signup deadline (settings.signupCloseTime) closes public signups
+// before start — e.g. to leave a quiet window for seeding. Admin adds
+// (`/tournament add-player|add-team`) pass { byAdmin: true } and bypass it.
+function pastSignupClose(tournament) {
+  const t = tournament.settings?.signupCloseTime;
+  return !!t && new Date(t).getTime() <= Date.now();
+}
+
+async function addParticipant(tournamentId, user, { byAdmin = false } = {}) {
   // Run the read-check-write inside a transaction with a row lock so two people
   // signing up at the same instant can't both pass the capacity/duplicate checks
   // against a stale snapshot (which previously overfilled brackets / lost signups).
@@ -285,6 +293,10 @@ async function addParticipant(tournamentId, user) {
       // silently dropped from the bracket for "not checking in".
       if (tournament.status !== 'registration' && tournament.status !== 'checkin') {
         return { success: false, error: 'Registration is closed' };
+      }
+
+      if (!byAdmin && pastSignupClose(tournament)) {
+        return { success: false, error: 'Signups for this tournament have closed.' };
       }
 
       if (tournament.participants.length >= tournament.settings.maxParticipants) {
@@ -529,7 +541,7 @@ async function removeParticipant(tournamentId, userId) {
   return result;
 }
 
-async function addTeam(tournamentId, teamData) {
+async function addTeam(tournamentId, teamData, { byAdmin = false } = {}) {
   let result;
   try {
     result = await db.transaction(async (trx) => {
@@ -541,6 +553,10 @@ async function addTeam(tournamentId, teamData) {
       // Signups stay open through check-in too (see addParticipant).
       if (tournament.status !== 'registration' && tournament.status !== 'checkin') {
         return { success: false, error: 'Registration is closed' };
+      }
+
+      if (!byAdmin && pastSignupClose(tournament)) {
+        return { success: false, error: 'Signups for this tournament have closed.' };
       }
 
       if (tournament.teams.length >= tournament.settings.maxParticipants) {
@@ -793,6 +809,7 @@ module.exports = {
   addParticipant,
   toggleCheckedIn,
   setTournamentSeeds,
+  pastSignupClose,
   claimTournamentStart,
   getGuildTournament,
   removeParticipant,

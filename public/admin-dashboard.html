@@ -788,6 +788,7 @@ function renderRunLeft() {
     html += `<div class="edit-card"><div class="qlabel">Edit tournament</div>
       <div class="field"><label>Title</label><input type="text" id="eTitle" maxlength="100" value="${esc(d.title)}"></div>
       <div class="field"><label>Start time</label><input type="datetime-local" id="eStart" value="${toDatetimeLocal(d.startTime)}"></div>
+      <div class="field"><label>Signups close (optional — before start, e.g. to leave time for seeding)</label><input type="datetime-local" id="eSignupClose" value="${toDatetimeLocal(d.signupCloseTime)}"></div>
       <div style="display:flex;gap:10px"><div class="field" style="flex:1"><label>Max entrants</label><input type="number" id="eMax" min="2" max="512" value="${d.maxParticipants}"></div>
       <div class="field" style="flex:1"><label>Best of</label><input type="number" id="eBestOf" min="1" max="15" step="2" value="${d.bestOf}"></div></div>
       <div style="display:flex;gap:10px;align-items:flex-end">
@@ -945,11 +946,12 @@ function renderRunLeft() {
       const ents = d.entrants;
       const seededCount = ents.filter(e => e.seed != null).length;
       html += `<div><div class="qlabel">Seeding · ${seededCount}/${ents.length} seeded</div>
-        <div style="display:flex;gap:8px;flex-wrap:wrap;margin:2px 0 10px">
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:2px 0 10px">
           <button class="btn btn-sm" data-seed-rand>🎲 Randomize</button>
           <button class="btn btn-sm" data-seed-clear>Clear all</button>
-          <button class="btn btn-sm" data-seed-export title="Download all entrants and their signup info as a spreadsheet">⬇ Export CSV</button>
-          <button class="btn btn-sm" data-seed-import title="Fill the seed fields from an exported CSV — nothing is saved until you hit Save seeds">⬆ Import CSV</button>
+          ${d.seedCsv ? `<button class="btn btn-sm" data-seed-export title="Download all entrants and their signup info as a spreadsheet">⬇ Export CSV</button>
+          <button class="btn btn-sm" data-seed-import title="Fill the seed fields from an exported CSV — nothing is saved until you hit Save seeds">⬆ Import CSV</button>`
+          : `<span class="idsub" title="Export entrants to a spreadsheet, seed there, import back">CSV export/import · Studio</span>`}
           <button class="btn btn-accent btn-sm" data-seed-save>Save seeds</button>
           <input type="file" accept=".csv,.tsv,.txt,text/csv,text/tab-separated-values,text/plain" data-seed-file style="display:none">
         </div>
@@ -1228,6 +1230,10 @@ function wireRunLeft(d, left) {
           description: left.querySelector('#eDesc').value,
           checkinRequired: eCheckin ? eCheckin.checked : undefined,
           checkinWindow: eCheckin && eCheckin.checked ? eCheckinWin.value : undefined,
+          signupCloseTime: (() => {
+            const v = left.querySelector('#eSignupClose').value;
+            return v ? new Date(v).toISOString() : null; // empty field clears the deadline
+          })(),
         },
       });
       eSave.disabled = false;

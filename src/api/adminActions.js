@@ -280,6 +280,8 @@ router.get('/admin/api/tournaments/:id/manage', requireSession, async (req, res)
     checkinRequired: !!t.settings.checkinRequired,
     checkinWindow: t.settings.checkinWindow ?? 15,
     seedingEnabled: !!t.settings.seedingEnabled,
+    signupCloseTime: t.settings.signupCloseTime ?? null,
+    seedCsv: (await checkFeature(t.guildId, 'seed_csv')).allowed,
     nickSummary: t.settings.requireGameNick ? getNickSummary(t.game) : null,
     entrants,
     matches,
@@ -432,6 +434,7 @@ router.patch('/admin/api/tournaments/:id', ...mutate, async (req, res) => {
         checkinRequired: req.body?.checkinRequired,
         checkinWindow: req.body?.checkinWindow,
         seedingEnabled: req.body?.seedingEnabled,
+        signupCloseTime: req.body?.signupCloseTime,
       },
     });
     await audit(req, t, 'edit', { changes });

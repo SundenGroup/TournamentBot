@@ -54,12 +54,13 @@ async function createTournamentEmbed(tournament) {
     .setTitle(`${getStatusEmoji(status)} ${title}`)
     .setColor(getStatusColor(status));
 
-  // Status banner
+  // Status banner (the 📝/✅/🎮 status emoji lives in the title only — it used
+  // to also prefix the description, which read as two different markers).
   const statusText = getStatusText(status);
   let descriptionText = `**Status: ${statusText}**\n\n`;
 
   if (description) {
-    descriptionText += `📝 ${description}\n\n`;
+    descriptionText += `${description}\n\n`;
   }
 
   embed.setDescription(descriptionText);
@@ -88,7 +89,18 @@ async function createTournamentEmbed(tournament) {
       fields.push({ name: '🏆 Scoring', value: settings.brScoring.label, inline: true });
     }
   } else {
-    fields.push({ name: '🔄 Format', value: `${formatDisplay} (Bo${settings.bestOf})`, inline: true });
+    // Bo1 is the default — only call out a series length worth knowing about
+    fields.push({ name: '🔄 Format', value: settings.bestOf > 1 ? `${formatDisplay} (Bo${settings.bestOf})` : formatDisplay, inline: true });
+  }
+
+  // Separate signup deadline (e.g. to leave a seeding window before start)
+  if (settings.signupCloseTime && (status === 'registration' || status === 'checkin')) {
+    const closeAt = new Date(settings.signupCloseTime);
+    fields.push({
+      name: '🕓 Signups close',
+      value: closeAt.getTime() <= Date.now() ? 'Closed' : formatDate(closeAt),
+      inline: true,
+    });
   }
 
   if (settings.checkinRequired && status === 'registration') {
@@ -100,8 +112,10 @@ async function createTournamentEmbed(tournament) {
   }
 
   if (settings.requireGameNick) {
+    // Fixed-width label, game-specific text in the value — long names like
+    // "GOALS Username + ID" wrap badly as bold field names in the grid.
     const { getNickSummary } = require('../config/gamePresets');
-    fields.push({ name: `🎮 ${getNickSummary(game)}`, value: 'Required', inline: true });
+    fields.push({ name: '🪪 Signup info', value: `${getNickSummary(game)} required`, inline: true });
   }
 
   if (settings.requiredRoles && settings.requiredRoles.length > 0) {
@@ -112,9 +126,11 @@ async function createTournamentEmbed(tournament) {
     });
   }
 
+  // Masked link instead of the raw two-line URL (the Live Bracket button
+  // carries the same link; this keeps it visible when the embed is forwarded).
   const bracketUrl = getBracketUrl(tournament);
   if (bracketUrl) {
-    fields.push({ name: '🌐 Live Bracket', value: bracketUrl, inline: false });
+    fields.push({ name: '🌐 Live Bracket', value: `[Watch live ↗](${bracketUrl})`, inline: true });
   }
 
   embed.addFields(fields);
@@ -132,6 +148,11 @@ async function createTournamentEmbed(tournament) {
   await applyBranding(embed, tournament.guildId);
 
   return embed;
+}
+
+function signupsClosed(tournament) {
+  const t = tournament.settings?.signupCloseTime;
+  return !!t && new Date(t).getTime() <= Date.now();
 }
 
 function createTournamentButtons(tournament) {
@@ -155,12 +176,18 @@ function createTournamentButtons(tournament) {
   }
 
   if (status === 'registration' || status === 'checkin') {
+    // Past a separate signup deadline the Sign Up button disappears (the
+    // embed says "Signups close: Closed"); withdrawing stays possible.
+    if (!signupsClosed(tournament)) {
+      row1.addComponents(
+        new ButtonBuilder()
+          .setCustomId(`signup:${id}`)
+          .setLabel(isSolo ? 'Sign Up' : 'Register Team')
+          .setEmoji(isSolo ? '✅' : '🎯')
+          .setStyle(ButtonStyle.Primary)
+      );
+    }
     row1.addComponents(
-      new ButtonBuilder()
-        .setCustomId(`signup:${id}`)
-        .setLabel(isSolo ? 'Sign Up' : 'Register Team')
-        .setEmoji(isSolo ? '✅' : '🎯')
-        .setStyle(ButtonStyle.Primary),
       new ButtonBuilder()
         .setCustomId(`withdraw:${id}`)
         .setLabel(isSolo ? 'Withdraw' : 'Withdraw Team')
@@ -173,20 +200,9 @@ function createTournamentButtons(tournament) {
     rows.push(row1);
   }
 
-  // Row 2: Admin/View buttons
+  // Row 2: View buttons first, admin Start last — red Danger read as
+  // "destructive" and pulled player eyes to an admin-only control.
   const row2 = new ActionRowBuilder();
-
-  // Admins can start from registration AND during check-in (the click is
-  // permission-gated in startTournament.js; non-admins get a polite refusal).
-  if (status === 'registration' || status === 'checkin') {
-    row2.addComponents(
-      new ButtonBuilder()
-        .setCustomId(`startTournament:${id}`)
-        .setLabel('Start Tournament')
-        .setEmoji('🚀')
-        .setStyle(ButtonStyle.Danger)
-    );
-  }
 
   if (status === 'active' && tournament.bracket) {
     row2.addComponents(
@@ -220,6 +236,18 @@ function createTournamentButtons(tournament) {
     );
   }
 
+  // Admins can start from registration AND during check-in (the click is
+  // permission-gated in startTournament.js; non-admins get a polite refusal).
+  if (status === 'registration' || status === 'checkin') {
+    row2.addComponents(
+      new ButtonBuilder()
+        .setCustomId(`startTournament:${id}`)
+        .setLabel('Start Tournament')
+        .setEmoji('🚀')
+        .setStyle(ButtonStyle.Secondary)
+    );
+  }
+
   if (row2.components.length > 0) {
     rows.push(row2);
   }
@@ -237,20 +265,27 @@ async function createParticipantListEmbed(tournament) {
   const embed = new EmbedBuilder()
     .setColor(getStatusColor(status));
 
-  // Embed descriptions cap at 4096 chars — a full 512 field would blow past
-  // it and Discord would reject every announcement edit, freezing the public
-  // list mid-registration. Cap the list and say how many more there are.
+  // Two caps on the public list: 128 entries (a scrollable wall past that —
+  // the web bracket is the real home for big fields) and 4096 embed chars
+  // (Discord rejects the edit outright, freezing the list mid-registration).
+  const bracketUrl = getBracketUrl(tournament);
   const joinCapped = (entries, sep, total, noun) => {
+    const ENTRY_CAP = 128;
     const budget = 3900; // headroom for the "+N more" line
     const out = [];
     let used = 0;
-    for (const e of entries) {
+    for (const e of entries.slice(0, ENTRY_CAP)) {
       if (used + e.length + sep.length > budget) break;
       out.push(e);
       used += e.length + sep.length;
     }
     let text = out.join(sep);
-    if (out.length < total) text += `\n…and **${total - out.length}** more ${noun} (full list on the web bracket)`;
+    if (out.length < total) {
+      const more = `…and **${total - out.length}** more ${noun}`;
+      text += bracketUrl
+        ? `\n${more} — [full list on the live bracket](${bracketUrl})`
+        : `\n${more}`;
+    }
     return text;
   };
 
@@ -333,8 +368,8 @@ function getStatusText(status) {
 
 function formatDate(date) {
   if (!date) return 'TBD';
-  const { toDiscordFullAndRelative } = require('./timeUtils');
-  return toDiscordFullAndRelative(date);
+  const { toDiscordShortAndRelative } = require('./timeUtils');
+  return toDiscordShortAndRelative(date);
 }
 
 module.exports = {
@@ -343,6 +378,7 @@ module.exports = {
   createParticipantListEmbed,
   applyBranding,
   getBracketUrl,
+  signupsClosed,
   getStatusColor,
   getStatusEmoji,
   getStatusText,
