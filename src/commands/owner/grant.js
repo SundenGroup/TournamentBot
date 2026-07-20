@@ -79,6 +79,17 @@ module.exports = {
             .setDescription('Server ID')
             .setRequired(true)
         )
+    )
+    .addSubcommand(sub =>
+      sub
+        .setName('servers')
+        .setDescription('List every server the bot is installed in')
+        .addIntegerOption(opt =>
+          opt
+            .setName('page')
+            .setDescription('Page (25 servers per page, largest first)')
+            .setMinValue(1)
+        )
     ),
 
   async execute(interaction) {
@@ -217,6 +228,34 @@ module.exports = {
         .setFooter({ text: guildId });
 
       return interaction.reply({ embeds: [embed], ephemeral: true });
+    }
+
+    // Handle servers — the full install base, largest first
+    if (subcommand === 'servers') {
+      await interaction.deferReply({ ephemeral: true });
+
+      const PER_PAGE = 25;
+      const all = [...interaction.client.guilds.cache.values()]
+        .sort((a, b) => (b.memberCount || 0) - (a.memberCount || 0));
+      const totalMembers = all.reduce((n, g) => n + (g.memberCount || 0), 0);
+      const pages = Math.max(1, Math.ceil(all.length / PER_PAGE));
+      const page = Math.min(interaction.options.getInteger('page') || 1, pages);
+      const slice = all.slice((page - 1) * PER_PAGE, page * PER_PAGE);
+
+      // Tier lookups only for the visible page (one DB read each)
+      const lines = await Promise.all(slice.map(async (g) => {
+        const tier = await getEffectiveTier(g.id).catch(() => 'free');
+        const joined = g.joinedTimestamp ? ` · joined <t:${Math.floor(g.joinedTimestamp / 1000)}:R>` : '';
+        return `• **${g.name}** — ${g.memberCount ?? '?'} members · ${capitalize(tier)}\n  \`${g.id}\`${joined}`;
+      }));
+
+      const embed = new EmbedBuilder()
+        .setColor(0x5865F2)
+        .setTitle(`🗺️ Servers (${all.length}) · ~${totalMembers.toLocaleString('en-US')} members reached`)
+        .setDescription(lines.join('\n') || 'No servers.')
+        .setFooter({ text: pages > 1 ? `Page ${page}/${pages} — /owner servers page:${page + 1} for more` : 'Sorted by member count' });
+
+      return interaction.editReply({ embeds: [embed] });
     }
   },
 };
