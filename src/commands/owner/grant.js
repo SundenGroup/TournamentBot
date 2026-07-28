@@ -242,11 +242,18 @@ module.exports = {
       const page = Math.min(interaction.options.getInteger('page') || 1, pages);
       const slice = all.slice((page - 1) * PER_PAGE, page * PER_PAGE);
 
-      // Tier lookups only for the visible page (one DB read each)
+      // Tier + owner lookups only for the visible page. Links: only invites a
+      // server chose to publish (vanity URL) — the bot never creates invites
+      // into customers' servers.
       const lines = await Promise.all(slice.map(async (g) => {
         const tier = await getEffectiveTier(g.id).catch(() => 'free');
+        const owner = g.ownerId
+          ? await interaction.client.users.fetch(g.ownerId).then(u => u.username).catch(() => null)
+          : null;
         const joined = g.joinedTimestamp ? ` · joined <t:${Math.floor(g.joinedTimestamp / 1000)}:R>` : '';
-        return `• **${g.name}** — ${g.memberCount ?? '?'} members · ${capitalize(tier)}\n  \`${g.id}\`${joined}`;
+        const ownerBit = g.ownerId ? `\n  👑 ${owner || 'unknown'} (\`${g.ownerId}\`)` : '';
+        const vanity = g.vanityURLCode ? ` · [discord.gg/${g.vanityURLCode}](https://discord.gg/${g.vanityURLCode})` : '';
+        return `• **${g.name}** — ${g.memberCount ?? '?'} members · ${capitalize(tier)}\n  \`${g.id}\`${joined}${ownerBit}${vanity}`;
       }));
 
       const embed = new EmbedBuilder()
