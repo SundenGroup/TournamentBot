@@ -367,18 +367,18 @@
     <h3>More signups than the bracket holds <span class="tag tag-studio">Studio</span></h3>
     <p>Brackets top out at 512, but for qualifier-style events you can let <strong>up to 2048</strong> sign up
     (and check in): set a <strong>Signup cap</strong> above the bracket size in the web dashboard's edit card
-    or create form. The announcement then reads <em>“N signed up · field of 512”</em> instead of a fraction,
-    with a note that the field is picked at start by seeding and check-in — signup confirmations and the
-    check-in post repeat it once the pool passes the bracket size, so late signups know exactly where they
-    stand. When the tournament starts, the field is selected automatically:</p>
+    or create form. The announcement then reads <em>“900 signed up · 512 spots”</em> instead of a fraction,
+    with a note that who plays is decided at start by seeding and check-in — signup confirmations and the
+    check-in post repeat it once signups pass the spot count, so late signups know exactly where they
+    stand. When the tournament starts, the spots are filled automatically:</p>
     <ol>
-      <li><strong>Seeded entrants first</strong>, in seed order — your explicit picks always make it (this is
-      where CSV seeding shines: export everyone, choose and seed your field in the sheet, import back);</li>
+      <li><strong>Seeded entrants first</strong>, in seed order — your explicit picks always get a spot (this
+      is where CSV seeding shines: export everyone, pick and seed your lineup in the sheet, import back);</li>
       <li>then <strong>checked-in</strong> entrants by signup time;</li>
       <li>then everyone else by signup time, until the bracket is full.</li>
     </ol>
-    <p>The start summary shows how many overflow signups didn't make the cut. Clearing the Signup cap field
-    turns overflow off again (signups stop at the bracket size as usual).</p>
+    <p>The start summary shows how many signups didn't get a spot. Clearing the Signup cap turns overflow
+    off again (signups stop at the bracket size as usual).</p>
 
     <h3>Starting</h3>
     <p>When the scheduled time arrives, the bot posts a message saying the tournament is ready. Start it with:</p>

@@ -199,7 +199,7 @@ function buildStartEmbed(tournament, summary) {
   let description = `**${tournament.title}** is now live!\n\n`;
   description += `• ${participantCount} ${isSolo ? 'players' : 'teams'} competing\n`;
   if (cutCount > 0) {
-    description += `• ✂️ Field locked at ${participantCount} — ${cutCount} overflow signup${cutCount === 1 ? '' : 's'} didn't make the cut (seeded and checked-in entrants had priority)\n`;
+    description += `• ✂️ ${cutCount} ${isSolo ? (cutCount === 1 ? 'player' : 'players') : (cutCount === 1 ? 'team' : 'teams')} didn't get a spot — seeded and checked-in ${isSolo ? 'players' : 'teams'} were placed first\n`;
   }
   description += `• ${roomsCreated} ${format === 'battle_royale' ? 'lobby' : 'match'} rooms created\n`;
   if (capacityHit) {

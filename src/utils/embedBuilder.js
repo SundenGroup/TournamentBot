@@ -63,7 +63,7 @@ async function createTournamentEmbed(tournament) {
   // stop people from signing up, but spots aren't first-come — say so.
   const overflowOn = (settings.signupCap || 0) > maxCount;
   if (overflowOn && (status === 'registration' || status === 'checkin')) {
-    descriptionText += `🎟️ **Open signups** — everyone can register. The **${maxCount}-${isSolo ? 'player' : 'team'} field** is picked at start: **seeding and check-in decide**, not signup order.\n\n`;
+    descriptionText += `🎟️ **Everyone can sign up** — **${maxCount} spots**. Who plays is decided at start by **seeding and check-in**, not signup order.\n\n`;
   }
 
   if (description) {
@@ -78,7 +78,7 @@ async function createTournamentEmbed(tournament) {
     {
       name: isSolo ? '👥 Players' : '👥 Teams',
       value: overflowOn && (status === 'registration' || status === 'checkin')
-        ? `${currentCount} signed up\nfield of ${maxCount}`
+        ? `${currentCount} signed up\n${maxCount} spots`
         : `${currentCount} / ${maxCount}`,
       inline: true,
     },
@@ -306,7 +306,7 @@ async function createParticipantListEmbed(tournament) {
     (status === 'registration' || status === 'checkin');
   // "top N play" would imply list order decides — it doesn't (seeds + check-in do)
   const capLabel = (n) => overflowOn
-    ? `${n} signed up · field of ${settings.maxParticipants} at start`
+    ? `${n} signed up · ${settings.maxParticipants} spots`
     : `${n}/${settings.maxParticipants}`;
 
   if (isSolo) {

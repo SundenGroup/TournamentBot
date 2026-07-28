@@ -16,7 +16,7 @@ function signupNextSteps(tournament) {
     const isSolo = tournament.settings.teamSize === 1;
     const count = isSolo ? (tournament.participants?.length || 0) : (tournament.teams?.length || 0);
     if (count > max) {
-      lines.push(`🎟️ **${count}** ${isSolo ? 'players have' : 'teams have'} signed up for a **field of ${max}** — the field is picked at start, **seeded and checked-in ${isSolo ? 'players' : 'teams'} first** (not signup order). Checking in keeps you in the running.`);
+      lines.push(`🎟️ **${count}** signed up for **${max} spots** — spots go to **seeded and checked-in ${isSolo ? 'players' : 'teams'} first**, not by signup order.`);
     }
   }
   // If they signed up during the check-in window, addParticipant/addTeam
