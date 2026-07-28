@@ -161,7 +161,9 @@ module.exports = {
           .setDescription([
             'Studio is our partner plan for game studios, esports orgs and large',
             'communities: **white-label branding, custom game presets & private',
-            'signup fields, Results API + webhooks, multi-server** and hands-on onboarding.',
+            'signup fields, spreadsheet seeding (CSV export/import), overflow signups',
+            '(up to 2048 sign-ups for a 512 bracket), Results API + webhooks,',
+            'multi-server** and hands-on onboarding.',
             '',
             `Get in touch and we'll tailor it: **https://tournaments.clutch.game/contact**`,
           ].join('\n'));

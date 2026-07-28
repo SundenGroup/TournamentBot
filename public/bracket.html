@@ -802,9 +802,14 @@ function showPanel(html) {
 
 function renderRegistration(d) {
   const start = d.startTime ? new Date(d.startTime).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' }) : 'TBD';
+  // Overflow signups: "900/512" would read as broken — show pool vs spots
+  // and say how the spots are decided.
+  const overflow = (d.signupCap || 0) > d.maxParticipants;
   let html = `<div class="reg-banner">
-      <div><div class="reg-count">${d.participantCount}<small>/${d.maxParticipants}</small></div>
-      <div class="reg-sub">${d.teamSize > 1 ? 'teams registered' : 'players registered'} · starts ${esc(start)}</div></div>
+      <div><div class="reg-count">${d.participantCount}<small>${overflow ? ` signed up · ${d.maxParticipants} spots` : `/${d.maxParticipants}`}</small></div>
+      <div class="reg-sub">${overflow
+        ? `who plays is decided at start by seeding &amp; check-in · starts ${esc(start)}`
+        : `${d.teamSize > 1 ? 'teams registered' : 'players registered'} · starts ${esc(start)}`}</div></div>
     </div>`;
   if (d.participants.length) {
     html += '<div class="section"><div class="section-title">Entrants</div><div class="entrants">';

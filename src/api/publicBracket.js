@@ -157,6 +157,9 @@ function buildPayload(tournament) {
     teamSize: tournament.settings.teamSize,
     bestOf: tournament.settings.bestOf,
     maxParticipants: tournament.settings.maxParticipants,
+    // Overflow signups: more can register than there are spots; the page
+    // switches from "N/max" to "N signed up · max spots" pre-start.
+    signupCap: tournament.settings.signupCap ?? null,
     participantCount: entrants.length,
     participants: entrants.map(e => ({
       name: isSolo ? (e.displayName || e.username) : e.name,
@@ -231,8 +234,12 @@ router.get('/b/:id', async (req, res) => {
   const payload = await loadPublicTournament(req.params.id);
 
   const title = payload ? `${payload.title} — Live Bracket` : 'Tournament Bracket';
+  const overflowOpen = payload && (payload.signupCap || 0) > payload.maxParticipants &&
+    (payload.status === 'registration' || payload.status === 'checkin');
   const desc = payload
-    ? `${payload.game.name ?? 'Tournament'} • ${payload.participantCount}/${payload.maxParticipants} entrants • powered by CLUTCH`
+    ? `${payload.game.name ?? 'Tournament'} • ${overflowOpen
+        ? `${payload.participantCount} signed up · ${payload.maxParticipants} spots`
+        : `${payload.participantCount}/${payload.maxParticipants} entrants`} • powered by CLUTCH`
     : 'Live tournament bracket powered by CLUTCH';
 
   const html = getTemplate()

@@ -232,6 +232,24 @@ module.exports = {
     )
     .addSubcommand(subcommand =>
       subcommand
+        .setName('signup-cap')
+        .setDescription('Let more sign up than there are spots — who plays is decided at start (Studio)')
+        .addStringOption(option =>
+          option.setName('tournament')
+            .setDescription('Tournament')
+            .setRequired(true)
+            .setAutocomplete(true)
+        )
+        .addIntegerOption(option =>
+          option.setName('cap')
+            .setDescription('Max sign-ups (above the spot count, up to 2048) — 0 turns overflow off')
+            .setRequired(true)
+            .setMinValue(0)
+            .setMaxValue(2048)
+        )
+    )
+    .addSubcommand(subcommand =>
+      subcommand
         .setName('add-player')
         .setDescription('Manually register a real player (solo tournaments)')
         .addStringOption(option =>
@@ -343,7 +361,7 @@ module.exports = {
     const subcommand = interaction.options.getSubcommand();
 
     // Admin subcommands require tournament management permissions
-    const adminSubcommands = ['create', 'create-advanced', 'start', 'cancel', 'edit', 'signup-close', 'report', 'disqualify', 'correct', 'add-player', 'add-team', 'remove-player', 'remove-team', 'create-rooms'];
+    const adminSubcommands = ['create', 'create-advanced', 'start', 'cancel', 'edit', 'signup-close', 'signup-cap', 'report', 'disqualify', 'correct', 'add-player', 'add-team', 'remove-player', 'remove-team', 'create-rooms'];
     const adminSeedSubcommands = ['set', 'randomize', 'clear'];
 
     const needsPermCheck = adminSubcommands.includes(subcommand) ||
@@ -410,6 +428,9 @@ module.exports = {
         break;
       case 'signup-close':
         await handleSignupClose(interaction);
+        break;
+      case 'signup-cap':
+        await handleSignupCap(interaction);
         break;
       case 'add-player':
         await handleAddPlayer(interaction);
@@ -905,6 +926,47 @@ async function handleSignupClose(interaction) {
     }
     return interaction.editReply({
       content: `🕓 Signups for **${updated.title}** now close <t:${ts}:f> (<t:${ts}:R>). The announcement shows the deadline, and the Sign Up button disappears when it passes.`,
+    });
+  } catch (err) {
+    return interaction.editReply({ content: `❌ ${err.message}` });
+  }
+}
+
+async function handleSignupCap(interaction) {
+  await interaction.deferReply({ ephemeral: true });
+
+  const tournamentId = interaction.options.getString('tournament');
+  const cap = interaction.options.getInteger('cap');
+
+  const tournament = await getGuildTournament(interaction.guildId, tournamentId);
+  if (!tournament) return interaction.editReply({ content: '❌ Tournament not found.' });
+
+  // Turning overflow ON is Studio (turning it off is free) — same gate as the web.
+  if (cap > 0 && !tournament.settings.signupCap) {
+    const { checkFeature } = require('../../services/subscriptionService');
+    const check = await checkFeature(interaction.guildId, 'signup_overflow');
+    if (!check.allowed) {
+      return interaction.editReply({ content: '❌ Overflow signups (beyond the spot count) are part of the **Studio** plan — see `/subscribe plans`.' });
+    }
+  }
+
+  try {
+    const { editTournamentFlow } = require('../../services/lifecycleService');
+    const { updated, changes } = await editTournamentFlow({
+      client: interaction.client,
+      tournament,
+      fields: { signupCap: cap === 0 ? null : cap },
+    });
+    if (!changes.length) {
+      return interaction.editReply({ content: 'ℹ️ That’s already the current setting — nothing changed.' });
+    }
+
+    const spots = updated.settings.maxParticipants;
+    if (!updated.settings.signupCap) {
+      return interaction.editReply({ content: `🔓 Overflow turned off for **${updated.title}** — signups stop at **${spots}** again.` });
+    }
+    return interaction.editReply({
+      content: `🎟️ Up to **${updated.settings.signupCap}** can now sign up for **${updated.title}** (**${spots}** spots). Who plays is decided at start: seeded and checked-in ${updated.settings.teamSize > 1 ? 'teams' : 'players'} first. The announcement is updated.`,
     });
   } catch (err) {
     return interaction.editReply({ content: `❌ ${err.message}` });

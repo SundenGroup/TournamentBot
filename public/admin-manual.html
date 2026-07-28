@@ -367,7 +367,7 @@
     <h3>More signups than the bracket holds <span class="tag tag-studio">Studio</span></h3>
     <p>Brackets top out at 512, but for qualifier-style events you can let <strong>up to 2048</strong> sign up
     (and check in): set a <strong>Signup cap</strong> above the bracket size in the web dashboard's edit card
-    or create form. The announcement then reads <em>“900 signed up · 512 spots”</em> instead of a fraction,
+    or create form, or in Discord with <code>/tournament signup-cap</code> (<code>cap:0</code> turns it off). The announcement then reads <em>“900 signed up · 512 spots”</em> instead of a fraction,
     with a note that who plays is decided at start by seeding and check-in — signup confirmations and the
     check-in post repeat it once signups pass the spot count, so late signups know exactly where they
     stand. When the tournament starts, the spots are filled automatically:</p>
@@ -719,9 +719,9 @@
       <table>
         <thead><tr><th>Where</th><th>What</th></tr></thead>
         <tbody>
-          <tr><td><strong>＋ New tournament</strong></td><td>Create &amp; announce a tournament with everything Discord's advanced mode has — game presets with their defaults, format / team size / best-of, description, live-bracket toggle, a <strong>channel picker</strong> (one tournament = one channel), check-in + window, an optional <strong>signups-close</strong> time, seeding, captain mode, required roles, in-game ID requirement, 3rd-place match, and Battle Royale scoring / games per stage / lobby size</td></tr>
+          <tr><td><strong>＋ New tournament</strong></td><td>Create &amp; announce a tournament with everything Discord's advanced mode has — game presets with their defaults, format / team size / best-of, description, live-bracket toggle, a <strong>channel picker</strong> (one tournament = one channel), check-in + window, an optional <strong>signups-close</strong> time, an overflow <strong>signup cap</strong>, seeding, captain mode, required roles, in-game ID requirement, 3rd-place match, and Battle Royale scoring / games per stage / lobby size</td></tr>
           <tr><td><strong>Bracket tab</strong></td><td>The full live bracket / standings / roster view — including tournaments whose public Web Bracket toggle is off (this view is admin-only)</td></tr>
-          <tr><td><strong>Manage tab</strong></td><td>Edit title/date/size/best-of/description, an optional <strong>signups-close</strong> time (before start, e.g. for seeding), the <strong>check-in</strong> toggle &amp; window, and turn <strong>seeding</strong> on · remove entrants · <strong>start</strong> · report results with the series score · correct mistakes · disqualify · retry missing match rooms · cancel — destructive actions ask twice</td></tr>
+          <tr><td><strong>Manage tab</strong></td><td>Edit title/date/size/best-of/description, an optional <strong>signups-close</strong> time (before start, e.g. for seeding), an overflow <strong>signup cap</strong> <span class="tag tag-studio">Studio</span>, the <strong>check-in</strong> toggle &amp; window, and turn <strong>seeding</strong> on · remove entrants · <strong>start</strong> · report results with the series score · correct mistakes · disqualify · retry missing match rooms · cancel — destructive actions ask twice</td></tr>
           <tr><td><strong>Seeding tab</strong></td><td>Before start (seeding-enabled tournaments): set a seed per entrant, <strong>Randomize</strong>, <strong>Clear all</strong>, then <strong>Save</strong> <span class="tag tag-pro">Pro</span> · CSV export/import <span class="tag tag-studio">Studio</span></td></tr>
         </tbody>
       </table>
@@ -753,6 +753,7 @@
           <tr><td><code>/tournament cancel</code></td><td>Cancel a tournament</td></tr>
           <tr><td><code>/tournament edit</code></td><td>Edit title, date, size, best-of, and check-in window (before start)</td></tr>
           <tr><td><code>/tournament signup-close</code></td><td>Set when signups close — a time, <code>now</code>, or <code>off</code> to keep them open until start</td></tr>
+          <tr><td><code>/tournament signup-cap</code></td><td>Let more sign up than there are spots (overflow, Studio) — <code>cap:0</code> turns it off</td></tr>
           <tr><td><code>/tournament report</code></td><td>Report a match result (Bo3+ requires the series score)</td></tr>
           <tr><td><code>/tournament correct</code></td><td>Correct a wrongly reported result (while nothing downstream is played)</td></tr>
           <tr><td><code>/tournament disqualify</code></td><td>DQ a player/team — remaining matches forfeit with the best score, shown as DQ</td></tr>
