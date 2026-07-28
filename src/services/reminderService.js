@@ -192,8 +192,13 @@ async function openCheckin(tournament, client) {
       await mainMessage.edit({ embeds: [embed], components: buttons });
     }
 
-    // Notify channel
-    await channel.send(`📢 **Check-in is now open for ${current.title}!** You have ${current.settings.checkinWindow} minutes — hit **✅ Check In** on the announcement above.`);
+    // Notify channel — with overflow signups, checking in is also how you
+    // make the cut, so say it where everyone sees it.
+    const entrantCount = isSolo ? current.participants.length : current.teams.length;
+    const overflowNote = (current.settings.signupCap || 0) > current.settings.maxParticipants && entrantCount > current.settings.maxParticipants
+      ? ` **${entrantCount}** signed up for a field of **${current.settings.maxParticipants}** — checked-in ${isSolo ? 'players' : 'teams'} get priority when the field is picked at start.`
+      : '';
+    await channel.send(`📢 **Check-in is now open for ${current.title}!** You have ${current.settings.checkinWindow} minutes — hit **✅ Check In** on the announcement above.${overflowNote}`);
 
     // DM participants — include a jump link straight to the Check In button
     const jumpLink = current.messageId

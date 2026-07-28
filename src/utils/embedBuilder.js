@@ -59,22 +59,26 @@ async function createTournamentEmbed(tournament) {
   const statusText = getStatusText(status);
   let descriptionText = `**Status: ${statusText}**\n\n`;
 
+  // Overflow signups (signupCap > bracket size): a full-looking count would
+  // stop people from signing up, but spots aren't first-come — say so.
+  const overflowOn = (settings.signupCap || 0) > maxCount;
+  if (overflowOn && (status === 'registration' || status === 'checkin')) {
+    descriptionText += `🎟️ **Open signups** — everyone can register. The **${maxCount}-${isSolo ? 'player' : 'team'} field** is picked at start: **seeding and check-in decide**, not signup order.\n\n`;
+  }
+
   if (description) {
     descriptionText += `${description}\n\n`;
   }
 
   embed.setDescription(descriptionText);
 
-  // Overflow signups (signupCap > bracket size): show the pool vs the spots
-  // instead of a "128 / 512"-style fraction that would read as capacity left.
-  const overflowOn = (settings.signupCap || 0) > maxCount;
   const fields = [
     { name: '🎮 Game', value: `${require('../config/gamePresets').getGameEmojiText(game)} ${game.displayName}`, inline: true },
     { name: '📅 Date', value: formatDate(startTime), inline: true },
     {
       name: isSolo ? '👥 Players' : '👥 Teams',
       value: overflowOn && (status === 'registration' || status === 'checkin')
-        ? `${currentCount} signed up\n${maxCount} spots at start`
+        ? `${currentCount} signed up\nfield of ${maxCount}`
         : `${currentCount} / ${maxCount}`,
       inline: true,
     },
@@ -300,8 +304,9 @@ async function createParticipantListEmbed(tournament) {
 
   const overflowOn = (settings.signupCap || 0) > settings.maxParticipants &&
     (status === 'registration' || status === 'checkin');
+  // "top N play" would imply list order decides — it doesn't (seeds + check-in do)
   const capLabel = (n) => overflowOn
-    ? `${n} signed up — top ${settings.maxParticipants} play`
+    ? `${n} signed up · field of ${settings.maxParticipants} at start`
     : `${n}/${settings.maxParticipants}`;
 
   if (isSolo) {
