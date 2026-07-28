@@ -364,6 +364,20 @@
     shows <em>Signups close: Closed</em>. Withdrawals stay possible, and admins can still add latecomers with
     <code>/tournament add-player</code> / <code>add-team</code>.</p>
 
+    <h3>More signups than the bracket holds <span class="tag tag-studio">Studio</span></h3>
+    <p>Brackets top out at 512, but for qualifier-style events you can let <strong>up to 2048</strong> sign up
+    (and check in): set a <strong>Signup cap</strong> above the bracket size in the web dashboard's edit card
+    or create form. The announcement then shows <em>“N signed up · 512 spots at start”</em> instead of a
+    fraction. When the tournament starts, the field is selected automatically:</p>
+    <ol>
+      <li><strong>Seeded entrants first</strong>, in seed order — your explicit picks always make it (this is
+      where CSV seeding shines: export everyone, choose and seed your field in the sheet, import back);</li>
+      <li>then <strong>checked-in</strong> entrants by signup time;</li>
+      <li>then everyone else by signup time, until the bracket is full.</li>
+    </ol>
+    <p>The start summary shows how many overflow signups didn't make the cut. Clearing the Signup cap field
+    turns overflow off again (signups stop at the bracket size as usual).</p>
+
     <h3>Starting</h3>
     <p>When the scheduled time arrives, the bot posts a message saying the tournament is ready. Start it with:</p>
     <pre><code><span class="cmd">/tournament start</span> <span class="param">tournament:</span><span class="value">Friday Night Fights</span></code></pre>

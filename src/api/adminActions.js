@@ -299,6 +299,7 @@ router.get('/admin/api/tournaments/:id/manage', requireSession, async (req, res)
     checkinWindow: t.settings.checkinWindow ?? 15,
     seedingEnabled: !!t.settings.seedingEnabled,
     signupCloseTime: t.settings.signupCloseTime ?? null,
+    signupCap: t.settings.signupCap ?? null,
     seedCsv: (await checkFeature(t.guildId, 'seed_csv')).allowed,
     nickSummary: t.settings.requireGameNick ? getNickSummary(t.game) : null,
     entrants,
@@ -401,6 +402,15 @@ router.post('/admin/api/guilds/:guildId/tournaments', ...mutate, requireGuildAdm
     signupCloseTime = close.toISOString();
   }
 
+  // Overflow signup cap (Studio): more can sign up than the bracket holds
+  let signupCap = null;
+  if (b.signupCap !== undefined && b.signupCap !== null && b.signupCap !== '') {
+    signupCap = parseInt(b.signupCap, 10);
+    if (isNaN(signupCap) || signupCap <= maxParticipants || signupCap > 2048) {
+      return res.status(400).json({ error: `Signup cap must be above the bracket size (${maxParticipants}) and at most 2048` });
+    }
+  }
+
   // BR tuning — blank fields fall back to the preset defaults
   let brScoringModel, gamesPerStage, lobbySize;
   if (format === 'battle_royale') {
@@ -424,6 +434,7 @@ router.post('/admin/api/guilds/:guildId/tournaments', ...mutate, requireGuildAdm
   if (seedingEnabled) requestedFeatures.push('seeding');
   if (captainMode) requestedFeatures.push('captain_mode');
   if (requiredRoles.length) requestedFeatures.push('required_roles');
+  if (signupCap) requestedFeatures.push('signup_overflow');
   if (format === 'battle_royale') {
     const lobby = lobbySize || preset?.brDefaults?.lobbySize || 20;
     if (maxParticipants > lobby) requestedFeatures.push('multi_lobby_br');
@@ -468,6 +479,7 @@ router.post('/admin/api/guilds/:guildId/tournaments', ...mutate, requireGuildAdm
         checkinRequired,
         checkinWindow,
         signupCloseTime,
+        signupCap,
         seedingEnabled,
         requireGameNick,
         captainMode,
@@ -501,6 +513,14 @@ router.patch('/admin/api/tournaments/:id', ...mutate, async (req, res) => {
         return res.status(403).json({ error: 'Seeding is a Pro feature. Upgrade to enable it, or run this tournament without seeds.' });
       }
     }
+    // Setting an overflow signup cap is Studio (clearing it is free).
+    const capRequested = parseInt(req.body?.signupCap, 10);
+    if (!isNaN(capRequested) && capRequested > 0 && !t.settings.signupCap) {
+      const check = await checkFeature(t.guildId, 'signup_overflow');
+      if (!check.allowed) {
+        return res.status(403).json({ error: 'Overflow signups (beyond the bracket size) are part of the Studio plan.' });
+      }
+    }
     const { updated, changes } = await editTournamentFlow({
       client: getClient(),
       tournament: t,
@@ -514,6 +534,7 @@ router.patch('/admin/api/tournaments/:id', ...mutate, async (req, res) => {
         checkinWindow: req.body?.checkinWindow,
         seedingEnabled: req.body?.seedingEnabled,
         signupCloseTime: req.body?.signupCloseTime,
+        signupCap: req.body?.signupCap,
       },
     });
     await audit(req, t, 'edit', { changes });

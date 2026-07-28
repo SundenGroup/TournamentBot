@@ -66,9 +66,29 @@ async function startTournamentFlow({ client, guild, tournamentId }) {
       await updateTournament(tournamentId, { teams: tournament.teams });
     }
 
+    // Overflow signups: more entrants than the bracket holds — select the
+    // field (seeds first, then checked-in, then signup order) and cut the
+    // rest before generating. No-op whenever the count fits.
+    let field = isSolo ? tournament.participants : tournament.teams;
+    let cutCount = 0;
+    if (field.length > tournament.settings.maxParticipants) {
+      const { selectStartingField } = require('./tournamentService');
+      const sel = selectStartingField(field, tournament.settings.maxParticipants);
+      field = sel.field;
+      cutCount = sel.cut.length;
+      if (isSolo) {
+        tournament.participants = field;
+        await updateTournament(tournamentId, { participants: field });
+      } else {
+        tournament.teams = field;
+        await updateTournament(tournamentId, { teams: field });
+      }
+      console.log(`Overflow cut for "${tournament.title}": ${cutCount} of ${field.length + cutCount} signups didn't make the ${tournament.settings.maxParticipants} field`);
+    }
+
     const format = tournament.settings.format;
     const service = getServiceForBracket({ type: format });
-    const bracket = service.generateBracket(participants, tournament.settings);
+    const bracket = service.generateBracket(field, tournament.settings);
 
     // ── Capacity pre-flight (docs/CHANNEL-CAPACITY-PLAN.md Phase 1) ─────────
     // Block a start that can't fit its first-round rooms instead of failing
@@ -146,7 +166,8 @@ async function startTournamentFlow({ client, guild, tournamentId }) {
       tournament,
       bracket,
       summary: {
-        participantCount,
+        participantCount: field.length,
+        cutCount,
         isSolo,
         format,
         formatName: FORMAT_NAMES[format] || format,
@@ -172,11 +193,14 @@ async function startTournamentFlow({ client, guild, tournamentId }) {
 
 /** The "Tournament Started" embed — shared copy for slash + button + logs. */
 function buildStartEmbed(tournament, summary) {
-  const { participantCount, isSolo, format, formatName, roomsCreated, roomsFailed, byeSummary, bracketUrl, capacityHit, capacity, missingPerms } = summary;
+  const { participantCount, cutCount, isSolo, format, formatName, roomsCreated, roomsFailed, byeSummary, bracketUrl, capacityHit, capacity, missingPerms } = summary;
   const bracket = tournament.bracket;
 
   let description = `**${tournament.title}** is now live!\n\n`;
   description += `• ${participantCount} ${isSolo ? 'players' : 'teams'} competing\n`;
+  if (cutCount > 0) {
+    description += `• ✂️ Field locked at ${participantCount} — ${cutCount} overflow signup${cutCount === 1 ? '' : 's'} didn't make the cut (seeded and checked-in entrants had priority)\n`;
+  }
   description += `• ${roomsCreated} ${format === 'battle_royale' ? 'lobby' : 'match'} rooms created\n`;
   if (capacityHit) {
     description += `• 🚨 **Server channel limit reached (Discord caps servers at 500)** — ${roomsFailed} room(s) missing. ` +
@@ -467,7 +491,27 @@ async function editTournamentFlow({ client, tournament, fields }) {
   if (isNaN(maxParticipants) || maxParticipants < 2 || maxParticipants > 512) {
     throw new Error('Max participants must be a number between 2 and 512.');
   }
-  if (maxParticipants < entrantCount) {
+
+  // ── Overflow signup cap (optional; null/'' clears) ──────────────────────
+  // Lets signups run past the bracket size; the field is selected at start.
+  let signupCap = tournament.settings.signupCap ?? null;
+  if (fields.signupCap !== undefined) {
+    if (fields.signupCap === null || String(fields.signupCap).trim() === '' || parseInt(fields.signupCap, 10) === 0) {
+      signupCap = null;
+    } else {
+      signupCap = parseInt(fields.signupCap, 10);
+      if (isNaN(signupCap) || signupCap < 2 || signupCap > 2048) {
+        throw new Error('Signup cap must be a number up to 2048 (or empty to turn overflow off).');
+      }
+      if (signupCap <= maxParticipants) {
+        throw new Error(`A signup cap only makes sense above the bracket size (${maxParticipants}) — leave it empty to cap signups at the bracket size.`);
+      }
+    }
+  }
+
+  // With overflow on, signups may legitimately exceed the bracket size —
+  // the start-time selection cuts the field down. Without it, keep the guard.
+  if (!signupCap && maxParticipants < entrantCount) {
     throw new Error(`Max ${isSolo ? 'players' : 'teams'} can't be lower than the current signup count (${entrantCount}).`);
   }
 
@@ -541,10 +585,11 @@ async function editTournamentFlow({ client, tournament, fields }) {
   if (seedingEnabled !== (tournament.settings.seedingEnabled ?? false)) changes.push('seeding');
   const closeChanged = signupCloseTime !== (tournament.settings.signupCloseTime ?? null);
   if (closeChanged) changes.push('signup close');
+  if (signupCap !== (tournament.settings.signupCap ?? null)) changes.push('signup cap');
 
   if (changes.length === 0) return { updated: tournament, changes, dateChanged: false };
 
-  const settings = { ...tournament.settings, maxParticipants, bestOf, checkinRequired, checkinWindow, seedingEnabled, signupCloseTime };
+  const settings = { ...tournament.settings, maxParticipants, bestOf, checkinRequired, checkinWindow, seedingEnabled, signupCloseTime, signupCap };
   const updated = await updateTournament(tournament.id, { title, description, startTime, settings });
   if (!updated) throw new Error('Failed to save changes, please try again.');
 

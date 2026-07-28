@@ -91,6 +91,10 @@ async function createTournament(data) {
       // of at start, leaving a quiet window (e.g. for seeding).
       signupCloseTime: data.signupCloseTime ?? null,
 
+      // Overflow signups (Studio): let more sign up than the bracket holds;
+      // the field is selected at start (seeds → checked-in → signup order).
+      signupCap: data.signupCap ?? null,
+
       seedingEnabled: data.seedingEnabled ?? DEFAULT_TOURNAMENT_SETTINGS.seedingEnabled,
 
       requireGameNick: data.requireGameNick ?? false,
@@ -280,6 +284,29 @@ function pastSignupClose(tournament) {
   return !!t && new Date(t).getTime() <= Date.now();
 }
 
+// Overflow signups (settings.signupCap > maxParticipants, Studio): signups and
+// check-in run past the bracket size, and the field is selected at start.
+function signupCapacity(settings) {
+  return Math.max(settings.maxParticipants || 0, settings.signupCap || 0);
+}
+
+/**
+ * Pick which entrants make the bracket when more signed up than it holds.
+ * Priority: seeded entrants (in seed order — the organizer's explicit picks),
+ * then checked-in entrants by signup time, then the rest by signup time.
+ * Pure — used by startTournamentFlow and unit tests.
+ */
+function selectStartingField(entrants, maxParticipants) {
+  if (entrants.length <= maxParticipants) return { field: entrants, cut: [] };
+  const bySignup = (a, b) => new Date(a.joinedAt || 0) - new Date(b.joinedAt || 0);
+  const seeded = entrants.filter(e => e.seed != null).sort((a, b) => a.seed - b.seed);
+  const unseeded = entrants.filter(e => e.seed == null);
+  const checked = unseeded.filter(e => e.checkedIn).sort(bySignup);
+  const unchecked = unseeded.filter(e => !e.checkedIn).sort(bySignup);
+  const ordered = [...seeded, ...checked, ...unchecked];
+  return { field: ordered.slice(0, maxParticipants), cut: ordered.slice(maxParticipants) };
+}
+
 async function addParticipant(tournamentId, user, { byAdmin = false } = {}) {
   // Run the read-check-write inside a transaction with a row lock so two people
   // signing up at the same instant can't both pass the capacity/duplicate checks
@@ -303,7 +330,7 @@ async function addParticipant(tournamentId, user, { byAdmin = false } = {}) {
         return { success: false, error: 'Signups for this tournament have closed.' };
       }
 
-      if (tournament.participants.length >= tournament.settings.maxParticipants) {
+      if (tournament.participants.length >= signupCapacity(tournament.settings)) {
         return { success: false, error: 'Tournament is full' };
       }
 
@@ -563,7 +590,7 @@ async function addTeam(tournamentId, teamData, { byAdmin = false } = {}) {
         return { success: false, error: 'Signups for this tournament have closed.' };
       }
 
-      if (tournament.teams.length >= tournament.settings.maxParticipants) {
+      if (tournament.teams.length >= signupCapacity(tournament.settings)) {
         return { success: false, error: 'Tournament is full' };
       }
 
@@ -814,6 +841,7 @@ module.exports = {
   toggleCheckedIn,
   setTournamentSeeds,
   pastSignupClose,
+  selectStartingField,
   claimTournamentStart,
   getGuildTournament,
   removeParticipant,

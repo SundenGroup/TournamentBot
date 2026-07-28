@@ -789,8 +789,9 @@ function renderRunLeft() {
       <div class="field"><label>Title</label><input type="text" id="eTitle" maxlength="100" value="${esc(d.title)}"></div>
       <div class="field"><label>Start time</label><input type="datetime-local" id="eStart" value="${toDatetimeLocal(d.startTime)}"></div>
       <div class="field"><label>Signups close (optional — before start, e.g. to leave time for seeding)</label><input type="datetime-local" id="eSignupClose" value="${toDatetimeLocal(d.signupCloseTime)}"></div>
-      <div style="display:flex;gap:10px"><div class="field" style="flex:1"><label>Max entrants</label><input type="number" id="eMax" min="2" max="512" value="${d.maxParticipants}"></div>
+      <div style="display:flex;gap:10px"><div class="field" style="flex:1"><label>Max entrants (bracket size)</label><input type="number" id="eMax" min="2" max="512" value="${d.maxParticipants}"></div>
       <div class="field" style="flex:1"><label>Best of</label><input type="number" id="eBestOf" min="1" max="15" step="2" value="${d.bestOf}"></div></div>
+      <div class="field"><label>Signup cap — overflow <span style="font-size:11px;color:var(--text-faint);font-weight:400;text-transform:none;letter-spacing:0">(optional, Studio — let more sign up than the bracket holds; seeds &amp; checked-in make the field at start; empty = off)</span></label><input type="number" id="eSignupCap" min="2" max="2048" value="${d.signupCap != null ? d.signupCap : ''}" placeholder="e.g. 1000"></div>
       <div style="display:flex;gap:10px;align-items:flex-end">
         <div class="field" style="flex:0 0 auto"><label><input type="checkbox" id="eCheckin" ${d.checkinRequired ? 'checked' : ''}> Require check-in</label></div>
         <div class="field" style="flex:1"><label>Check-in window (min before start)</label><input type="number" id="eCheckinWin" min="5" max="120" value="${d.checkinWindow}" ${d.checkinRequired ? '' : 'disabled'}></div>
@@ -1234,6 +1235,7 @@ function wireRunLeft(d, left) {
             const v = left.querySelector('#eSignupClose').value;
             return v ? new Date(v).toISOString() : null; // empty field clears the deadline
           })(),
+          signupCap: left.querySelector('#eSignupCap').value || null, // empty clears overflow
         },
       });
       eSave.disabled = false;
@@ -1536,6 +1538,7 @@ function renderCreate() {
       <div class="field"><label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;text-transform:none;letter-spacing:0"><input type="checkbox" id="cCheckin" style="accent-color:var(--accent)"> Require check-in</label></div>
       <div class="field"><label>Check-in window (min before start)</label><input type="number" id="cCheckinWin" min="5" max="120" value="15" disabled></div>
       <div class="field full"><label>Signups close <span style="font-size:11px;color:var(--text-faint);font-weight:400">(optional — before start, e.g. to leave time for seeding)</span></label><input type="datetime-local" id="cSignupClose"></div>
+      <div class="field full"><label>Signup cap — overflow <span class="protag">STUDIO</span> <span style="font-size:11px;color:var(--text-faint);font-weight:400;text-transform:none;letter-spacing:0">(optional — let more sign up than the bracket holds; seeds &amp; checked-in make the field at start)</span></label><input type="number" id="cSignupCap" min="2" max="2048" placeholder="empty = signups stop at max entrants"></div>
       <div class="field full" style="display:flex;flex-wrap:wrap;gap:14px">
         <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px"><input type="checkbox" id="cSeeding" style="accent-color:var(--accent)"> Seeding <span class="protag">PRO</span></label>
         <label id="cCaptainWrap" style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px"><input type="checkbox" id="cCaptain" style="accent-color:var(--accent)"> Captain mode <span class="protag">PRO</span></label>
@@ -1614,6 +1617,7 @@ function renderCreate() {
         checkinRequired: body.querySelector('#cCheckin').checked,
         checkinWindow: body.querySelector('#cCheckin').checked ? body.querySelector('#cCheckinWin').value : undefined,
         signupCloseTime: body.querySelector('#cSignupClose').value ? new Date(body.querySelector('#cSignupClose').value).toISOString() : null,
+        signupCap: body.querySelector('#cSignupCap').value || undefined,
         seedingEnabled: body.querySelector('#cSeeding').checked,
         captainMode: body.querySelector('#cCaptain').checked,
         thirdPlaceMatch: body.querySelector('#cThird').checked,

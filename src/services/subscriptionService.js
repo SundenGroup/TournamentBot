@@ -98,6 +98,7 @@ const STUDIO_FEATURES = [
   'multi_server',
   'custom_presets',
   'seed_csv',
+  'signup_overflow',
 ];
 
 // Legacy aliases (old call sites / display code)
@@ -128,6 +129,7 @@ const FEATURE_NAMES = {
   multi_server: 'Multi-Server Support',
   custom_presets: 'Custom Game Presets & Private Fields',
   seed_csv: 'Spreadsheet Seeding (CSV export/import)',
+  signup_overflow: 'Overflow Signups (sign-ups beyond the bracket size)',
   concurrent: 'More Concurrent Tournaments',
   participants: 'More Participants',
 };

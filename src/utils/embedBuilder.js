@@ -65,10 +65,19 @@ async function createTournamentEmbed(tournament) {
 
   embed.setDescription(descriptionText);
 
+  // Overflow signups (signupCap > bracket size): show the pool vs the spots
+  // instead of a "128 / 512"-style fraction that would read as capacity left.
+  const overflowOn = (settings.signupCap || 0) > maxCount;
   const fields = [
     { name: '🎮 Game', value: `${require('../config/gamePresets').getGameEmojiText(game)} ${game.displayName}`, inline: true },
     { name: '📅 Date', value: formatDate(startTime), inline: true },
-    { name: isSolo ? '👥 Players' : '👥 Teams', value: `${currentCount} / ${maxCount}`, inline: true },
+    {
+      name: isSolo ? '👥 Players' : '👥 Teams',
+      value: overflowOn && (status === 'registration' || status === 'checkin')
+        ? `${currentCount} signed up\n${maxCount} spots at start`
+        : `${currentCount} / ${maxCount}`,
+      inline: true,
+    },
   ];
 
   if (!isSolo) {
@@ -289,8 +298,14 @@ async function createParticipantListEmbed(tournament) {
     return text;
   };
 
+  const overflowOn = (settings.signupCap || 0) > settings.maxParticipants &&
+    (status === 'registration' || status === 'checkin');
+  const capLabel = (n) => overflowOn
+    ? `${n} signed up — top ${settings.maxParticipants} play`
+    : `${n}/${settings.maxParticipants}`;
+
   if (isSolo) {
-    embed.setTitle(`📋 Signed Up (${participants.length}/${settings.maxParticipants})`);
+    embed.setTitle(`📋 Signed Up (${capLabel(participants.length)})`);
     if (participants.length === 0) {
       embed.setDescription('No participants yet.');
     } else {
@@ -307,7 +322,7 @@ async function createParticipantListEmbed(tournament) {
       embed.setDescription(joinCapped(entries, '\n', participants.length, 'players'));
     }
   } else {
-    embed.setTitle(`📋 Registered Teams (${teams.length}/${settings.maxParticipants})`);
+    embed.setTitle(`📋 Registered Teams (${capLabel(teams.length)})`);
     if (teams.length === 0) {
       embed.setDescription('No teams registered yet.');
     } else {
