@@ -68,6 +68,11 @@ app.post(
 // JSON body parser for REST API
 // ============================================================================
 
+// gzip responses — the 512-entrant public bracket JSON is ~500 KB raw, ~80 KB
+// gzipped, and spectators poll it every 15 s. nginx doesn't compress proxied
+// responses here, so do it at the app layer.
+app.use(require('compression')());
+
 app.use(express.json());
 
 // ============================================================================

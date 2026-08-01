@@ -183,9 +183,9 @@ function buildPayload(tournament) {
 const cache = new Map();
 const CACHE_TTL_MS = 5000;
 
-async function loadPublicTournament(id) {
+async function loadPublicEntry(id) {
   const hit = cache.get(id);
-  if (hit && Date.now() - hit.ts < CACHE_TTL_MS) return hit.value;
+  if (hit && Date.now() - hit.ts < CACHE_TTL_MS) return hit;
 
   let value = null;
   if (/^[0-9a-f-]{36}$/i.test(id)) {
@@ -195,10 +195,21 @@ async function loadPublicTournament(id) {
     }
   }
 
-  cache.set(id, { ts: Date.now(), value });
+  // Serialize + hash ONCE per TTL, not once per request — at 512 entrants the
+  // JSON is ~500 KB, and hundreds of viewers poll every 15 s. The etag lets
+  // repeat polls come back as empty 304s instead of full bodies.
+  const body = value ? JSON.stringify(value) : null;
+  const etag = body ? `W/"${crypto.createHash('sha1').update(body).digest('base64').slice(0, 27)}"` : null;
+
+  const entry = { ts: Date.now(), value, body, etag };
+  cache.set(id, entry);
   // Bounded: drop oldest entries past 500 tournaments
   if (cache.size > 500) cache.delete(cache.keys().next().value);
-  return value;
+  return entry;
+}
+
+async function loadPublicTournament(id) {
+  return (await loadPublicEntry(id)).value;
 }
 
 // ============================================================================
@@ -206,12 +217,17 @@ async function loadPublicTournament(id) {
 // ============================================================================
 
 router.get('/api/public/brackets/:id', async (req, res) => {
-  const payload = await loadPublicTournament(req.params.id);
-  if (!payload) {
+  const entry = await loadPublicEntry(req.params.id);
+  if (!entry.body) {
     return res.status(404).json({ error: 'Bracket not available' });
   }
   res.set('Cache-Control', 'public, max-age=5');
-  res.json(payload);
+  res.set('ETag', entry.etag);
+  // Unchanged bracket → empty 304 instead of re-sending ~500 KB per poll
+  if (req.headers['if-none-match'] === entry.etag) {
+    return res.status(304).end();
+  }
+  res.type('application/json').send(entry.body);
 });
 
 // HTML shell with OG tags injected so Discord/social links unfurl nicely.

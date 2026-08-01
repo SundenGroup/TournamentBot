@@ -341,7 +341,9 @@ const scrollEl = () => $('bx-scroll');
 // ── Data fetch ──────────────────────────────────────────────────────────────
 async function fetchData() {
   try {
-    const res = await fetch(DATA_URL, { cache: 'no-store' });
+    // Default cache mode (NOT no-store): lets the browser send If-None-Match
+    // after max-age expires, so unchanged polls are empty 304s, not ~500 KB.
+    const res = await fetch(DATA_URL);
     if (!res.ok) { if (!DATA) renderUnavailable(); return; }
     const data = await res.json();
     lastFetched = Date.now();
