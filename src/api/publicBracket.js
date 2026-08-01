@@ -10,6 +10,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');
+const zlib = require('node:zlib');
 const express = require('express');
 const config = require('../config');
 const { getTournament } = require('../services/tournamentService');
@@ -195,13 +196,15 @@ async function loadPublicEntry(id) {
     }
   }
 
-  // Serialize + hash ONCE per TTL, not once per request — at 512 entrants the
-  // JSON is ~500 KB, and hundreds of viewers poll every 15 s. The etag lets
-  // repeat polls come back as empty 304s instead of full bodies.
+  // Serialize + hash + GZIP once per TTL, not once per request — at 512
+  // entrants the JSON is ~500 KB and thousands of viewers re-download it the
+  // moment a result lands. Compressing per response would cost ~15 ms CPU
+  // each; serving this pre-gzipped buffer costs ~0.
   const body = value ? JSON.stringify(value) : null;
   const etag = body ? `W/"${crypto.createHash('sha1').update(body).digest('base64').slice(0, 27)}"` : null;
+  const gz = body ? zlib.gzipSync(body) : null;
 
-  const entry = { ts: Date.now(), value, body, etag };
+  const entry = { ts: Date.now(), value, body, etag, gz };
   cache.set(id, entry);
   // Bounded: drop oldest entries past 500 tournaments
   if (cache.size > 500) cache.delete(cache.keys().next().value);
@@ -223,9 +226,16 @@ router.get('/api/public/brackets/:id', async (req, res) => {
   }
   res.set('Cache-Control', 'public, max-age=5');
   res.set('ETag', entry.etag);
+  res.set('Vary', 'Accept-Encoding');
   // Unchanged bracket → empty 304 instead of re-sending ~500 KB per poll
   if (req.headers['if-none-match'] === entry.etag) {
     return res.status(304).end();
+  }
+  // Pre-compressed buffer (Content-Encoding set here → the compression
+  // middleware sees it and skips re-compressing)
+  if (entry.gz && /\bgzip\b/.test(req.headers['accept-encoding'] || '')) {
+    res.set('Content-Encoding', 'gzip');
+    return res.type('application/json').send(entry.gz);
   }
   res.type('application/json').send(entry.body);
 });
