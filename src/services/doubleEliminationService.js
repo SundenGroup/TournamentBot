@@ -722,13 +722,21 @@ function repairAdvancements(bracket) {
           seatIfEmpty(next, side, match.winner, match);
         }
       }
-      if (match.nextLoseMatchId && match.loser) {
+      // The broken corrections leave `loser` null even though both
+      // participants are known — derive it from winner + participants.
+      // (A real walkover has participant2 null → derived loser stays null.)
+      let loser = match.loser;
+      if (!loser && match.participant1 && match.participant2) {
+        loser = match.winner.id === match.participant1.id ? match.participant2 : match.participant1;
+        match.loser = loser; // heal the record itself too
+      }
+      if (match.nextLoseMatchId && loser) {
         const lb = findMatch(bracket, match.nextLoseMatchId);
         if (lb) {
           if (lb.sourceFromWb1Id === match.id || lb.sourceFromWbId === match.id) {
-            seatIfEmpty(lb, 'participant2', match.loser, match);
+            seatIfEmpty(lb, 'participant2', loser, match);
           } else if (lb.sourceFromWb2Id === match.id) {
-            seatIfEmpty(lb, 'participant1', match.loser, match);
+            seatIfEmpty(lb, 'participant1', loser, match);
           }
         }
       }
