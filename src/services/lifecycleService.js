@@ -667,6 +667,15 @@ async function createRoomsFlow({ guild, tournament }) {
     }
   } else {
     const service = getServiceForBracket(bracket);
+    // First, re-deliver any advancements a correction cascade dropped (a
+    // decided feeder whose winner/loser never landed in the empty downstream
+    // slot) — so those matches become playable and get rooms below.
+    const repaired = service.repairAdvancements ? service.repairAdvancements(bracket) : [];
+    if (repaired.length) {
+      console.log(`create-rooms repaired ${repaired.length} missing advancement(s):`,
+        repaired.map(r => `${r.name}→#${r.matchNumber}`).join(', '));
+      await updateTournament(tournament.id, { bracket });
+    }
     for (const match of service.getActiveMatches(bracket)) {
       if (!match.participant1 || !match.participant2) continue;
       if (match.channelId) { existing++; continue; }

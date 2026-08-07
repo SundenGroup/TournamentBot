@@ -685,6 +685,68 @@ function clearSlot(match, participantId) {
  * Correct a wrongly reported result. Downstream matches must be unplayed;
  * automatic walkovers in the way are rewound and re-resolved after the swap.
  */
+/**
+ * Re-deliver advancements that a correction cascade dropped: for every decided
+ * match whose winner/loser should occupy a downstream slot that is still
+ * EMPTY, seat them — using the exact same side rules as advanceWinner.
+ * Idempotent and conservative: never overwrites an occupied slot, never
+ * touches results, skips disqualified players. Returns what it placed.
+ * (Live GOALS incident 2026-08-07: a corrected feeder left its loser-drop
+ * unplaced — the LB match sat with one player and could never resolve.)
+ */
+function repairAdvancements(bracket) {
+  const placed = [];
+  const all = [];
+  for (const round of bracket.winnersRounds) all.push(...round.matches);
+  for (const round of bracket.losersRounds) all.push(...round.matches);
+
+  const seatIfEmpty = (next, side, player, from) => {
+    if (!next || !player || player.disqualified) return;
+    if (next.winner) return; // downstream already decided — leave it alone
+    const other = side === 'participant1' ? next.participant2 : next.participant1;
+    if (next[side]?.id === player.id || other?.id === player.id) return; // already seated
+    if (next[side]) return; // occupied by someone else — never overwrite
+    next[side] = player;
+    placed.push({ matchNumber: next.matchNumber, name: player.name || player.username, fromMatch: from.matchNumber });
+  };
+
+  for (const match of all) {
+    if (!match.winner) continue;
+
+    if (match.bracket === 'winners') {
+      if (match.nextWinMatchId) {
+        const next = findMatch(bracket, match.nextWinMatchId);
+        if (next) {
+          const side = next.bracket === 'grand_finals' ? 'participant1'
+            : (next.sourceMatch1Id === match.id ? 'participant1' : 'participant2');
+          seatIfEmpty(next, side, match.winner, match);
+        }
+      }
+      if (match.nextLoseMatchId && match.loser) {
+        const lb = findMatch(bracket, match.nextLoseMatchId);
+        if (lb) {
+          if (lb.sourceFromWb1Id === match.id || lb.sourceFromWbId === match.id) {
+            seatIfEmpty(lb, 'participant2', match.loser, match);
+          } else if (lb.sourceFromWb2Id === match.id) {
+            seatIfEmpty(lb, 'participant1', match.loser, match);
+          }
+        }
+      }
+    } else if (match.bracket === 'losers') {
+      if (match.nextWinMatchId) {
+        const next = findMatch(bracket, match.nextWinMatchId);
+        if (next) {
+          const side = next.bracket === 'grand_finals' ? 'participant2'
+            : ((next.sourceLbMatchId === match.id || next.sourceLbMatch1Id === match.id) ? 'participant1' : 'participant2');
+          seatIfEmpty(next, side, match.winner, match);
+        }
+      }
+    }
+  }
+
+  return placed;
+}
+
 function correctResult(bracket, matchId, newWinnerId, newScore = null) {
   const match = findMatch(bracket, matchId);
   if (!match) throw new Error('Match not found');
@@ -791,6 +853,7 @@ module.exports = {
   generateBracket,
   advanceWinner,
   correctResult,
+  repairAdvancements,
   findMatch,
   getActiveMatches,
   isComplete,
