@@ -361,6 +361,15 @@
     <p>Check-in opens automatically before start time (based on your configured check-in window). Players tap <strong>Check In</strong> — and tapping again <strong>cancels</strong> it. Signups stay open through the window too (unless you've set a separate signup deadline, below), and anyone who signs up during check-in is <strong>checked in automatically</strong>. You keep the <strong>Start Tournament</strong> button available the whole time. Players who don't check in are removed when the tournament starts.</p>
     <p style="color:var(--fg-subtle);font-size:14px">The check-in window (or turning check-in off entirely) can be changed after creation with <code>/tournament edit</code> or from the web dashboard's edit card.</p>
 
+    <h3>Checking someone in manually</h3>
+    <p>A player is standing right there but their button won't work (broken client, wrong account, closed
+    DMs)? While check-in is open, admins can override it:</p>
+    <pre><code><span class="cmd">/tournament check-in</span> <span class="param">tournament:</span><span class="value">Friday Night Fights</span> <span class="param">participant:</span><span class="value">PlayerA</span></code></pre>
+    <p>Add <code>checked_in: False</code> to undo one instead. For team events this checks the
+    <strong>whole team</strong> in (or out) at once. The same control lives in the web dashboard: open the
+    tournament's <strong>Entrants</strong> tab during check-in — every entrant shows
+    <em>✓ in</em> or <em>⏳ waiting</em> with a <strong>Check in</strong> / <strong>Undo check-in</strong> button.</p>
+
     <h3>Closing signups before start</h3>
     <p>By default signups stay open right up to the start (and through check-in). If you need a quiet
     window between the field locking and the first match — most commonly <strong>to seed the bracket</strong> —
@@ -761,6 +770,7 @@
           <tr><td><code>/tournament cancel</code></td><td>Cancel a tournament</td></tr>
           <tr><td><code>/tournament edit</code></td><td>Edit title, date, size, best-of, and check-in window (before start)</td></tr>
           <tr><td><code>/tournament signup-close</code></td><td>Set when signups close — a time, <code>now</code>, or <code>off</code> to keep them open until start</td></tr>
+          <tr><td><code>/tournament check-in</code></td><td>Admin override: check a player/team in (or undo) while the window is open</td></tr>
           <tr><td><code>/tournament signup-cap</code></td><td>Let more sign up than there are spots (overflow, Studio) — <code>cap:0</code> turns it off</td></tr>
           <tr><td><code>/tournament report</code></td><td>Report a match result (Bo3+ requires the series score)</td></tr>
           <tr><td><code>/tournament correct</code></td><td>Correct a wrongly reported result (while nothing downstream is played)</td></tr>

@@ -8,7 +8,7 @@ const { ChannelType, PermissionFlagsBits } = require('discord.js');
 const { getClient } = require('./botClient');
 const { requireSession, requireGuildAdmin, verifyLiveGuildAdmin, requireCsrf, adminRateLimit } = require('./adminAuth');
 const { logWebAction } = require('./audit');
-const { getTournament, setTournamentSeeds } = require('../services/tournamentService');
+const { getTournament, setTournamentSeeds, adminSetCheckedIn } = require('../services/tournamentService');
 const { updateTournamentMessages } = require('../utils/tournamentUpdater');
 const { checkFeature } = require('../services/subscriptionService');
 const { GAME_PRESETS, getPresetKeys, getFeaturedPresetKeys, getNickFields, getNickSummary } = require('../config/gamePresets');
@@ -862,6 +862,23 @@ router.post('/admin/api/tournaments/:id/remove-entrant', ...mutate, async (req, 
 });
 
 // Seeding (registration/check-in, seeding-enabled tournaments)
+// Admin check-in override — the desk situation: entrant is present but can't
+// press the button. Absolute set (not a toggle); teams as a whole.
+router.post('/admin/api/tournaments/:id/checkin', ...mutate, async (req, res) => {
+  const t = await loadOwnedForMutation(req, res);
+  if (!t) return;
+  try {
+    const result = await adminSetCheckedIn(t.id, String(req.body?.entrantId || ''), !!req.body?.checkedIn);
+    if (!result.success) return res.status(400).json({ error: result.error });
+    await updateTournamentMessages(getClient(), result.tournament).catch(() => {});
+    await audit(req, t, 'checkin', { entrantId: req.body?.entrantId, checkedIn: result.checkedIn });
+    res.json({ ok: true, name: result.name, checkedIn: result.checkedIn });
+  } catch (err) {
+    console.error(`[web-admin] ${req.method} ${req.path} failed:`, err.message);
+    res.status(400).json({ error: err.message });
+  }
+});
+
 router.post('/admin/api/tournaments/:id/seed', ...mutate, async (req, res) => {
   const t = await loadOwnedForMutation(req, res);
   if (!t) return;

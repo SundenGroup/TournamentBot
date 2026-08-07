@@ -250,6 +250,27 @@ module.exports = {
     )
     .addSubcommand(subcommand =>
       subcommand
+        .setName('check-in')
+        .setDescription('Admin: check a player/team in (or undo) when they can’t press the button')
+        .addStringOption(option =>
+          option.setName('tournament')
+            .setDescription('Tournament')
+            .setRequired(true)
+            .setAutocomplete(true)
+        )
+        .addStringOption(option =>
+          option.setName('participant')
+            .setDescription('The player or team to check in')
+            .setRequired(true)
+            .setAutocomplete(true)
+        )
+        .addBooleanOption(option =>
+          option.setName('checked_in')
+            .setDescription('Leave empty to check in; set False to undo a check-in')
+        )
+    )
+    .addSubcommand(subcommand =>
+      subcommand
         .setName('add-player')
         .setDescription('Manually register a real player (solo tournaments)')
         .addStringOption(option =>
@@ -361,7 +382,7 @@ module.exports = {
     const subcommand = interaction.options.getSubcommand();
 
     // Admin subcommands require tournament management permissions
-    const adminSubcommands = ['create', 'create-advanced', 'start', 'cancel', 'edit', 'signup-close', 'signup-cap', 'report', 'disqualify', 'correct', 'add-player', 'add-team', 'remove-player', 'remove-team', 'create-rooms'];
+    const adminSubcommands = ['create', 'create-advanced', 'start', 'cancel', 'edit', 'signup-close', 'signup-cap', 'check-in', 'report', 'disqualify', 'correct', 'add-player', 'add-team', 'remove-player', 'remove-team', 'create-rooms'];
     const adminSeedSubcommands = ['set', 'randomize', 'clear'];
 
     const needsPermCheck = adminSubcommands.includes(subcommand) ||
@@ -428,6 +449,9 @@ module.exports = {
         break;
       case 'signup-close':
         await handleSignupClose(interaction);
+        break;
+      case 'check-in':
+        await handleAdminCheckIn(interaction);
         break;
       case 'signup-cap':
         await handleSignupCap(interaction);
@@ -971,6 +995,30 @@ async function handleSignupCap(interaction) {
   } catch (err) {
     return interaction.editReply({ content: `❌ ${err.message}` });
   }
+}
+
+async function handleAdminCheckIn(interaction) {
+  await interaction.deferReply({ ephemeral: true });
+
+  const tournamentId = interaction.options.getString('tournament');
+  const entrantId = interaction.options.getString('participant');
+  const present = interaction.options.getBoolean('checked_in') ?? true;
+
+  const tournament = await getGuildTournament(interaction.guildId, tournamentId);
+  if (!tournament) return interaction.editReply({ content: '❌ Tournament not found.' });
+
+  const { adminSetCheckedIn } = require('../../services/tournamentService');
+  const result = await adminSetCheckedIn(tournamentId, entrantId, present);
+  if (!result.success) return interaction.editReply({ content: `❌ ${result.error}` });
+
+  const { updateTournamentMessages } = require('../../utils/tournamentUpdater');
+  await updateTournamentMessages(interaction.client, result.tournament);
+
+  return interaction.editReply({
+    content: result.checkedIn
+      ? `✅ **${result.name}** ${result.isSolo ? 'is' : 'and all resolved members are'} checked in.`
+      : `↩️ **${result.name}**'s check-in was removed — they'll be dropped at start unless they check in again.`,
+  });
 }
 
 async function handleAddPlayer(interaction) {

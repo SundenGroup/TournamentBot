@@ -466,6 +466,62 @@ async function toggleCheckedIn(tournamentId, userId) {
 // Set/clear/randomize seeds (admin, pre-start). `seeds` is a {entrantId: n|null}
 // map; `action` may be 'randomize' or 'clear'. Transactional for consistency
 // with the other entrant mutations.
+// Admin override for the tournament-desk situation: a player/team is present
+// but can't press the button (broken client, closed DMs, wrong account).
+// Sets an ABSOLUTE state, unlike the player toggle. Teams are set as a whole:
+// every resolved member's check-in is filled or cleared together.
+async function adminSetCheckedIn(tournamentId, entrantId, present) {
+  let result;
+  try {
+    result = await db.transaction(async (trx) => {
+      const row = await trx('tournaments').where('id', tournamentId).forUpdate().first();
+      if (!row) return { success: false, error: 'Tournament not found.' };
+
+      const tournament = rowToTournament(row);
+
+      if (!tournament.checkinOpen && tournament.status !== 'checkin') {
+        return { success: false, error: 'Check-in is not open for this tournament.' };
+      }
+
+      if (tournament.settings.teamSize === 1) {
+        const participant = tournament.participants.find(p => p.id === entrantId);
+        if (!participant) return { success: false, error: 'That player is not registered for this tournament.' };
+
+        participant.checkedIn = !!present;
+        await trx('tournaments')
+          .where('id', tournamentId)
+          .update({ participants: JSON.stringify(tournament.participants) });
+
+        return { success: true, isSolo: true, tournament, name: participant.username, checkedIn: participant.checkedIn };
+      }
+
+      const team = tournament.teams.find(t => t.id === entrantId);
+      if (!team) return { success: false, error: 'That team is not registered for this tournament.' };
+
+      team.memberCheckins = {};
+      if (present) {
+        const everyone = team.captain ? team.members.concat(team.captain) : team.members;
+        for (const m of everyone) {
+          if (m.id && !String(m.id).startsWith('fake_')) team.memberCheckins[m.id] = true;
+        }
+      }
+      team.checkedIn = !!present;
+
+      await trx('tournaments')
+        .where('id', tournamentId)
+        .update({ teams: JSON.stringify(tournament.teams) });
+
+      return { success: true, isSolo: false, tournament, name: team.name, checkedIn: team.checkedIn };
+    });
+  } catch (err) {
+    console.error('adminSetCheckedIn failed:', err);
+    return { success: false, error: 'Could not update the check-in, please try again.' };
+  }
+
+  if (result.success) tournaments.set(tournamentId, result.tournament);
+  return result;
+}
+
 async function setTournamentSeeds(tournamentId, { seeds, action } = {}) {
   let result;
   try {
@@ -842,6 +898,7 @@ module.exports = {
   setTournamentSeeds,
   pastSignupClose,
   selectStartingField,
+  adminSetCheckedIn,
   claimTournamentStart,
   getGuildTournament,
   removeParticipant,
