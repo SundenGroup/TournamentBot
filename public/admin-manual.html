@@ -396,6 +396,12 @@
     </ol>
     <p>The start summary shows how many signups didn't get a spot. Clearing the Signup cap turns overflow
     off again (signups stop at the bracket size as usual).</p>
+    <p>The same mechanic works in reverse: you can <strong>lower Max entrants below the current signup
+    count</strong> (say a 512 tournament you decide to run as a 64 bracket) — from the edit card or
+    <code>/tournament edit</code>, while signups are open or closed, any time before start. Nobody is
+    removed when you save; the spots are decided at start exactly as above, and the announcement switches
+    to the <em>“200 signed up · 64 spots”</em> display. Further signups stop once the count is at the new
+    size (unless a Signup cap keeps them open).</p>
 
     <h3>Starting</h3>
     <p>When the scheduled time arrives, the bot posts a message saying the tournament is ready. Start it with:</p>

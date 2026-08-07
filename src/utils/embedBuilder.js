@@ -59,9 +59,10 @@ async function createTournamentEmbed(tournament) {
   const statusText = getStatusText(status);
   let descriptionText = `**Status: ${statusText}**\n\n`;
 
-  // Overflow signups (signupCap > bracket size): a full-looking count would
-  // stop people from signing up, but spots aren't first-come — say so.
-  const overflowOn = (settings.signupCap || 0) > maxCount;
+  // Overflow signups (signupCap > bracket size) OR the bracket was shrunk
+  // below the current signup count: either way spots are decided at start,
+  // not first-come — never show a broken-looking "200 / 64" fraction.
+  const overflowOn = (settings.signupCap || 0) > maxCount || currentCount > maxCount;
   if (overflowOn && (status === 'registration' || status === 'checkin')) {
     descriptionText += `🎟️ **Everyone can sign up** — **${maxCount} spots**. Who plays is decided at start by **seeding and check-in**, not signup order.\n\n`;
   }
@@ -302,7 +303,8 @@ async function createParticipantListEmbed(tournament) {
     return text;
   };
 
-  const overflowOn = (settings.signupCap || 0) > settings.maxParticipants &&
+  const entrantTotal = isSolo ? participants.length : teams.length;
+  const overflowOn = ((settings.signupCap || 0) > settings.maxParticipants || entrantTotal > settings.maxParticipants) &&
     (status === 'registration' || status === 'checkin');
   // "top N play" would imply list order decides — it doesn't (seeds + check-in do)
   const capLabel = (n) => overflowOn

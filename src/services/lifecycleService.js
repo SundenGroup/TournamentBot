@@ -509,11 +509,12 @@ async function editTournamentFlow({ client, tournament, fields }) {
     }
   }
 
-  // With overflow on, signups may legitimately exceed the bracket size —
-  // the start-time selection cuts the field down. Without it, keep the guard.
-  if (!signupCap && maxParticipants < entrantCount) {
-    throw new Error(`Max ${isSolo ? 'players' : 'teams'} can't be lower than the current signup count (${entrantCount}).`);
-  }
+  // Shrinking below the current signup count is allowed: nobody is removed
+  // now, and the start-time selection cuts the field to size (seeded first,
+  // then checked-in, then signup order) — same mechanic as overflow signups.
+  // New signups stop once the count reaches the new size unless a signup
+  // cap is set. The caller's change label carries the warning.
+  const shrunkBelowCount = maxParticipants < entrantCount;
 
   const bestOf = parseInt(fields.bestOf ?? tournament.settings.bestOf, 10);
   if (isNaN(bestOf) || bestOf < 1 || bestOf > 15 || bestOf % 2 === 0) {
@@ -577,7 +578,11 @@ async function editTournamentFlow({ client, tournament, fields }) {
   if (title !== tournament.title) changes.push('title');
   const dateChanged = startTime.getTime() !== new Date(tournament.startTime).getTime();
   if (dateChanged) changes.push('date');
-  if (maxParticipants !== tournament.settings.maxParticipants) changes.push('max participants');
+  if (maxParticipants !== tournament.settings.maxParticipants) {
+    changes.push(shrunkBelowCount
+      ? `max ${isSolo ? 'players' : 'teams'} → ${maxParticipants} (${entrantCount} signed up — the ${maxParticipants} spots are decided at start: seeded and checked-in ${isSolo ? 'players' : 'teams'} first)`
+      : 'max participants');
+  }
   if (bestOf !== tournament.settings.bestOf) changes.push('best of');
   if (description !== (tournament.description || null)) changes.push('description');
   if (checkinRequired !== (tournament.settings.checkinRequired ?? false)) changes.push('check-in');

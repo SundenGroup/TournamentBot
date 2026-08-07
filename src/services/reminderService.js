@@ -195,7 +195,8 @@ async function openCheckin(tournament, client) {
     // Notify channel — with overflow signups, checking in is also how you
     // make the cut, so say it where everyone sees it.
     const entrantCount = isSolo ? current.participants.length : current.teams.length;
-    const overflowNote = (current.settings.signupCap || 0) > current.settings.maxParticipants && entrantCount > current.settings.maxParticipants
+    // More signed up than there are spots (overflow cap OR a shrunk bracket)
+    const overflowNote = entrantCount > current.settings.maxParticipants
       ? ` **${entrantCount}** signed up for **${current.settings.maxParticipants} spots** — checking in gives you priority.`
       : '';
     await channel.send(`📢 **Check-in is now open for ${current.title}!** You have ${current.settings.checkinWindow} minutes — hit **✅ Check In** on the announcement above.${overflowNote}`);
