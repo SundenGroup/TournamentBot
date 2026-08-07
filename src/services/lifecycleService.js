@@ -561,16 +561,27 @@ async function editTournamentFlow({ client, tournament, fields }) {
     } else {
       const close = parseDateTime(String(fields.signupCloseTime));
       if (!close || isNaN(close.getTime())) throw new Error('Could not parse the signup close date/time.');
-      // "now" (an as-of-now ISO) must pass; anything clearly in the past is
-      // almost always a mistyped/misparsed date — refuse instead of silently
-      // slamming signups shut.
-      if (close.getTime() < Date.now() - 5 * 60 * 1000) {
-        throw new Error('That signup-close time is in the past — use `now` to close signups immediately, or pick a future time.');
+      // The web edit card resubmits the EXISTING close time with every save
+      // (seconds get truncated by the datetime-local round-trip) — an
+      // unchanged value must never re-trigger validation, or a tournament
+      // whose signups already closed can never be edited again. "Unchanged"
+      // = within a minute of what's stored.
+      const prev = tournament.settings.signupCloseTime ?? null;
+      const unchanged = prev && Math.abs(close.getTime() - new Date(prev).getTime()) < 60 * 1000;
+      if (unchanged) {
+        signupCloseTime = prev; // keep the exact stored value
+      } else {
+        // "now" (an as-of-now ISO) must pass; anything clearly in the past is
+        // almost always a mistyped/misparsed date — refuse instead of
+        // silently slamming signups shut.
+        if (close.getTime() < Date.now() - 5 * 60 * 1000) {
+          throw new Error('That signup-close time is in the past — use `now` to close signups immediately, or pick a future time.');
+        }
+        if (close.getTime() >= startTime.getTime()) {
+          throw new Error('Signup close must be before the tournament start time (leave it empty to keep signups open until start).');
+        }
+        signupCloseTime = close.toISOString();
       }
-      if (close.getTime() >= startTime.getTime()) {
-        throw new Error('Signup close must be before the tournament start time (leave it empty to keep signups open until start).');
-      }
-      signupCloseTime = close.toISOString();
     }
   }
 
