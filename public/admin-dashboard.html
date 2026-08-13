@@ -923,6 +923,7 @@ function renderRunLeft() {
           <button class="wsm ${fw === m.participant1.id ? 'on' : ''}" data-fwin="${esc(m.participant1.id)}">${esc(m.participant1.name)}</button>
           <button class="wsm ${fw === m.participant2.id ? 'on' : ''}" data-fwin="${esc(m.participant2.id)}">${esc(m.participant2.name)}</button>
           ${scoreChips}
+          <input class="free" data-fgoals placeholder="goals 7-4" title="Optional goal totals, winner first" value="${esc(fix.goals || '')}" style="width:76px">
           <button class="save" data-save>Save</button>
         </div>
       </div>`;
@@ -1494,6 +1495,8 @@ function wireRunLeft(d, left) {
     }));
     const ff = row.querySelector('[data-ffree]');
     if (ff) ff.addEventListener('input', () => { SEL['fix' + n] = { ...(SEL['fix' + n] || {}), score: ff.value }; });
+    const fg = row.querySelector('[data-fgoals]');
+    if (fg) fg.addEventListener('input', () => { SEL['fix' + n] = { ...(SEL['fix' + n] || {}), goals: fg.value }; });
     const save = row.querySelector('[data-save]');
     if (save) save.addEventListener('click', async () => {
       const fix = SEL['fix' + n] || {};
@@ -1503,7 +1506,7 @@ function wireRunLeft(d, left) {
       save.disabled = true;
       const r = await api(`/admin/api/tournaments/${d.id}/correct`, {
         method: 'POST',
-        body: { matchNumber: n, winnerId, score: (fix.score || '').trim() || null },
+        body: { matchNumber: n, winnerId, score: (fix.score || '').trim() || null, goals: (fix.goals || '').trim() || undefined },
       });
       save.disabled = false;
       if (!r.ok) return toast(r.error, true);
