@@ -318,6 +318,7 @@ router.get('/admin/api/tournaments/:id/manage', requireSession, async (req, res)
         standings: g.standings.map(row => ({
           name: isSolo ? (row.participant.displayName || row.participant.username) : row.participant.name,
           wins: row.wins, losses: row.losses,
+          diff: (row.gamesWon || 0) - (row.gamesLost || 0),
         })),
       })),
     } : null,

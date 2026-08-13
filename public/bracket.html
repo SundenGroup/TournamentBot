@@ -840,12 +840,12 @@ function renderPodiumSection(r) {
   return html + '</div>';
 }
 
-function renderStandingsTable(standings, cols) {
+function renderStandingsTable(standings, cols, topN = 1) {
   let html = '<div class="table-wrap"><table class="standings"><thead><tr><th>#</th><th>Name</th>';
   for (const c of cols) html += `<th style="text-align:center">${c.label}</th>`;
   html += '</tr></thead><tbody>';
   standings.forEach((s, i) => {
-    html += `<tr class="${i === 0 ? 'top' : ''}"><td class="rank">${i + 1}</td><td style="font-weight:${i === 0 ? 700 : 500}">${esc(s.participant.name)}</td>`;
+    html += `<tr class="${i < topN ? 'top' : ''}"><td class="rank">${i + 1}</td><td style="font-weight:${i === 0 ? 700 : 500}">${esc(s.participant.name)}</td>`;
     for (const c of cols) html += `<td class="num">${c.value(s)}</td>`;
     html += '</tr>';
   });
@@ -908,18 +908,20 @@ function renderSwissRR(d) {
 
 // ── Group Stage panel: one table + schedule per group ──────────────────────
 function renderGroupStage(d) {
+  const gdiff = (s) => (s.gamesWon || 0) - (s.gamesLost || 0);
   const cols = [
     { label: 'W', value: s => s.wins }, { label: 'L', value: s => s.losses },
-    { label: 'Played', value: s => s.matchesPlayed },
+    { label: 'Diff', value: s => { const d2 = gdiff(s); return d2 > 0 ? `+${d2}` : d2; } },
   ];
   let html = '';
   if (d.results) html += renderPodiumSection(d.results);
   const adv = d.bracket.advancingPerGroup;
   if (adv) html += `<div class="section"><div class="section-title">Top ${adv} per group advance to the playoffs</div></div>`;
   for (const g of d.bracket.groups) {
-    const sorted = [...g.bracket.standings].sort((a, b) => b.wins - a.wins || a.losses - b.losses);
+    // Same order the engine uses: wins → game diff (H2H nuances resolved server-side rankings arrive pre-sorted when complete)
+    const sorted = [...g.bracket.standings].sort((a, b) => b.wins - a.wins || gdiff(b) - gdiff(a) || a.losses - b.losses);
     html += `<div class="section"><div class="section-title">${esc(g.name)}</div>
-      ${renderStandingsTable(sorted, cols)}
+      ${renderStandingsTable(sorted, cols, adv || 1)}
       ${renderRoundCards(g.bracket.rounds, g.bracket.currentRound)}</div>`;
   }
   showPanel(html);

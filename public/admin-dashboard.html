@@ -219,7 +219,10 @@
   .picked-bar .nm { font-weight: 700; font-size: 13px; }
   .picked-bar .df { font-family: var(--mono); font-size: 10px; color: var(--text-faint); text-transform: uppercase; letter-spacing: .05em; }
   .picked-bar .change { margin-left: auto; background: none; border: 0; color: var(--accent); font-size: 12px; font-weight: 600; cursor: pointer; }
-  .cgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 13px; }
+  .cgrid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 13px; }
+  .cgrid .field { min-width: 0; }
+  .cgrid .field input, .cgrid .field select, .cgrid .field textarea { width: 100%; max-width: 100%; box-sizing: border-box; }
+  .cgrid .field label { display: block; overflow-wrap: anywhere; }
   .cgrid .full { grid-column: 1 / -1; }
   @media (max-width: 560px) { .cgrid { grid-template-columns: 1fr; } }
   .cgrid .field { margin-bottom: 0; }
@@ -976,9 +979,10 @@ function renderRunLeft() {
           </div>` : ''}
       </div>`;
     }
+    const adv = gsd.playoffFormat === 'none' ? 1 : (gsd.advancingPerGroup || 1);
     html += gsd.groups.map(g => `
       <div class="edit-card"><div class="qlabel">${esc(g.name)} ${g.complete ? '· ✓ done' : ''}</div>
-        ${g.standings.map((row, i) => `<div class="ent-row"><span class="nm">${i + 1}. ${esc(row.name)}</span><span class="idsub">${row.wins}–${row.losses}</span></div>`).join('')}
+        ${g.standings.map((row, i) => `<div class="ent-row"><span class="nm">${i < adv ? '<span style="color:var(--accent);font-weight:700">↑</span> ' : ''}${i + 1}. ${esc(row.name)}</span><span class="idsub">${row.wins}–${row.losses}${row.diff != null ? ` · ${row.diff > 0 ? '+' + row.diff : row.diff}` : ''}</span></div>`).join('')}
       </div>`).join('');
   }
 

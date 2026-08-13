@@ -134,6 +134,7 @@ function advanceWinner(bracket, matchId, winnerId, score) {
   match.winner = isP1Winner ? match.participant1 : match.participant2;
   match.loser = isP1Winner ? match.participant2 : match.participant1;
   if (score) match.score = score;
+  const games = parseGameScore(score);
 
   // Update standings
   const winnerStanding = bracket.standings.find(s => s.participant.id === match.winner.id);
@@ -143,12 +144,16 @@ function advanceWinner(bracket, matchId, winnerId, score) {
     winnerStanding.wins++;
     winnerStanding.matchesPlayed++;
     winnerStanding.headToHead[match.loser.id] = 'win';
+    winnerStanding.gamesWon = (winnerStanding.gamesWon || 0) + games.winner;
+    winnerStanding.gamesLost = (winnerStanding.gamesLost || 0) + games.loser;
   }
 
   if (loserStanding) {
     loserStanding.losses++;
     loserStanding.matchesPlayed++;
     loserStanding.headToHead[match.winner.id] = 'loss';
+    loserStanding.gamesWon = (loserStanding.gamesWon || 0) + games.loser;
+    loserStanding.gamesLost = (loserStanding.gamesLost || 0) + games.winner;
   }
 
   // Check if round is complete and advance
@@ -264,6 +269,18 @@ function getStandings(bracket) {
  * @param {Array} standings - Standings array
  * @returns {Array} Sorted standings
  */
+/** "2-1" → {winner: 2, loser: 1} game tallies (winner-first normalized; 0-0 when absent). */
+function parseGameScore(score) {
+  const m = /^(\d{1,3})-(\d{1,3})$/.exec(String(score || '').trim());
+  if (!m) return { winner: 0, loser: 0 };
+  const a = parseInt(m[1], 10), b = parseInt(m[2], 10);
+  return { winner: Math.max(a, b), loser: Math.min(a, b) };
+}
+
+function gameDiff(s) {
+  return (s.gamesWon || 0) - (s.gamesLost || 0);
+}
+
 function sortStandings(standings) {
   // Group by wins (descending).
   const groups = new Map();
@@ -277,24 +294,30 @@ function sortStandings(standings) {
 
   for (const winKey of winKeys) {
     const group = groups.get(winKey);
-    const tiedIds = new Set(group.map(s => s.participant.id));
 
-    // Head-to-head wins within this tied group only (a transitive metric).
-    const miniWins = new Map();
-    for (const s of group) {
-      let w = 0;
-      for (const [oppId, outcome] of Object.entries(s.headToHead)) {
-        if (tiedIds.has(oppId) && outcome === 'win') w++;
-      }
-      miniWins.set(s.participant.id, w);
-    }
-
+    // 1st tiebreaker: game record across the tied players' series scores
+    // ("4-2 beats 4-4"). 2nd: head-to-head, applied ONLY when exactly two
+    // players remain tied — with 3+ tied it is skipped by rule.
     group.sort((a, b) => {
-      const mw = miniWins.get(b.participant.id) - miniWins.get(a.participant.id);
-      if (mw !== 0) return mw;
+      const gd = gameDiff(b) - gameDiff(a);
+      if (gd !== 0) return gd;
       if (a.losses !== b.losses) return a.losses - b.losses;
       return a.participant.id < b.participant.id ? -1 : a.participant.id > b.participant.id ? 1 : 0;
     });
+
+    // Walk equal-gameDiff cohorts; a cohort of exactly 2 resolves by H2H
+    let i = 0;
+    while (i < group.length) {
+      let j = i + 1;
+      while (j < group.length && gameDiff(group[j]) === gameDiff(group[i])) j++;
+      if (j - i === 2) {
+        const [a, b] = [group[i], group[i + 1]];
+        if (a.headToHead[b.participant.id] === 'loss' && b.headToHead[a.participant.id] === 'win') {
+          group[i] = b; group[i + 1] = a;
+        }
+      }
+      i = j;
+    }
 
     result.push(...group);
   }
@@ -348,23 +371,32 @@ function correctResult(bracket, matchId, newWinnerId, newScore = null) {
   const newWinner = newWinnerId === p1.id ? p1 : p2;
   const newLoser = newWinnerId === p1.id ? p2 : p1;
 
+  // Rewind the OLD game tallies (score-only corrections need this too)
+  const oldGames = parseGameScore(match.score);
+  const wStand = (id) => bracket.standings.find(s => s.participant.id === id);
+  const ow = wStand(match.winner.id), ol = wStand(match.loser.id);
+  if (ow) { ow.gamesWon = (ow.gamesWon || 0) - oldGames.winner; ow.gamesLost = (ow.gamesLost || 0) - oldGames.loser; }
+  if (ol) { ol.gamesWon = (ol.gamesWon || 0) - oldGames.loser; ol.gamesLost = (ol.gamesLost || 0) - oldGames.winner; }
+
   if (match.winner.id !== newWinnerId) {
-    const oldWinnerStanding = bracket.standings.find(s => s.participant.id === match.winner.id);
-    const oldLoserStanding = bracket.standings.find(s => s.participant.id === match.loser.id);
-    if (oldWinnerStanding) {
-      oldWinnerStanding.wins--;
-      oldWinnerStanding.losses++;
-      oldWinnerStanding.headToHead[match.loser.id] = 'loss';
+    if (ow) {
+      ow.wins--;
+      ow.losses++;
+      ow.headToHead[match.loser.id] = 'loss';
     }
-    if (oldLoserStanding) {
-      oldLoserStanding.losses--;
-      oldLoserStanding.wins++;
-      oldLoserStanding.headToHead[match.winner.id] = 'win';
+    if (ol) {
+      ol.losses--;
+      ol.wins++;
+      ol.headToHead[match.winner.id] = 'win';
     }
     match.winner = newWinner;
     match.loser = newLoser;
   }
   match.score = newScore;
+  const newGames = parseGameScore(newScore);
+  const nw = wStand(match.winner.id), nl = wStand(match.loser.id);
+  if (nw) { nw.gamesWon = (nw.gamesWon || 0) + newGames.winner; nw.gamesLost = (nw.gamesLost || 0) + newGames.loser; }
+  if (nl) { nl.gamesWon = (nl.gamesWon || 0) + newGames.loser; nl.gamesLost = (nl.gamesLost || 0) + newGames.winner; }
   delete match.isDQ;
   delete match.dqId;
   return bracket;
