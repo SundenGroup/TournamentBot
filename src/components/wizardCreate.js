@@ -4,7 +4,7 @@
 // used by the simple modal and the web-admin dashboard.
 
 const { GAME_PRESETS } = require('../config/gamePresets');
-const { deleteSession } = require('../data/wizardSessions');
+const { deleteSession, updateSession } = require('../data/wizardSessions');
 const { runCreationChecks, resolveAnnouncementChannel, createAndAnnounce } = require('../services/creationService');
 const { checkFailureReply } = require('./simpleCreateModal');
 
@@ -12,6 +12,17 @@ async function createTournamentFromWizard(interaction, session) {
   const { data } = session;
   const guildId = session.guildId;
   const preset = GAME_PRESETS[data.gamePreset];
+
+  // Double-press guard: the first click claims the session; any further
+  // click (or a click on the stale wizard message) gets a calm answer
+  // instead of racing into a second create + a generic error toast.
+  if (data.creating) {
+    return interaction.reply({
+      content: '⏳ This tournament is already being created — check the announcement channel.',
+      ephemeral: true,
+    }).catch(() => {});
+  }
+  await updateSession(session.id, { creating: true });
 
   // Gated features picked in the wizard
   const features = [];
@@ -51,11 +62,18 @@ async function createTournamentFromWizard(interaction, session) {
     gameShortName = (data.gameName || data.title).substring(0, 4).toUpperCase();
   }
 
-  // Ack inside the 3s window; the announcement posts right after.
-  await interaction.update({
-    content: `✅ Tournament **${data.title}** created! Announced in ${targetChannel}.`,
-    components: [],
-  });
+  // Ack inside the 3s window; the announcement posts right after. A stale
+  // duplicate interaction can't update — bail quietly instead of toasting,
+  // and release the claim so the surviving press isn't blocked.
+  try {
+    await interaction.update({
+      content: `✅ Tournament **${data.title}** created! Announced in ${targetChannel}.`,
+      components: [],
+    });
+  } catch {
+    await updateSession(session.id, { creating: false }).catch(() => {});
+    return;
+  }
 
   try {
     await createAndAnnounce({
@@ -97,8 +115,9 @@ async function createTournamentFromWizard(interaction, session) {
     // Turn the premature ✅ into an accurate failure message. The wizard
     // session is kept so a retry doesn't mean redoing every step.
     console.error('Wizard create failed:', error);
+    await updateSession(session.id, { creating: false }).catch(() => {});
     await interaction.editReply({
-      content: `❌ Creation failed: ${error.message}\nNothing was created — run \`/tournament create-advanced\` to try again.`,
+      content: `❌ Creation failed: ${error.message}\nNothing was created — press Create Tournament to try again.`,
     }).catch(() => {});
     return;
   }
