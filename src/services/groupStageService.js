@@ -89,7 +89,15 @@ function generateBracket(participants, settings) {
   }));
 
   const counter = { n: 0 };
-  for (const g of groups) renumber(g.bracket.rounds, counter);
+  for (const g of groups) {
+    renumber(g.bracket.rounds, counter);
+    // Match rooms and embeds show match.roundName — carry the group in it
+    // ("Group A · Round 2") so players always know which group they're in.
+    for (const round of g.bracket.rounds) {
+      const rn = round.round ?? round.roundNumber;
+      for (const m of round.matches) m.roundName = `${g.name} · Round ${rn}`;
+    }
+  }
 
   return {
     type: 'group_stage',
@@ -220,6 +228,19 @@ function startPlayoffs(bracket, settings, { useCustomSeeds = false } = {}) {
   const engine = playoffEngine(bracket);
   const po = engine.generateBracket(seeded, { ...settings, seedingEnabled: true });
   renumber(po, { n: bracket.nextMatchNumber - 1 });
+  // Same clarity for playoff rooms: "Playoffs · Semifinals" etc.
+  (function stamp(node) {
+    if (Array.isArray(node)) { node.forEach(stamp); return; }
+    if (node && typeof node === 'object') {
+      if ('matchNumber' in node && 'id' in node && node.roundName && !String(node.roundName).startsWith('Playoffs')) {
+        node.roundName = `Playoffs · ${node.roundName}`;
+      }
+      for (const k of Object.keys(node)) {
+        if (k === 'participant1' || k === 'participant2' || k === 'winner' || k === 'loser') continue;
+        stamp(node[k]);
+      }
+    }
+  })(po);
 
   bracket.playoffs = po;
   bracket.stage = 'playoffs';

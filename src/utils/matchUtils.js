@@ -98,8 +98,9 @@ function listAllMatches(bracket) {
   if (bracket.type === 'group_stage') {
     for (const g of bracket.groups || []) {
       for (const round of g.bracket.rounds || []) {
+        const rn = round.round ?? round.roundNumber ?? null;
         for (const match of round.matches || []) {
-          out.push({ match, section: `group_${g.key}`, round: round.round ?? null, roundName: `${g.name} · Round ${round.round}` });
+          out.push({ match, section: `group_${g.key}`, round: rn, roundName: match.roundName || `${g.name} · Round ${rn}` });
         }
       }
     }
