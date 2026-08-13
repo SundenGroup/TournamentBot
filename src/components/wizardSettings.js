@@ -50,8 +50,13 @@ function buildSettingsMessage(session) {
 
   const rows = [];
 
-  // Row 1: Format select
-  const formatOptions = (preset?.formatOptions || ALL_FORMATS).map(f => ({
+  // Row 1: Format select — Group Stage is offered to every head-to-head game
+  // (creation checks Pro-gate it, mirroring the web form)
+  const formatList = [...(preset?.formatOptions || ALL_FORMATS)];
+  if (!formatList.includes('battle_royale') && !formatList.includes('group_stage')) {
+    formatList.push('group_stage');
+  }
+  const formatOptions = formatList.map(f => ({
     label: FORMAT_LABELS[f] || f,
     value: f,
     default: f === data.format,

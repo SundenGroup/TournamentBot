@@ -21,6 +21,7 @@ async function createTournamentFromWizard(interaction, session) {
   if (data.requiredRoles?.length > 0) features.push('required_roles');
   if (data.publicBracket) features.push('public_bracket');
   if (data.autoArchiveMinutes != null && data.autoArchiveMinutes > 0) features.push('auto_archive');
+  if (data.format === 'group_stage') features.push('group_stage');
   // BR events bigger than one lobby run multi-lobby group stages
   if (data.format === 'battle_royale') {
     const brDefaults = preset?.brDefaults || {};
@@ -80,6 +81,8 @@ async function createTournamentFromWizard(interaction, session) {
         lobbySize: data.lobbySize,
         gamesPerStage: data.gamesPerStage,
         advancingPerGroup: data.advancingPerGroup,
+        groupSize: data.groupSize,
+        playoffFormat: data.playoffFormat,
         brScoringModel: data.brScoringModel,
         autoArchiveMinutes: data.autoArchiveMinutes,
         requiredRoles: data.requiredRoles || [],

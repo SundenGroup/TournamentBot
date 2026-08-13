@@ -17,6 +17,45 @@ function buildOptionsMessage(session) {
 
   const rows = [];
 
+  const isGS = data.format === 'group_stage';
+  if (isGS) {
+    const curSize = data.groupSize || 4;
+    const curAdv = data.advancingPerGroup || 2;
+    const curPF = data.playoffFormat || 'single_elimination';
+    const unit = data.teamSize === 1 ? 'players' : 'teams';
+
+    rows.push(new ActionRowBuilder().addComponents(
+      new StringSelectMenuBuilder()
+        .setCustomId(`wizardOptions:${session.id}:groupSize`)
+        .setPlaceholder('Group size')
+        .addOptions([...new Set([3, 4, 5, 6, 8, curSize])].sort((a, b) => a - b).map(n => ({
+          label: `Groups of ${n} ${unit}`, value: String(n), default: n === curSize,
+        })))
+    ));
+
+    rows.push(new ActionRowBuilder().addComponents(
+      new StringSelectMenuBuilder()
+        .setCustomId(`wizardOptions:${session.id}:playoffFormat`)
+        .setPlaceholder('After the groups')
+        .addOptions([
+          { label: 'Playoffs: Single Elimination', value: 'single_elimination', default: curPF === 'single_elimination' },
+          { label: 'Playoffs: Double Elimination', value: 'double_elimination', default: curPF === 'double_elimination' },
+          { label: 'No playoffs — group tables decide', value: 'none', default: curPF === 'none' },
+        ])
+    ));
+
+    if (curPF !== 'none') {
+      rows.push(new ActionRowBuilder().addComponents(
+        new StringSelectMenuBuilder()
+          .setCustomId(`wizardOptions:${session.id}:advancingPerGroup`)
+          .setPlaceholder('Advance per group')
+          .addOptions([1, 2, 3, 4].filter(n => n < curSize).map(n => ({
+            label: `Top ${n} per group advance`, value: String(n), default: n === curAdv,
+          })))
+      ));
+    }
+  }
+
   if (isBR) {
     const { GAME_PRESETS } = require('../config/gamePresets');
     const brDefaults = GAME_PRESETS[data.gamePreset]?.brDefaults || {};
@@ -215,6 +254,15 @@ module.exports = {
           break;
         case 'gamesPerStage':
           updated = await updateSession(sessionId, { gamesPerStage: parseInt(value, 10) });
+          break;
+        case 'groupSize':
+          updated = await updateSession(sessionId, { groupSize: parseInt(value, 10) });
+          break;
+        case 'advancingPerGroup':
+          updated = await updateSession(sessionId, { advancingPerGroup: parseInt(value, 10) });
+          break;
+        case 'playoffFormat':
+          updated = await updateSession(sessionId, { playoffFormat: value });
           break;
         case 'checkinWindow':
           updated = await updateSession(sessionId, { checkinWindow: parseInt(value, 10) });
