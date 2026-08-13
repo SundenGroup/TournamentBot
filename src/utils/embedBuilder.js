@@ -95,6 +95,7 @@ async function createTournamentEmbed(tournament) {
     swiss: 'Swiss',
     round_robin: 'Round Robin',
     battle_royale: 'Battle Royale',
+    group_stage: 'Group Stage',
   };
   const formatDisplay = formatNames[settings.format] || settings.format;
   if (settings.format === 'battle_royale') {

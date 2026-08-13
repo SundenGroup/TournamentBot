@@ -27,6 +27,7 @@ const FORMAT_NAMES = {
   swiss: 'Swiss',
   round_robin: 'Round Robin',
   battle_royale: 'Battle Royale',
+  group_stage: 'Group Stage',
 };
 
 // ─── Start ───────────────────────────────────────────────────────────────────
@@ -1211,9 +1212,47 @@ async function triggerAutoCleanup(guild, tournament) {
   }, 30000);
 }
 
+// ─── Group Stage: groups → playoffs transition (admin-triggered) ─────────────
+
+async function startPlayoffsFlow({ client, guild, tournament, useCustomSeeds = false }) {
+  if (tournament.status !== 'active') throw new Error('The tournament is not running.');
+  if (tournament.bracket?.type !== 'group_stage') throw new Error('This tournament has no group stage.');
+
+  const groupStage = require('./groupStageService');
+  const bracket = tournament.bracket;
+
+  // Throws with precise guidance when groups are open / already started / groups-only
+  const { qualifiers, customSeeds } = groupStage.startPlayoffs(bracket, tournament.settings, { useCustomSeeds });
+
+  tournament.bracket = bracket;
+  await updateTournament(tournament.id, { bracket });
+
+  // Rooms for playoff round one (same sweep as /tournament create-rooms —
+  // capacity-aware, repairs included)
+  const rooms = await createRoomsFlow({ guild, tournament });
+
+  await updateTournamentMessages(client, tournament);
+
+  // Announce in the tournament channel
+  try {
+    const channel = await client.channels.fetch(tournament.channelId);
+    const lines = qualifiers.map(q => `**${q.group}${q.position}** ${q.participant.username || q.participant.name}`);
+    await channel.send(
+      `🏁 **Group stage complete — playoffs are live!**\n` +
+      `${qualifiers.length} qualified${customSeeds ? ' (custom seeding)' : ''}: ${lines.join(' · ')}\n` +
+      `${rooms.created} playoff room${rooms.created === 1 ? '' : 's'} created — check your match room!`
+    );
+  } catch (err) {
+    console.error('startPlayoffsFlow announce failed:', err);
+  }
+
+  return { qualifiers, customSeeds, rooms };
+}
+
 module.exports = {
   startTournamentFlow,
   buildStartEmbed,
+  startPlayoffsFlow,
   applyMatchReport,
   correctMatchFlow,
   disqualifyFlow,

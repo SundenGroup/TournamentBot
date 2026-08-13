@@ -7,6 +7,7 @@ const doubleElim = require('../services/doubleEliminationService');
 const swiss = require('../services/swissService');
 const roundRobin = require('../services/roundRobinService');
 const battleRoyale = require('../services/battleRoyaleService');
+const groupStage = require('../services/groupStageService');
 
 function getServiceForBracket(bracket) {
   switch (bracket.type) {
@@ -14,6 +15,7 @@ function getServiceForBracket(bracket) {
     case 'swiss': return swiss;
     case 'round_robin': return roundRobin;
     case 'battle_royale': return battleRoyale;
+    case 'group_stage': return groupStage;
     case 'single_elimination':
     default: return singleElim;
   }
@@ -21,6 +23,10 @@ function getServiceForBracket(bracket) {
 
 /** Locate a match by its display number (includes the third-place match). */
 function findMatchByNumber(bracket, matchNumber) {
+  if (bracket.type === 'group_stage') {
+    const hit = listAllMatches(bracket).find(({ match }) => match.matchNumber === matchNumber);
+    return hit ? hit.match : null;
+  }
   if (bracket.type === 'double_elimination') {
     for (const round of [...bracket.winnersRounds, ...bracket.losersRounds, ...bracket.grandFinalsRounds]) {
       const match = round.matches.find(m => m.matchNumber === matchNumber);
@@ -88,6 +94,22 @@ function normalizeSeriesScore(score, bestOf) {
 function listAllMatches(bracket) {
   const out = [];
   if (!bracket || bracket.type === 'battle_royale') return out;
+
+  if (bracket.type === 'group_stage') {
+    for (const g of bracket.groups || []) {
+      for (const round of g.bracket.rounds || []) {
+        for (const match of round.matches || []) {
+          out.push({ match, section: `group_${g.key}`, round: round.round ?? null, roundName: `${g.name} · Round ${round.round}` });
+        }
+      }
+    }
+    if (bracket.playoffs) {
+      for (const entry of listAllMatches(bracket.playoffs)) {
+        out.push({ ...entry, section: 'playoffs', roundName: entry.roundName ? `Playoffs · ${entry.roundName}` : 'Playoffs' });
+      }
+    }
+    return out;
+  }
 
   if (bracket.type === 'double_elimination') {
     for (const [section, rounds] of [

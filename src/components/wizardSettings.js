@@ -17,6 +17,7 @@ const FORMAT_LABELS = {
   swiss: 'Swiss',
   round_robin: 'Round Robin',
   battle_royale: 'Battle Royale',
+  group_stage: 'Group Stage',
 };
 
 // Fallback for presets without formatOptions (custom games). Battle Royale is

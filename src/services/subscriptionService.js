@@ -87,6 +87,7 @@ const PRO_FEATURES = [
   'tournament_templates',
   'advanced_analytics',
   'multi_lobby_br',
+  'group_stage',
   'footer_removal',
   'web_dashboard',
 ];
@@ -121,6 +122,7 @@ const FEATURE_NAMES = {
   advanced_analytics: 'Advanced Analytics',
   public_bracket: 'Live Web Bracket',
   multi_lobby_br: 'Multi-Lobby Battle Royale (group stages)',
+  group_stage: 'Group Stage format (groups → playoffs)',
   footer_removal: 'Bracket Footer Removal',
   web_dashboard: 'Web Admin Dashboard',
   api_access: 'Results API',

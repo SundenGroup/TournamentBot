@@ -250,6 +250,21 @@ module.exports = {
     )
     .addSubcommand(subcommand =>
       subcommand
+        .setName('start-playoffs')
+        .setDescription('Group stage: lock the groups and start the playoff bracket')
+        .addStringOption(option =>
+          option.setName('tournament')
+            .setDescription('Tournament')
+            .setRequired(true)
+            .setAutocomplete(true)
+        )
+        .addBooleanOption(option =>
+          option.setName('use_custom_seeds')
+            .setDescription('Use the seeds you set (1..N on every qualifier) instead of standard group-position seeding')
+        )
+    )
+    .addSubcommand(subcommand =>
+      subcommand
         .setName('check-in')
         .setDescription('Admin: check a player/team in (or undo) when they can’t press the button')
         .addStringOption(option =>
@@ -382,7 +397,7 @@ module.exports = {
     const subcommand = interaction.options.getSubcommand();
 
     // Admin subcommands require tournament management permissions
-    const adminSubcommands = ['create', 'create-advanced', 'start', 'cancel', 'edit', 'signup-close', 'signup-cap', 'check-in', 'report', 'disqualify', 'correct', 'add-player', 'add-team', 'remove-player', 'remove-team', 'create-rooms'];
+    const adminSubcommands = ['create', 'create-advanced', 'start', 'cancel', 'edit', 'signup-close', 'signup-cap', 'start-playoffs', 'check-in', 'report', 'disqualify', 'correct', 'add-player', 'add-team', 'remove-player', 'remove-team', 'create-rooms'];
     const adminSeedSubcommands = ['set', 'randomize', 'clear'];
 
     const needsPermCheck = adminSubcommands.includes(subcommand) ||
@@ -449,6 +464,9 @@ module.exports = {
         break;
       case 'signup-close':
         await handleSignupClose(interaction);
+        break;
+      case 'start-playoffs':
+        await handleStartPlayoffs(interaction);
         break;
       case 'check-in':
         await handleAdminCheckIn(interaction);
@@ -991,6 +1009,32 @@ async function handleSignupCap(interaction) {
     }
     return interaction.editReply({
       content: `🎟️ Up to **${updated.settings.signupCap}** can now sign up for **${updated.title}** (**${spots}** spots). Who plays is decided at start: seeded and checked-in ${updated.settings.teamSize > 1 ? 'teams' : 'players'} first. The announcement is updated.`,
+    });
+  } catch (err) {
+    return interaction.editReply({ content: `❌ ${err.message}` });
+  }
+}
+
+async function handleStartPlayoffs(interaction) {
+  await interaction.deferReply({ ephemeral: true });
+
+  const tournamentId = interaction.options.getString('tournament');
+  const useCustomSeeds = interaction.options.getBoolean('use_custom_seeds') ?? false;
+
+  const tournament = await getGuildTournament(interaction.guildId, tournamentId);
+  if (!tournament) return interaction.editReply({ content: '❌ Tournament not found.' });
+
+  try {
+    const { startPlayoffsFlow } = require('../../services/lifecycleService');
+    const { qualifiers, customSeeds, rooms } = await startPlayoffsFlow({
+      client: interaction.client,
+      guild: interaction.guild,
+      tournament,
+      useCustomSeeds,
+    });
+    return interaction.editReply({
+      content: `🏁 **Playoffs started** — ${qualifiers.length} qualified${customSeeds ? ' with your custom seeding' : ''}, ` +
+        `${rooms.created} room${rooms.created === 1 ? '' : 's'} created${rooms.failed ? `, ${rooms.failed} failed (retry with /tournament create-rooms)` : ''}.`,
     });
   } catch (err) {
     return interaction.editReply({ content: `❌ ${err.message}` });

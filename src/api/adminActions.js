@@ -120,6 +120,13 @@ router.get('/admin/api/meta', requireSession, (req, res) => {
       nickSummary: (Array.isArray(p.nickFields) && p.nickFields.length) || p.nickField ? getNickSummary({ preset: key }) : null,
     };
   });
+  // Group Stage is available to every head-to-head game (display-level;
+  // the create endpoint validates and Pro-gates it)
+  for (const g of games) {
+    if (!g.formatOptions.includes('battle_royale') && !g.formatOptions.includes('group_stage')) {
+      g.formatOptions = [...g.formatOptions, 'group_stage'];
+    }
+  }
   games.push({
     key: 'custom', name: 'Custom game', shortName: 'CUST', category: null, logo: null, featured: true,
     defaultTeamSize: 1, teamSizeOptions: [1, 2, 3, 4, 5],
@@ -135,6 +142,7 @@ router.get('/admin/api/meta', requireSession, (req, res) => {
       swiss: 'Swiss',
       round_robin: 'Round Robin',
       battle_royale: 'Battle Royale',
+      group_stage: 'Group Stage',
     },
   });
 });
@@ -300,6 +308,19 @@ router.get('/admin/api/tournaments/:id/manage', requireSession, async (req, res)
     seedingEnabled: !!t.settings.seedingEnabled,
     signupCloseTime: t.settings.signupCloseTime ?? null,
     signupCap: t.settings.signupCap ?? null,
+    groupStage: t.bracket?.type === 'group_stage' ? {
+      stage: t.bracket.stage,
+      playoffFormat: t.bracket.playoffFormat,
+      advancingPerGroup: t.bracket.advancingPerGroup,
+      groupsComplete: require('../services/groupStageService').groupsComplete(t.bracket),
+      groups: require('../services/groupStageService').getGroupStandings(t.bracket).map(g => ({
+        key: g.key, name: g.name, complete: g.complete,
+        standings: g.standings.map(row => ({
+          name: isSolo ? (row.participant.displayName || row.participant.username) : row.participant.name,
+          wins: row.wins, losses: row.losses,
+        })),
+      })),
+    } : null,
     seedCsv: (await checkFeature(t.guildId, 'seed_csv')).allowed,
     nickSummary: t.settings.requireGameNick ? getNickSummary(t.game) : null,
     entrants,
@@ -359,7 +380,7 @@ router.post('/admin/api/guilds/:guildId/tournaments', ...mutate, requireGuildAdm
   }
 
   const format = b.format || preset?.defaultFormat || 'single_elimination';
-  if (!['single_elimination', 'double_elimination', 'swiss', 'round_robin', 'battle_royale'].includes(format)) {
+  if (!['single_elimination', 'double_elimination', 'swiss', 'round_robin', 'battle_royale', 'group_stage'].includes(format)) {
     return res.status(400).json({ error: 'Unsupported format' });
   }
 
@@ -429,8 +450,21 @@ router.post('/admin/api/guilds/:guildId/tournaments', ...mutate, requireGuildAdm
     }
   }
 
+  // Group Stage options — blanks fall back to defaults (4 / top 2 / single elim)
+  let groupSize, advancingPerGroup2, playoffFormat;
+  if (format === 'group_stage') {
+    groupSize = parseInt(b.groupSize, 10) || 4;
+    if (groupSize < 2 || groupSize > 16) return res.status(400).json({ error: 'Group size must be between 2 and 16' });
+    playoffFormat = ['single_elimination', 'double_elimination', 'none'].includes(b.playoffFormat) ? b.playoffFormat : 'single_elimination';
+    advancingPerGroup2 = playoffFormat === 'none' ? 0 : (parseInt(b.advancingPerGroup, 10) || 2);
+    if (playoffFormat !== 'none' && (advancingPerGroup2 < 1 || advancingPerGroup2 >= groupSize)) {
+      return res.status(400).json({ error: `Advancing per group must be between 1 and ${groupSize - 1}` });
+    }
+  }
+
   // Subscription / entitlement checks — same as Discord creation
   const requestedFeatures = publicBracket ? ['public_bracket'] : [];
+  if (format === 'group_stage') requestedFeatures.push('group_stage');
   if (seedingEnabled) requestedFeatures.push('seeding');
   if (captainMode) requestedFeatures.push('captain_mode');
   if (requiredRoles.length) requestedFeatures.push('required_roles');
@@ -488,6 +522,9 @@ router.post('/admin/api/guilds/:guildId/tournaments', ...mutate, requireGuildAdm
         brScoringModel,
         gamesPerStage,
         lobbySize,
+        groupSize,
+        advancingPerGroup: advancingPerGroup2,
+        playoffFormat,
         setupMode: 'web',
         createdBy: req.session.uid,
       },
@@ -873,6 +910,73 @@ router.post('/admin/api/tournaments/:id/checkin', ...mutate, async (req, res) =>
     await updateTournamentMessages(getClient(), result.tournament).catch(() => {});
     await audit(req, t, 'checkin', { entrantId: req.body?.entrantId, checkedIn: result.checkedIn });
     res.json({ ok: true, name: result.name, checkedIn: result.checkedIn });
+  } catch (err) {
+    console.error(`[web-admin] ${req.method} ${req.path} failed:`, err.message);
+    res.status(400).json({ error: err.message });
+  }
+});
+
+// Group stage: lock groups, build + announce the playoff bracket
+router.post('/admin/api/tournaments/:id/start-playoffs', ...mutate, async (req, res) => {
+  const t = await loadOwnedForMutation(req, res);
+  if (!t) return;
+  try {
+    const guild = getClient().guilds.cache.get(t.guildId);
+    if (!guild) return res.status(503).json({ error: 'Bot is not in this server right now.' });
+    const { startPlayoffsFlow } = require('../services/lifecycleService');
+    const result = await startPlayoffsFlow({
+      client: getClient(), guild, tournament: t,
+      useCustomSeeds: !!req.body?.useCustomSeeds,
+    });
+    await audit(req, t, 'start-playoffs', { customSeeds: result.customSeeds });
+    res.json({ ok: true, qualifiers: result.qualifiers.length, customSeeds: result.customSeeds, roomsCreated: result.rooms.created, roomsFailed: result.rooms.failed });
+  } catch (err) {
+    console.error(`[web-admin] ${req.method} ${req.path} failed:`, err.message);
+    res.status(400).json({ error: err.message });
+  }
+});
+
+// Add a player from the web (qualifier pipelines): resolve a Discord username
+// or ID to a member, then admin-add (bypasses signup close, auto-checks-in
+// during the window). Solo tournaments; teams still register via Discord.
+router.post('/admin/api/tournaments/:id/add-entrant', ...mutate, async (req, res) => {
+  const t = await loadOwnedForMutation(req, res);
+  if (!t) return;
+  try {
+    if (t.settings.teamSize > 1) return res.status(400).json({ error: 'Team tournaments: register teams via /tournament add-team in Discord.' });
+    const query = String(req.body?.user || '').trim();
+    if (!query) return res.status(400).json({ error: 'Enter a Discord username or user ID.' });
+    if (t.settings.requireGameNick && !String(req.body?.gameNick || '').trim()) {
+      return res.status(400).json({ error: 'This tournament requires in-game info — fill the second field.' });
+    }
+
+    const guild = getClient().guilds.cache.get(t.guildId);
+    if (!guild) return res.status(503).json({ error: 'Bot is not in this server right now.' });
+
+    let member = null;
+    if (/^\d{17,20}$/.test(query)) {
+      member = await guild.members.fetch(query).catch(() => null);
+    } else {
+      const found = await guild.members.search({ query, limit: 5 }).catch(() => null);
+      if (found && found.size === 1) member = found.first();
+      else if (found && found.size > 1) {
+        return res.status(400).json({ error: `Several members match "${query}": ${[...found.values()].map(m => m.user.username).join(', ')} — paste the exact user ID instead.` });
+      }
+    }
+    if (!member) return res.status(404).json({ error: `No server member found for "${query}" — check the spelling or paste their user ID.` });
+
+    const { addParticipant } = require('../services/tournamentService');
+    const result = await addParticipant(t.id, {
+      id: member.user.id,
+      username: member.user.username,
+      displayName: member.displayName || member.user.username,
+      gameNick: String(req.body?.gameNick || '').trim() || null,
+    }, { byAdmin: true });
+    if (!result.success) return res.status(400).json({ error: result.error });
+
+    await updateTournamentMessages(getClient(), result.tournament).catch(() => {});
+    await audit(req, t, 'add-entrant', { userId: member.user.id });
+    res.json({ ok: true, name: member.displayName || member.user.username, checkedIn: !!result.participant?.checkedIn });
   } catch (err) {
     console.error(`[web-admin] ${req.method} ${req.path} failed:`, err.message);
     res.status(400).json({ error: err.message });

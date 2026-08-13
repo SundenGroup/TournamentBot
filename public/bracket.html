@@ -313,6 +313,7 @@ const FORMAT_NAMES = {
   double_elimination: 'Double Elimination',
   swiss: 'Swiss',
   round_robin: 'Round Robin',
+  group_stage: 'Group Stage',
   battle_royale: 'Battle Royale',
 };
 
@@ -905,6 +906,25 @@ function renderSwissRR(d) {
   showPanel(html);
 }
 
+// ── Group Stage panel: one table + schedule per group ──────────────────────
+function renderGroupStage(d) {
+  const cols = [
+    { label: 'W', value: s => s.wins }, { label: 'L', value: s => s.losses },
+    { label: 'Played', value: s => s.matchesPlayed },
+  ];
+  let html = '';
+  if (d.results) html += renderPodiumSection(d.results);
+  const adv = d.bracket.advancingPerGroup;
+  if (adv) html += `<div class="section"><div class="section-title">Top ${adv} per group advance to the playoffs</div></div>`;
+  for (const g of d.bracket.groups) {
+    const sorted = [...g.bracket.standings].sort((a, b) => b.wins - a.wins || a.losses - b.losses);
+    html += `<div class="section"><div class="section-title">${esc(g.name)}</div>
+      ${renderStandingsTable(sorted, cols)}
+      ${renderRoundCards(g.bracket.rounds, g.bracket.currentRound)}</div>`;
+  }
+  showPanel(html);
+}
+
 // ── Battle Royale standings view ────────────────────────────────────────────
 function brCols(d) {
   const cols = [{ label: 'Pts', value: s => `<b>${s.points}</b>` }];
@@ -990,7 +1010,11 @@ function renderBR(d) {
 // ── Main render ─────────────────────────────────────────────────────────────
 function render() {
   const d = DATA;
-  MODEL = buildModel(d);
+  // Group stage: groups render as panels; once playoffs exist, the playoff
+  // subtree drives the normal elimination canvas.
+  MODEL = d.bracket && d.bracket.type === 'group_stage'
+    ? (d.bracket.playoffs ? buildModel({ ...d, bracket: d.bracket.playoffs }) : null)
+    : buildModel(d);
   renderHero(d);
 
   if (!d.bracket) {
@@ -1001,7 +1025,10 @@ function render() {
 
   if (!MODEL) {
     // swiss / round robin / battle royale render as panels
-    if (d.bracket.type === 'swiss' || d.bracket.type === 'round_robin') {
+    if (d.bracket.type === 'group_stage') {
+      renderStrip(d);
+      renderGroupStage(d);
+    } else if (d.bracket.type === 'swiss' || d.bracket.type === 'round_robin') {
       renderStrip(d);
       renderSwissRR(d);
     } else if (d.bracket.type === 'battle_royale') {

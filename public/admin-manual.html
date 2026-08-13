@@ -326,7 +326,7 @@
       <table>
         <thead><tr><th>Setting</th><th>Options</th></tr></thead>
         <tbody>
-          <tr><td><strong>Format</strong></td><td>Single Elimination, Double Elimination, Swiss, Round Robin — plus Battle Royale for BR games and Custom</td></tr>
+          <tr><td><strong>Format</strong></td><td>Single Elimination, Double Elimination, Swiss, Round Robin, Group Stage <span class="tag tag-pro">Pro</span> — plus Battle Royale for BR games and Custom</td></tr>
           <tr><td><strong>Team Size</strong></td><td>Solo, 2v2, 3v3, up to 10v10 (varies by game)</td></tr>
           <tr><td><strong>Best Of</strong></td><td>Bo1, Bo3, Bo5, Bo7</td></tr>
           <tr><td><strong>Check-in</strong></td><td>On / Off</td></tr>
@@ -542,6 +542,20 @@
     / <strong>Clear all</strong>, then <strong>Save seeds</strong>. Duplicate or out-of-range seeds are
     rejected. If seeding wasn't enabled at creation, an <strong>Enable seeding</strong> button turns it
     on right there.</p>
+
+    <h3>Group Stage <span class="tag tag-pro">Pro</span></h3>
+    <p>Pick the <strong>Group Stage</strong> format at creation (web or advanced mode) and set the
+    <strong>group size</strong> (e.g. 4), what happens after the groups — <strong>single-elim playoffs</strong>,
+    <strong>double-elim playoffs</strong>, or <strong>no playoffs</strong> (the tables decide) — and how many
+    <strong>advance per group</strong> (e.g. top 2). Players are placed into groups by <strong>snake seeding</strong>
+    (seed 1 → Group A, 2 → B, … then back), each group plays a round robin with normal match rooms and
+    reporting, and the live bracket page shows every group table.</p>
+    <p>When all group matches are reported, <strong>admins start the playoffs</strong> — the dashboard's
+    Groups tab has the button, or <code>/tournament start-playoffs</code>. Standard playoff seeding places
+    group winners first (two players from the same group can't meet in round one). Want your own order?
+    The <strong>Seeding tab stays open between groups and playoffs</strong>: give the qualifiers seeds
+    1..N (CSV import works too) and press <strong>Start with custom seeds</strong>. Group results lock
+    once the playoffs begin.</p>
 
     <h3>Seeding from a spreadsheet <span class="tag tag-studio">Studio</span></h3>
     <p>For big fields, do the seeding in Excel or Google Sheets instead of typing into the form:</p>
@@ -777,6 +791,7 @@
           <tr><td><code>/tournament edit</code></td><td>Edit title, date, size, best-of, and check-in window (before start)</td></tr>
           <tr><td><code>/tournament signup-close</code></td><td>Set when signups close — a time, <code>now</code>, or <code>off</code> to keep them open until start</td></tr>
           <tr><td><code>/tournament check-in</code></td><td>Admin override: check a player/team in (or undo) while the window is open</td></tr>
+          <tr><td><code>/tournament start-playoffs</code></td><td>Group Stage: lock the finished groups and start the playoff bracket (<code>use_custom_seeds</code> honors the Seeding tab)</td></tr>
           <tr><td><code>/tournament signup-cap</code></td><td>Let more sign up than there are spots (overflow, Studio) — <code>cap:0</code> turns it off</td></tr>
           <tr><td><code>/tournament report</code></td><td>Report a match result (Bo3+ requires the series score)</td></tr>
           <tr><td><code>/tournament correct</code></td><td>Correct a wrongly reported result (while nothing downstream is played)</td></tr>

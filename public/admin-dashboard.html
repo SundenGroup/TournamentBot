@@ -384,6 +384,7 @@ const $ = id => document.getElementById(id);
 const FORMAT_NAMES = {
   single_elimination: 'Single Elim', double_elimination: 'Double Elim',
   swiss: 'Swiss', round_robin: 'Round Robin', battle_royale: 'Battle Royale',
+  group_stage: 'Group Stage',
 };
 const STATUS = {
   registration: { label: 'Registration', color: 'var(--st-reg)' },
@@ -817,8 +818,13 @@ function renderRunLeft() {
   if (isBR && d.br) tabs.push({ id: 'games', label: 'Games', count: d.counts.pending });
   if (!isBR && decided.length && d.can.correct) tabs.push({ id: 'decided', label: 'Decided', count: decided.length, warn: contestedCount });
   tabs.push({ id: 'entrants', label: 'Entrants', count: d.counts.entrants });
+  if (d.groupStage) {
+    tabs.push({ id: 'groupsTab', label: 'Groups', count: d.groupStage.groups.length });
+  }
   // Seeding: manual bracket order, pre-start, non-BR (BR uses lobby snake-seed).
-  if (!isBR && (d.status === 'registration' || d.status === 'checkin')) {
+  // Group stages re-open it during the groups→playoffs window (re-seeding).
+  const reseedWindow = d.groupStage && d.groupStage.stage === 'groups' && d.status === 'active';
+  if (!isBR && (d.status === 'registration' || d.status === 'checkin' || reseedWindow)) {
     tabs.push({ id: 'seed', label: 'Seeding', count: d.entrants.filter(e => e.seed != null).length });
   }
   if (!runTab || !tabs.some(t => t.id === runTab)) runTab = tabs[0].id;
@@ -927,6 +933,13 @@ function renderRunLeft() {
     let list = d.entrants;
     if (q) list = list.filter(e => e.name.toLowerCase().includes(q));
     html += `<div><div class="qlabel">Entrants · ${d.counts.entrants}${d.nickSummary ? ` · ${esc(d.nickSummary)} shown (admins only)` : ''}</div>`;
+    if (d.isSolo && ['registration', 'checkin'].includes(d.status)) {
+      html += `<div style="display:flex;gap:8px;flex-wrap:wrap;margin:6px 0 10px">
+        <input id="addUser" placeholder="Discord username or user ID" style="flex:2;min-width:180px;background:var(--bg-sunken);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:7px 10px">
+        ${d.nickSummary ? `<input id="addNick" placeholder="${esc(d.nickSummary)}" style="flex:1;min-width:140px;background:var(--bg-sunken);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:7px 10px">` : ''}
+        <button class="btn btn-sm" data-add-entrant>＋ Add player</button>
+      </div>`;
+    }
     if (d.entrants.length > 15) {
       html += `<input class="tab-filter" data-qfilter="entrants" placeholder="Filter entrants…" value="${esc(runQ.entrants || '')}">`;
     }
@@ -945,6 +958,28 @@ function renderRunLeft() {
     }).join('') || '<div class="caught-up">No entrants match.</div>';
     html += moreBtn('entrants', list.length, visible.length);
     html += '</div></div>';
+  }
+
+  if (runTab === 'groupsTab' && d.groupStage) {
+    const gsd = d.groupStage;
+    if (gsd.stage === 'groups') {
+      html += `<div class="edit-card"><div class="qlabel">Group stage</div>
+        <p style="color:var(--text-2);font-size:13px;margin:6px 0 10px">${gsd.groupsComplete
+          ? (gsd.playoffFormat === 'none'
+            ? 'All groups are done — final tables below. This tournament ends on group standings.'
+            : `All groups are done. Starting the playoffs locks group results and builds the bracket (top ${gsd.advancingPerGroup} per group). To use a custom order, set seeds 1..N on the qualifiers in the Seeding tab first.`)
+          : 'Playoffs unlock when every group match is reported.'}</p>
+        ${gsd.groupsComplete && gsd.playoffFormat !== 'none' ? `
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <button class="btn btn-accent btn-sm" data-start-playoffs="0">🏁 Start playoffs</button>
+            <button class="btn btn-sm" data-start-playoffs="1" title="Uses the seeds set in the Seeding tab (must be a full 1..N)">Start with custom seeds</button>
+          </div>` : ''}
+      </div>`;
+    }
+    html += gsd.groups.map(g => `
+      <div class="edit-card"><div class="qlabel">${esc(g.name)} ${g.complete ? '· ✓ done' : ''}</div>
+        ${g.standings.map((row, i) => `<div class="ent-row"><span class="nm">${i + 1}. ${esc(row.name)}</span><span class="idsub">${row.wins}–${row.losses}</span></div>`).join('')}
+      </div>`).join('');
   }
 
   if (runTab === 'seed') {
@@ -1254,6 +1289,34 @@ function wireRunLeft(d, left) {
       refreshRun();
     });
   }
+
+  // ── Groups tab ──
+  left.querySelectorAll('[data-start-playoffs]').forEach(btn => armConfirm(btn, btn.textContent, 'Sure? Locks groups', async () => {
+    btn.disabled = true;
+    const r = await api(`/admin/api/tournaments/${d.id}/start-playoffs`, {
+      method: 'POST', body: { useCustomSeeds: btn.dataset.startPlayoffs === '1' },
+    });
+    btn.disabled = false;
+    if (!r.ok) return toast(r.error, true);
+    toast(`Playoffs started — ${r.data.qualifiers} qualified, ${r.data.roomsCreated} rooms created.`);
+    refreshRun();
+  }));
+
+  // ── Add player (web) ──
+  const addBtn = left.querySelector('[data-add-entrant]');
+  if (addBtn) addBtn.addEventListener('click', async () => {
+    const user = left.querySelector('#addUser').value.trim();
+    const nickEl = left.querySelector('#addNick');
+    if (!user) return toast('Enter a Discord username or user ID.', true);
+    addBtn.disabled = true;
+    const r = await api(`/admin/api/tournaments/${d.id}/add-entrant`, {
+      method: 'POST', body: { user, gameNick: nickEl ? nickEl.value.trim() : undefined },
+    });
+    addBtn.disabled = false;
+    if (!r.ok) return toast(r.error, true);
+    toast(`${r.data.name} added${r.data.checkedIn ? ' and checked in' : ''}.`);
+    refreshRun();
+  });
 
   // ── Seeding tab ──
   const enableSeed = left.querySelector('[data-enable-seed]');
@@ -1571,6 +1634,18 @@ function renderCreate() {
         <label>Required roles <span class="protag">PRO</span> <span style="font-size:11px;color:var(--text-faint);font-weight:400;text-transform:none;letter-spacing:0">— entrants need at least one</span></label>
         <div id="cRolesList" style="max-height:104px;overflow-y:auto;border:1px solid var(--border);border-radius:8px;padding:8px 10px;display:flex;flex-direction:column;gap:6px"></div>
       </div>
+      <div class="field full" id="cGSWrap" style="display:none">
+        <label>Group stage <span class="protag">PRO</span></label>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <input type="number" id="cGroupSize" min="2" max="16" value="4" title="Players per group" style="flex:1;min-width:110px" placeholder="Group size">
+          <select id="cPlayoffFormat" style="flex:2;min-width:170px">
+            <option value="single_elimination">Playoffs: Single Elim</option>
+            <option value="double_elimination">Playoffs: Double Elim</option>
+            <option value="none">No playoffs — group tables decide</option>
+          </select>
+          <input type="number" id="cAdvancing" min="1" max="15" value="2" title="Advance per group to playoffs" style="flex:1;min-width:120px" placeholder="Advance/group">
+        </div>
+      </div>
       <div class="field full" id="cBRWrap" style="display:none">
         <label>Battle Royale <span style="font-size:11px;color:var(--text-faint);font-weight:400;text-transform:none;letter-spacing:0">— blank fields use the game's defaults</span></label>
         <div style="display:flex;gap:8px;flex-wrap:wrap">
@@ -1613,9 +1688,13 @@ function renderCreate() {
     const team = parseInt(body.querySelector('#cTeamSize').value, 10) > 1;
     body.querySelector('#cThirdWrap').style.display = fmt === 'single_elimination' ? '' : 'none';
     body.querySelector('#cBRWrap').style.display = fmt === 'battle_royale' ? '' : 'none';
+    body.querySelector('#cGSWrap').style.display = fmt === 'group_stage' ? '' : 'none';
     body.querySelector('#cCaptainWrap').style.display = team ? '' : 'none';
   };
   body.querySelector('#cFormat').addEventListener('change', syncCreateOptions);
+  body.querySelector('#cPlayoffFormat').addEventListener('change', () => {
+    body.querySelector('#cAdvancing').disabled = body.querySelector('#cPlayoffFormat').value === 'none';
+  });
   body.querySelector('#cTeamSize').addEventListener('change', syncCreateOptions);
   syncCreateOptions();
   body.querySelector('#cSubmit').addEventListener('click', async ev => {
@@ -1648,6 +1727,9 @@ function renderCreate() {
         brScoringModel: body.querySelector('#cBRScoring').value || undefined,
         gamesPerStage: body.querySelector('#cBRGames').value || undefined,
         lobbySize: body.querySelector('#cBRLobby').value || undefined,
+        groupSize: body.querySelector('#cGroupSize').value || undefined,
+        playoffFormat: body.querySelector('#cPlayoffFormat').value || undefined,
+        advancingPerGroup: body.querySelector('#cAdvancing').value || undefined,
       },
     });
     ev.target.disabled = false;

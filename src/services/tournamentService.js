@@ -95,6 +95,11 @@ async function createTournament(data) {
       // the field is selected at start (seeds → checked-in → signup order).
       signupCap: data.signupCap ?? null,
 
+      // Group Stage format options
+      groupSize: data.groupSize ?? 4,
+      advancingPerGroup: data.advancingPerGroup ?? 2,
+      playoffFormat: data.playoffFormat ?? 'single_elimination',
+
       seedingEnabled: data.seedingEnabled ?? DEFAULT_TOURNAMENT_SETTINGS.seedingEnabled,
 
       requireGameNick: data.requireGameNick ?? false,
@@ -530,8 +535,13 @@ async function setTournamentSeeds(tournamentId, { seeds, action } = {}) {
       if (!row) return { success: false, error: 'Tournament not found.' };
 
       const tournament = rowToTournament(row);
-      if (tournament.status !== 'registration' && tournament.status !== 'checkin') {
-        return { success: false, error: 'Seeding can only be changed before the tournament starts.' };
+      // Group stage keeps a re-seeding window while groups run: seeds set
+      // there order the PLAYOFF bracket ("start playoffs with custom seeds").
+      const groupReseedWindow = tournament.status === 'active'
+        && tournament.bracket?.type === 'group_stage'
+        && !tournament.bracket.playoffs;
+      if (tournament.status !== 'registration' && tournament.status !== 'checkin' && !groupReseedWindow) {
+        return { success: false, error: 'Seeding can only be changed before the tournament starts (or, for group stages, before the playoffs start).' };
       }
       if (!tournament.settings.seedingEnabled) {
         return { success: false, error: 'Seeding is not enabled for this tournament.' };
