@@ -869,7 +869,7 @@ function renderRunLeft() {
             <span class="vs">VS</span>
             <button class="wbtn ${sel.winner === m.participant2.id ? 'on' : ''}" data-win="${esc(m.participant2.id)}" title="${esc(m.participant2.name)}">${esc(m.participant2.name)}</button>
           </div>
-          <div class="rep-score">${scoreUi}<button class="rep-go ${ready ? '' : 'dim'}" data-report>Report</button></div>
+          <div class="rep-score">${scoreUi}<input class="free" data-goals="${m.matchNumber}" placeholder="goals 7-4" title="Optional goal totals, winner first — feeds goal-diff tiebreakers" style="width:76px" value="${esc(sel.goals || '')}"><button class="rep-go ${ready ? '' : 'dim'}" data-report>Report</button></div>
         </div>`;
       }).join('');
       html += moreBtn('report', pending.length, visible.length);
@@ -982,7 +982,7 @@ function renderRunLeft() {
     const adv = gsd.playoffFormat === 'none' ? 1 : (gsd.advancingPerGroup || 1);
     html += gsd.groups.map(g => `
       <div class="edit-card"><div class="qlabel">${esc(g.name)} ${g.complete ? '· ✓ done' : ''}</div>
-        ${g.standings.map((row, i) => `<div class="ent-row"><span class="nm">${i < adv ? '<span style="color:var(--accent);font-weight:700">↑</span> ' : ''}${i + 1}. ${esc(row.name)}</span><span class="idsub">${row.wins}–${row.losses}${row.diff != null ? ` · ${row.diff > 0 ? '+' + row.diff : row.diff}` : ''}</span></div>`).join('')}
+        ${g.standings.map((row, i) => `<div class="ent-row"><span class="nm">${i < adv ? '<span style="color:var(--accent);font-weight:700">↑</span> ' : ''}${i + 1}. ${esc(row.name)}</span><span class="idsub">${row.wins}–${row.losses}${row.diff != null ? ` · ${row.diff > 0 ? '+' + row.diff : row.diff}` : ''}${row.gd != null ? ` · GD ${row.gd > 0 ? '+' + row.gd : row.gd}` : ''}</span></div>`).join('')}
       </div>`).join('');
   }
 
@@ -1452,6 +1452,9 @@ function wireRunLeft(d, left) {
       SEL[n] = { ...(SEL[n] || {}), score: b.dataset.score };
       renderRunLeft();
     }));
+    card.querySelectorAll('[data-goals]').forEach(inp => inp.addEventListener('change', () => {
+      SEL[n] = { ...(SEL[n] || {}), goals: inp.value.trim() };
+    }));
     const free = card.querySelector('[data-freescore]');
     if (free) free.addEventListener('input', () => { SEL[n] = { ...(SEL[n] || {}), score: free.value }; });
     card.querySelector('[data-report]').addEventListener('click', async ev => {
@@ -1461,7 +1464,7 @@ function wireRunLeft(d, left) {
       ev.target.disabled = true;
       const r = await api(`/admin/api/tournaments/${d.id}/report`, {
         method: 'POST',
-        body: { matchNumber: n, winnerId: sel.winner, score: (sel.score || '').trim() || null },
+        body: { goals: (document.querySelector(`[data-goals="${n}"]`)?.value || '').trim() || undefined, matchNumber: n, winnerId: sel.winner, score: (sel.score || '').trim() || null },
       });
       ev.target.disabled = false;
       if (!r.ok) return toast(r.error, true);

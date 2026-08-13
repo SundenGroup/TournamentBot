@@ -909,9 +909,12 @@ function renderSwissRR(d) {
 // ── Group Stage panel: one table + schedule per group ──────────────────────
 function renderGroupStage(d) {
   const gdiff = (s) => (s.gamesWon || 0) - (s.gamesLost || 0);
+  const goald = (s) => (s.goalsFor || 0) - (s.goalsAgainst || 0);
+  const hasGoals = d.bracket.groups.some(g => g.bracket.standings.some(s => (s.goalsFor || 0) + (s.goalsAgainst || 0) > 0));
   const cols = [
     { label: 'W', value: s => s.wins }, { label: 'L', value: s => s.losses },
     { label: 'Diff', value: s => { const d2 = gdiff(s); return d2 > 0 ? `+${d2}` : d2; } },
+    ...(hasGoals ? [{ label: 'GD', value: s => { const d3 = goald(s); return d3 > 0 ? `+${d3}` : d3; } }] : []),
   ];
   let html = '';
   if (d.results) html += renderPodiumSection(d.results);
@@ -919,7 +922,7 @@ function renderGroupStage(d) {
   if (adv) html += `<div class="section"><div class="section-title">Top ${adv} per group advance to the playoffs</div></div>`;
   for (const g of d.bracket.groups) {
     // Same order the engine uses: wins → game diff (H2H nuances resolved server-side rankings arrive pre-sorted when complete)
-    const sorted = [...g.bracket.standings].sort((a, b) => b.wins - a.wins || gdiff(b) - gdiff(a) || a.losses - b.losses);
+    const sorted = [...g.bracket.standings].sort((a, b) => b.wins - a.wins || gdiff(b) - gdiff(a) || goald(b) - goald(a) || (b.goalsFor || 0) - (a.goalsFor || 0) || a.losses - b.losses);
     html += `<div class="section"><div class="section-title">${esc(g.name)}</div>
       ${renderStandingsTable(sorted, cols, adv || 1)}
       ${renderRoundCards(g.bracket.rounds, g.bracket.currentRound)}</div>`;

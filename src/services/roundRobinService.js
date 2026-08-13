@@ -102,7 +102,7 @@ function generateBracket(participants, settings) {
  * @param {string} [score] - Optional score string
  * @returns {Object} Updated bracket
  */
-function advanceWinner(bracket, matchId, winnerId, score) {
+function advanceWinner(bracket, matchId, winnerId, score, goals = null) {
   // Find the match
   let match = null;
   let matchRound = null;
@@ -135,6 +135,10 @@ function advanceWinner(bracket, matchId, winnerId, score) {
   match.loser = isP1Winner ? match.participant2 : match.participant1;
   if (score) match.score = score;
   const games = parseGameScore(score);
+  // Optional goal detail ("7-4", winner-first, NOT auto-swapped — a series
+  // winner can total fewer goals). Feeds the 3rd/4th tiebreakers.
+  const g = parseGoals(goals);
+  if (g) match.goals = `${g.winner}-${g.loser}`;
 
   // Update standings
   const winnerStanding = bracket.standings.find(s => s.participant.id === match.winner.id);
@@ -146,6 +150,10 @@ function advanceWinner(bracket, matchId, winnerId, score) {
     winnerStanding.headToHead[match.loser.id] = 'win';
     winnerStanding.gamesWon = (winnerStanding.gamesWon || 0) + games.winner;
     winnerStanding.gamesLost = (winnerStanding.gamesLost || 0) + games.loser;
+    if (g) {
+      winnerStanding.goalsFor = (winnerStanding.goalsFor || 0) + g.winner;
+      winnerStanding.goalsAgainst = (winnerStanding.goalsAgainst || 0) + g.loser;
+    }
   }
 
   if (loserStanding) {
@@ -154,6 +162,10 @@ function advanceWinner(bracket, matchId, winnerId, score) {
     loserStanding.headToHead[match.winner.id] = 'loss';
     loserStanding.gamesWon = (loserStanding.gamesWon || 0) + games.loser;
     loserStanding.gamesLost = (loserStanding.gamesLost || 0) + games.winner;
+    if (g) {
+      loserStanding.goalsFor = (loserStanding.goalsFor || 0) + g.loser;
+      loserStanding.goalsAgainst = (loserStanding.goalsAgainst || 0) + g.winner;
+    }
   }
 
   // Check if round is complete and advance
@@ -277,6 +289,17 @@ function parseGameScore(score) {
   return { winner: Math.max(a, b), loser: Math.min(a, b) };
 }
 
+/** "7-4" winner-first goal totals — direction preserved (no max-swap). */
+function parseGoals(goals) {
+  const m = /^(\d{1,3})-(\d{1,3})$/.exec(String(goals || '').trim());
+  if (!m) return null;
+  return { winner: parseInt(m[1], 10), loser: parseInt(m[2], 10) };
+}
+
+function goalDiff(s) {
+  return (s.goalsFor || 0) - (s.goalsAgainst || 0);
+}
+
 function gameDiff(s) {
   return (s.gamesWon || 0) - (s.gamesLost || 0);
 }
@@ -295,17 +318,22 @@ function sortStandings(standings) {
   for (const winKey of winKeys) {
     const group = groups.get(winKey);
 
-    // 1st tiebreaker: game record across the tied players' series scores
-    // ("4-2 beats 4-4"). 2nd: head-to-head, applied ONLY when exactly two
-    // players remain tied — with 3+ tied it is skipped by rule.
+    // Tiebreak order (GOALS ruleset): 1) game record ("4-2 beats 4-4"),
+    // 2) head-to-head ONLY between exactly two still-tied players,
+    // 3) total goal difference, 4) most goals scored, then stable.
     group.sort((a, b) => {
       const gd = gameDiff(b) - gameDiff(a);
       if (gd !== 0) return gd;
+      const goald = goalDiff(b) - goalDiff(a);
+      if (goald !== 0) return goald;
+      const gf = (b.goalsFor || 0) - (a.goalsFor || 0);
+      if (gf !== 0) return gf;
       if (a.losses !== b.losses) return a.losses - b.losses;
       return a.participant.id < b.participant.id ? -1 : a.participant.id > b.participant.id ? 1 : 0;
     });
 
-    // Walk equal-gameDiff cohorts; a cohort of exactly 2 resolves by H2H
+    // H2H outranks goals but only for EXACT-2 cohorts on game record: walk
+    // equal-gameDiff cohorts and let the head-to-head winner lead a pair.
     let i = 0;
     while (i < group.length) {
       let j = i + 1;
@@ -356,7 +384,7 @@ function isRoundComplete(bracket, roundNumber = bracket.currentRound) {
  * Correct a wrongly reported result. Round robin has no structural
  * dependencies between matches, so any played match can be corrected.
  */
-function correctResult(bracket, matchId, newWinnerId, newScore = null) {
+function correctResult(bracket, matchId, newWinnerId, newScore = null, newGoals = null) {
   const match = findMatch(bracket, matchId);
   if (!match) throw new Error('Match not found');
   if (!match.winner) throw new Error('This match has no result yet — use the normal report instead');
@@ -373,10 +401,15 @@ function correctResult(bracket, matchId, newWinnerId, newScore = null) {
 
   // Rewind the OLD game tallies (score-only corrections need this too)
   const oldGames = parseGameScore(match.score);
+  const oldGoals = parseGoals(match.goals);
   const wStand = (id) => bracket.standings.find(s => s.participant.id === id);
   const ow = wStand(match.winner.id), ol = wStand(match.loser.id);
   if (ow) { ow.gamesWon = (ow.gamesWon || 0) - oldGames.winner; ow.gamesLost = (ow.gamesLost || 0) - oldGames.loser; }
   if (ol) { ol.gamesWon = (ol.gamesWon || 0) - oldGames.loser; ol.gamesLost = (ol.gamesLost || 0) - oldGames.winner; }
+  if (oldGoals) {
+    if (ow) { ow.goalsFor = (ow.goalsFor || 0) - oldGoals.winner; ow.goalsAgainst = (ow.goalsAgainst || 0) - oldGoals.loser; }
+    if (ol) { ol.goalsFor = (ol.goalsFor || 0) - oldGoals.loser; ol.goalsAgainst = (ol.goalsAgainst || 0) - oldGoals.winner; }
+  }
 
   if (match.winner.id !== newWinnerId) {
     if (ow) {
@@ -397,6 +430,12 @@ function correctResult(bracket, matchId, newWinnerId, newScore = null) {
   const nw = wStand(match.winner.id), nl = wStand(match.loser.id);
   if (nw) { nw.gamesWon = (nw.gamesWon || 0) + newGames.winner; nw.gamesLost = (nw.gamesLost || 0) + newGames.loser; }
   if (nl) { nl.gamesWon = (nl.gamesWon || 0) + newGames.loser; nl.gamesLost = (nl.gamesLost || 0) + newGames.winner; }
+  const ng = parseGoals(newGoals);
+  match.goals = ng ? `${ng.winner}-${ng.loser}` : null;
+  if (ng) {
+    if (nw) { nw.goalsFor = (nw.goalsFor || 0) + ng.winner; nw.goalsAgainst = (nw.goalsAgainst || 0) + ng.loser; }
+    if (nl) { nl.goalsFor = (nl.goalsFor || 0) + ng.loser; nl.goalsAgainst = (nl.goalsAgainst || 0) + ng.winner; }
+  }
   delete match.isDQ;
   delete match.dqId;
   return bracket;

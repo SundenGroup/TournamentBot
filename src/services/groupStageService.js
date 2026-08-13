@@ -132,11 +132,11 @@ function findMatch(bracket, matchId) {
   return null;
 }
 
-function advanceWinner(bracket, matchId, winnerId, score = null) {
+function advanceWinner(bracket, matchId, winnerId, score = null, goals = null) {
   const g = owningGroup(bracket, matchId);
   if (g) {
     if (bracket.playoffs) throw new Error('Group results are locked once the playoffs have started.');
-    roundRobin.advanceWinner(g.bracket, matchId, winnerId, score);
+    roundRobin.advanceWinner(g.bracket, matchId, winnerId, score, goals);
     return bracket;
   }
   if (bracket.playoffs && playoffEngine(bracket).findMatch(bracket.playoffs, matchId)) {
@@ -146,11 +146,11 @@ function advanceWinner(bracket, matchId, winnerId, score = null) {
   throw new Error('Match not found');
 }
 
-function correctResult(bracket, matchId, newWinnerId, newScore = null) {
+function correctResult(bracket, matchId, newWinnerId, newScore = null, newGoals = null) {
   const g = owningGroup(bracket, matchId);
   if (g) {
     if (bracket.playoffs) throw new Error('Group results are locked once the playoffs have started.');
-    roundRobin.correctResult(g.bracket, matchId, newWinnerId, newScore);
+    roundRobin.correctResult(g.bracket, matchId, newWinnerId, newScore, newGoals);
     return bracket;
   }
   if (bracket.playoffs && playoffEngine(bracket).findMatch(bracket.playoffs, matchId)) {

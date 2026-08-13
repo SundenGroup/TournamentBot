@@ -110,6 +110,10 @@ module.exports = {
           option.setName('score')
             .setDescription('Score (e.g., "2-1", "16-14")')
         )
+        .addStringOption(option =>
+          option.setName('goals')
+            .setDescription('Optional goal totals, winner first — e.g. 7-4 (feeds goal-diff tiebreakers)')
+        )
     )
     .addSubcommand(subcommand =>
       subcommand
@@ -178,6 +182,10 @@ module.exports = {
         .addStringOption(option =>
           option.setName('score')
             .setDescription('Corrected score (e.g., "2-1")')
+        )
+        .addStringOption(option =>
+          option.setName('goals')
+            .setDescription('Optional goal totals, winner first — e.g. 7-4 (feeds goal-diff tiebreakers)')
         )
     )
     .addSubcommand(subcommand =>
@@ -905,6 +913,7 @@ async function handleCorrect(interaction) {
   const matchNumber = interaction.options.getInteger('match_number');
   const winnerId = interaction.options.getString('winner');
   const score = interaction.options.getString('score');
+  const goals = interaction.options.getString('goals');
 
   const tournament = await getGuildTournament(interaction.guildId, tournamentId);
   if (!tournament) return interaction.editReply({ content: '❌ Tournament not found.' });
@@ -912,7 +921,7 @@ async function handleCorrect(interaction) {
   const { correctMatchFlow } = require('../../services/lifecycleService');
   let result;
   try {
-    result = await correctMatchFlow({ client: interaction.client, tournament, matchNumber, winnerId, score });
+    result = await correctMatchFlow({ client: interaction.client, tournament, matchNumber, winnerId, score, goals });
   } catch (error) {
     return interaction.editReply({ content: `❌ ${error.message}` });
   }
@@ -1259,6 +1268,7 @@ async function handleReport(interaction) {
   const matchNumber = interaction.options.getInteger('match_number');
   const winnerId = interaction.options.getString('winner');
   const score = interaction.options.getString('score');
+  const goals = interaction.options.getString('goals');
 
   const tournament = await getGuildTournament(interaction.guildId, tournamentId);
 

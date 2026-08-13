@@ -260,12 +260,12 @@ function buildStartEmbed(tournament, summary) {
  * Caller must have verified: match exists, has both participants, no winner
  * yet, winnerId is one of them, score already normalized (normalizeSeriesScore).
  */
-async function applyMatchReport({ client, guild, tournament, match, winnerId, score }) {
+async function applyMatchReport({ client, guild, tournament, match, winnerId, score, goals }) {
   const bracket = tournament.bracket;
   const service = getServiceForBracket(bracket);
   const isSolo = tournament.settings.teamSize === 1;
 
-  service.advanceWinner(bracket, match.id, winnerId, score);
+  service.advanceWinner(bracket, match.id, winnerId, score, goals || null);
 
   const winner = match.participant1?.id === winnerId ? match.participant1 : match.participant2;
   const loser = match.participant1?.id === winnerId ? match.participant2 : match.participant1;
@@ -356,7 +356,7 @@ async function applyMatchReport({ client, guild, tournament, match, winnerId, sc
  * Correct an already-reported result. Validates the match + score, snapshots
  * the bracket so a mid-correction throw never leaves a half-mutated cache.
  */
-async function correctMatchFlow({ client, tournament, matchNumber, winnerId, score }) {
+async function correctMatchFlow({ client, tournament, matchNumber, winnerId, score, goals }) {
   const bracket = tournament.bracket;
   if (!bracket) throw new Error('Tournament has not started yet.');
   const service = getServiceForBracket(bracket);
@@ -374,7 +374,7 @@ async function correctMatchFlow({ client, tournament, matchNumber, winnerId, sco
 
   const snapshot = JSON.parse(JSON.stringify(bracket));
   try {
-    service.correctResult(bracket, match.id, winnerId, scoreResult.score);
+    service.correctResult(bracket, match.id, winnerId, scoreResult.score, goals || null);
   } catch (error) {
     tournament.bracket = snapshot;
     throw error;

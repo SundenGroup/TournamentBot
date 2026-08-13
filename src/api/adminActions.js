@@ -319,6 +319,7 @@ router.get('/admin/api/tournaments/:id/manage', requireSession, async (req, res)
           name: isSolo ? (row.participant.displayName || row.participant.username) : row.participant.name,
           wins: row.wins, losses: row.losses,
           diff: (row.gamesWon || 0) - (row.gamesLost || 0),
+          gd: (row.goalsFor || 0) + (row.goalsAgainst || 0) > 0 ? (row.goalsFor || 0) - (row.goalsAgainst || 0) : null,
         })),
       })),
     } : null,
@@ -640,7 +641,7 @@ router.post('/admin/api/tournaments/:id/report', ...mutate, async (req, res) => 
 
   try {
     const result = await applyMatchReport({
-      client: getClient(), guild, tournament: t, match, winnerId, score: scoreResult.score,
+      client: getClient(), guild, tournament: t, match, winnerId, score: scoreResult.score, goals: req.body?.goals,
     });
     await audit(req, t, 'report', { matchNumber, winnerId, score: scoreResult.score, completed: result.completed });
     res.json({
@@ -671,6 +672,7 @@ router.post('/admin/api/tournaments/:id/correct', ...mutate, async (req, res) =>
       matchNumber: parseInt(req.body?.matchNumber, 10),
       winnerId: String(req.body?.winnerId || ''),
       score: req.body?.score,
+      goals: req.body?.goals,
     });
     await audit(req, t, 'correct', { matchNumber: result.match.matchNumber, winnerId: req.body?.winnerId, score: result.normalizedScore });
     res.json({
