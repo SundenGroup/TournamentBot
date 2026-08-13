@@ -869,7 +869,7 @@ function renderRunLeft() {
             <span class="vs">VS</span>
             <button class="wbtn ${sel.winner === m.participant2.id ? 'on' : ''}" data-win="${esc(m.participant2.id)}" title="${esc(m.participant2.name)}">${esc(m.participant2.name)}</button>
           </div>
-          <div class="rep-score">${scoreUi}<input class="free" data-goals="${m.matchNumber}" placeholder="goals 7-4" title="Optional goal totals, winner first — feeds goal-diff tiebreakers" style="width:76px" value="${esc(sel.goals || '')}"><button class="rep-go ${ready ? '' : 'dim'}" data-report>Report</button></div>
+          <div class="rep-score">${scoreUi}${d.trackGoals ? `<input class="free" data-goals="${m.matchNumber}" placeholder="goals 7-4" title="Optional goal totals, winner first — feeds goal-diff tiebreakers" style="width:76px" value="${esc(sel.goals || '')}">` : ''}<button class="rep-go ${ready ? '' : 'dim'}" data-report>Report</button></div>
         </div>`;
       }).join('');
       html += moreBtn('report', pending.length, visible.length);
@@ -923,7 +923,7 @@ function renderRunLeft() {
           <button class="wsm ${fw === m.participant1.id ? 'on' : ''}" data-fwin="${esc(m.participant1.id)}">${esc(m.participant1.name)}</button>
           <button class="wsm ${fw === m.participant2.id ? 'on' : ''}" data-fwin="${esc(m.participant2.id)}">${esc(m.participant2.name)}</button>
           ${scoreChips}
-          <input class="free" data-fgoals placeholder="goals 7-4" title="Optional goal totals, winner first" value="${esc(fix.goals || '')}" style="width:76px">
+          ${d.trackGoals ? `<input class="free" data-fgoals placeholder="goals 7-4" title="Optional goal totals, winner first" value="${esc(fix.goals || '')}" style="width:76px">` : ''}
           <button class="save" data-save>Save</button>
         </div>
       </div>`;
@@ -1639,6 +1639,7 @@ function renderCreate() {
         <label id="cCaptainWrap" style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px"><input type="checkbox" id="cCaptain" style="accent-color:var(--accent)"> Captain mode <span class="protag">PRO</span></label>
         <label id="cThirdWrap" style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px"><input type="checkbox" id="cThird" style="accent-color:var(--accent)"> 3rd-place match</label>
         <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px"><input type="checkbox" id="cNick" ${g.nickSummary ? 'checked' : ''} style="accent-color:var(--accent)"> Require ${esc(g.nickSummary || 'in-game IDs')}</label>
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px" title="Reporting asks for goal totals (7-4) — feeds goal-diff tiebreakers"><input type="checkbox" id="cTrackGoals" checked style="accent-color:var(--accent)"> Track match goals</label>
       </div>
       <div class="field full" id="cRolesWrap" style="display:none">
         <label>Required roles <span class="protag">PRO</span> <span style="font-size:11px;color:var(--text-faint);font-weight:400;text-transform:none;letter-spacing:0">— entrants need at least one</span></label>
@@ -1733,6 +1734,7 @@ function renderCreate() {
         captainMode: body.querySelector('#cCaptain').checked,
         thirdPlaceMatch: body.querySelector('#cThird').checked,
         requireGameNick: body.querySelector('#cNick').checked,
+        trackGoals: body.querySelector('#cTrackGoals').checked,
         requiredRoles: [...body.querySelectorAll('.crole:checked')].map(el => el.value),
         brScoringModel: body.querySelector('#cBRScoring').value || undefined,
         gamesPerStage: body.querySelector('#cBRGames').value || undefined,

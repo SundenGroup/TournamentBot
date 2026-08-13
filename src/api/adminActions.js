@@ -308,6 +308,7 @@ router.get('/admin/api/tournaments/:id/manage', requireSession, async (req, res)
     seedingEnabled: !!t.settings.seedingEnabled,
     signupCloseTime: t.settings.signupCloseTime ?? null,
     signupCap: t.settings.signupCap ?? null,
+    trackGoals: t.settings.trackGoals !== false,
     groupStage: t.bracket?.type === 'group_stage' ? {
       stage: t.bracket.stage,
       playoffFormat: t.bracket.playoffFormat,
@@ -410,6 +411,7 @@ router.post('/admin/api/guilds/:guildId/tournaments', ...mutate, requireGuildAdm
   const requireGameNick = !!b.requireGameNick;
   const captainMode = !!b.captainMode && teamSize > 1;
   const thirdPlaceMatch = !!b.thirdPlaceMatch && format === 'single_elimination';
+  const trackGoals = b.trackGoals === undefined ? true : !!b.trackGoals;
 
   let requiredRoles = [];
   if (Array.isArray(b.requiredRoles) && b.requiredRoles.length) {
@@ -520,6 +522,7 @@ router.post('/admin/api/guilds/:guildId/tournaments', ...mutate, requireGuildAdm
         requireGameNick,
         captainMode,
         thirdPlaceMatch,
+        trackGoals,
         requiredRoles,
         brScoringModel,
         gamesPerStage,

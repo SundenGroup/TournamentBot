@@ -95,9 +95,12 @@ async function createTournament(data) {
       // the field is selected at start (seeds → checked-in → signup order).
       signupCap: data.signupCap ?? null,
 
+      // Optional goal tracking (default on): tap-report asks for goal totals,
+      // feeding the goal-diff tiebreakers. Off = no goal prompts anywhere.
+      trackGoals: data.trackGoals ?? true,
+
       // Group Stage format options
       groupSize: data.groupSize ?? 4,
-      advancingPerGroup: data.advancingPerGroup ?? 2,
       playoffFormat: data.playoffFormat ?? 'single_elimination',
 
       seedingEnabled: data.seedingEnabled ?? DEFAULT_TOURNAMENT_SETTINGS.seedingEnabled,
@@ -116,7 +119,7 @@ async function createTournament(data) {
       // Battle Royale specific settings (preset brDefaults → generic default)
       lobbySize: data.lobbySize ?? brDefaults.lobbySize ?? 20,
       gamesPerStage: data.gamesPerStage ?? brDefaults.gamesPerStage ?? 3,
-      advancingPerGroup: data.advancingPerGroup ?? null, // null = auto calculate
+      advancingPerGroup: data.advancingPerGroup ?? (isBR ? null : 2), // BR: null = auto; group stage: top 2
       brScoringModel: isBR ? (data.brScoringModel || brDefaults.scoringModel || 'placement') : null,
       brScoring, // resolved {model,label,placementPoints,killPoints,killMultipliers} — null for bracket formats
 

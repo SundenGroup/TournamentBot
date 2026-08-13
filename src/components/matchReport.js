@@ -3,7 +3,7 @@
 // The actual report side-effects live in lifecycleService.applyMatchReport —
 // shared with /tournament report and the web-admin dashboard.
 
-const { ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
+const { ActionRowBuilder, ButtonBuilder, ButtonStyle, ModalBuilder, TextInputBuilder, TextInputStyle } = require('discord.js');
 const { getTournament } = require('../services/tournamentService');
 const { canManageTournaments } = require('../utils/permissions');
 const { getServiceForBracket, findMatchById, validSeriesScores } = require('../utils/matchUtils');
@@ -19,7 +19,27 @@ function findBracketMatch(bracket, matchId) {
  * the match-room message. `interaction` must be a component interaction on the
  * match-room message. Shared by the Bo1 win buttons and the Bo>1 score picker.
  */
-async function finalizeMatchReport(interaction, tournament, match, winner, score) {
+async function finalizeMatchReport(interaction, tournament, match, winner, score, goals) {
+  // Goal tracking (settings.trackGoals, default on): intercept the tap flow
+  // once with a one-field popup — type "7-4" (winner first) or submit empty
+  // to skip. The modal's submit re-enters here with `goals` set.
+  if (goals === undefined && tournament.settings.trackGoals !== false) {
+    const slot = winner.id === match.participant1?.id ? '1' : '2';
+    const modal = new ModalBuilder()
+      .setCustomId(`matchGoals:${tournament.id}:${match.id}:${slot}:${score || 'ns'}`)
+      .setTitle(`Match #${match.matchNumber} — goals`)
+      .addComponents(new ActionRowBuilder().addComponents(
+        new TextInputBuilder()
+          .setCustomId('goals')
+          .setLabel('Goal totals, winner first (e.g. 7-4)')
+          .setPlaceholder('7-4 — leave empty to skip')
+          .setStyle(TextInputStyle.Short)
+          .setRequired(false)
+          .setMaxLength(7)
+      ));
+    return interaction.showModal(modal);
+  }
+
   // Ack immediately — the flow (DMs, room creation, announcements) can exceed
   // Discord's 3s interaction window.
   await interaction.deferUpdate();
@@ -31,6 +51,7 @@ async function finalizeMatchReport(interaction, tournament, match, winner, score
     match,
     winnerId: winner.id,
     score,
+    goals: goals || null,
   });
 
   const winnerName = result.isSolo ? winner.username : winner.name;
