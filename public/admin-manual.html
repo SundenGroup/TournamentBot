@@ -381,6 +381,18 @@
     shows <em>Signups close: Closed</em>. Withdrawals stay possible, and admins can still add latecomers with
     <code>/tournament add-player</code> / <code>add-team</code>.</p>
 
+    <h3>Bulk add players (spreadsheet paste)</h3>
+    <p>Bringing a whole qualified field over — say the players who made it through a GOALS qualifier?
+    On the dashboard's <strong>Entrants</strong> tab, open <strong>📥 Bulk add players</strong> and paste one
+    player per line: <strong>Discord username or ID</strong>, then the tournament's signup fields (for GOALS
+    that's <strong>GOALS Username</strong> and <strong>GOALS User ID</strong>, validated exactly like a real
+    signup), then an optional <strong>seed</strong>. Columns can be separated by tabs — so you can copy
+    straight out of Excel or Google Sheets — or by semicolons or commas. Everyone is matched against your
+    server's member list (use the Discord user ID when a name is ambiguous), added as if they signed up,
+    and you can tick <strong>Check everyone in too</strong> to mark the whole import present. Lines that
+    can't be imported are listed with the reason — fix those lines and paste just them again; already-added
+    players are skipped, never duplicated.</p>
+
     <h3>More signups than the bracket holds <span class="tag tag-studio">Studio</span></h3>
     <p>Brackets top out at 512, but for qualifier-style events you can let <strong>up to 2048</strong> sign up
     (and check in): set a <strong>Signup cap</strong> above the bracket size in the web dashboard's edit card

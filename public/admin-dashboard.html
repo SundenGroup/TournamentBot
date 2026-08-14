@@ -420,6 +420,7 @@ let openBRGame = null;         // "stageKey:gameNumber" — which BR grid is ope
 let runTab = null;             // 'report' | 'decided' | 'entrants' | 'games' (BR)
 let runShow = {};              // per-tab pagination { report: 25, decided: 30, entrants: 60 }
 let runQ = {};                 // per-tab quick filter text
+let bulkReport = null;         // {tid, html} — last bulk-add skip report, survives re-renders
 let BRSEL = {};                // "stageKey:gameNumber" -> { order: [teamId], kills: {teamId: n} }
 
 // ── helpers (api / toast / armConfirm) ──────────────────────────────────────
@@ -964,6 +965,13 @@ function renderRunLeft() {
         ${d.nickSummary ? `<input id="addNick" placeholder="${esc(d.nickSummary)}" style="flex:1;min-width:140px;background:var(--bg-sunken);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:7px 10px">` : ''}
         <button class="btn btn-sm" data-add-entrant>＋ Add player</button>
       </div>
+      <details style="margin:0 0 10px" ${bulkReport && bulkReport.tid === d.id ? 'open' : ''}><summary style="cursor:pointer;font-size:12.5px;color:var(--text-2)">📥 Bulk add players (paste from a spreadsheet)</summary>
+        <p style="font-size:12px;color:var(--text-faint);margin:8px 0 2px">One player per line: <b>${['Discord username or ID', ...(d.nickFieldLabels || []).map(esc), 'seed (optional)'].join('</b> · <b>')}</b> — separated by tabs (straight paste from Excel/Sheets), semicolons or commas.</p>
+        <textarea id="bulkRoster" rows="6" placeholder="${d.nickFieldLabels?.length ? `silverfox; SilverFox; ${'x'.repeat(8)}-goals-user-id; 1` : 'silverfox; 1&#10;123456789012345678'}" style="width:100%;margin:6px 0;background:var(--bg-sunken);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:8px 10px;font-size:13px;font-family:var(--mono)"></textarea>
+        <label style="display:flex;align-items:center;gap:6px;font-size:12.5px;color:var(--text-2);margin:0 0 8px;cursor:pointer"><input type="checkbox" id="bulkCheckin" style="accent-color:var(--accent)"> Check everyone in too</label>
+        <button class="btn btn-sm" data-bulk-add>Add players</button>
+        <div id="bulkResult" style="font-size:12px;color:var(--text-2);margin-top:8px;line-height:1.7">${bulkReport && bulkReport.tid === d.id ? bulkReport.html : ''}</div>
+      </details>
       <details style="margin:0 0 10px"><summary style="cursor:pointer;font-size:12.5px;color:var(--text-2)">🧪 Add test players (fake names + seeds, testing only)</summary>
         <textarea id="testRoster" rows="5" placeholder="One per line — Name, seed (seed optional):&#10;Zlatan Ibrahimović, 1&#10;Alex Johnson, 2&#10;Kim Berg" style="width:100%;margin:8px 0 6px;background:var(--bg-sunken);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:8px 10px;font-size:13px"></textarea>
         <button class="btn btn-sm" data-add-test-roster>Add test players</button>
@@ -1353,6 +1361,27 @@ function wireRunLeft(d, left) {
     addBtn.disabled = false;
     if (!r.ok) return toast(r.error, true);
     toast(`${r.data.name} added${r.data.checkedIn ? ' and checked in' : ''}.`);
+    refreshRun();
+  });
+
+  const bulkBtn = left.querySelector('[data-bulk-add]');
+  if (bulkBtn) bulkBtn.addEventListener('click', async () => {
+    const list = left.querySelector('#bulkRoster').value;
+    if (!list.trim()) return toast('Paste at least one line.', true);
+    bulkBtn.disabled = true; bulkBtn.textContent = 'Adding…';
+    const r = await api(`/admin/api/tournaments/${d.id}/bulk-add-entrants`, {
+      method: 'POST', body: { list, checkinAll: left.querySelector('#bulkCheckin').checked },
+    });
+    bulkBtn.disabled = false; bulkBtn.textContent = 'Add players';
+    if (!r.ok) return toast(r.error, true);
+    toast(`${r.data.added} player${r.data.added === 1 ? '' : 's'} added${r.data.checkedIn ? `, ${r.data.checkedIn} checked in` : ''}${r.data.skipped.length ? ` · ${r.data.skipped.length} skipped` : ''}.`, false);
+    bulkReport = {
+      tid: d.id,
+      html: r.data.skipped.length
+        ? `<b>Skipped ${r.data.skipped.length}:</b><br>${r.data.skipped.map(s =>
+            `• <span style="font-family:var(--mono)">${esc(s.line.length > 44 ? s.line.slice(0, 44) + '…' : s.line)}</span> — ${esc(s.reason)}`).join('<br>')}`
+        : `<span style="color:var(--ok,#2ecc71)">All ${r.data.added} lines imported cleanly.</span>`,
+    };
     refreshRun();
   });
 

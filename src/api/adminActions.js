@@ -326,6 +326,8 @@ router.get('/admin/api/tournaments/:id/manage', requireSession, async (req, res)
     } : null,
     seedCsv: (await checkFeature(t.guildId, 'seed_csv')).allowed,
     nickSummary: t.settings.requireGameNick ? getNickSummary(t.game) : null,
+    // Column labels for the bulk-add hint (e.g. GOALS Username, GOALS User ID)
+    nickFieldLabels: t.settings.requireGameNick ? getNickFields(t.game).map(f => f.label) : [],
     entrants,
     matches,
     br,
@@ -1036,6 +1038,151 @@ router.post('/admin/api/tournaments/:id/add-entrant', ...mutate, async (req, res
     await updateTournamentMessages(getClient(), result.tournament).catch(() => {});
     await audit(req, t, 'add-entrant', { userId: member.user.id });
     res.json({ ok: true, name: member.displayName || member.user.username, checkedIn: !!result.participant?.checkedIn });
+  } catch (err) {
+    console.error(`[web-admin] ${req.method} ${req.path} failed:`, err.message);
+    res.status(400).json({ error: err.message });
+  }
+});
+
+// Bulk add real players (qualifier pipelines): one per line —
+// "Discord username or ID [sep] <game fields when required> [sep] seed?".
+// Separator: tab (spreadsheet paste), semicolon, or comma — first one found
+// wins per line. Members are resolved against one full member sweep (fallback:
+// per-line lookup), then added through the same admin path as single add.
+router.post('/admin/api/tournaments/:id/bulk-add-entrants', ...mutate, async (req, res) => {
+  const t = await loadOwnedForMutation(req, res);
+  if (!t) return;
+  try {
+    if (t.settings.teamSize > 1) return res.status(400).json({ error: 'Team tournaments: register teams via /tournament add-team in Discord.' });
+    if (!['registration', 'checkin'].includes(t.status)) return res.status(400).json({ error: 'Players can only be added before the tournament starts.' });
+
+    const lines = String(req.body?.list || '').split('\n').map(l => l.trim()).filter(Boolean);
+    if (!lines.length) return res.status(400).json({ error: 'Paste at least one line.' });
+    if (lines.length > 512) return res.status(400).json({ error: 'Max 512 lines per paste — split bigger imports.' });
+    const checkinAll = !!req.body?.checkinAll;
+
+    const guild = getClient().guilds.cache.get(t.guildId);
+    if (!guild) return res.status(503).json({ error: 'Bot is not in this server right now.' });
+
+    const { validateNick } = require('../utils/nickValidation');
+    const nickFields = t.settings.requireGameNick ? getNickFields(t.game) : [];
+
+    // One member sweep, resolved locally: usernames are unique on Discord,
+    // display names only count when exactly one member carries them.
+    let byId = null, byUsername = null, byDisplay = null;
+    try {
+      const members = await Promise.race([
+        guild.members.fetch(),
+        new Promise((_, rej) => setTimeout(() => rej(new Error('member fetch timed out')), 20000)),
+      ]);
+      byId = members;
+      byUsername = new Map();
+      byDisplay = new Map();
+      for (const m of members.values()) {
+        byUsername.set(m.user.username.toLowerCase(), m);
+        const d = (m.displayName || '').toLowerCase();
+        if (d) byDisplay.set(d, byDisplay.has(d) ? 'DUP' : m);
+      }
+    } catch (err) {
+      console.warn('bulk-add: full member fetch unavailable, using per-line lookup:', err.message);
+    }
+
+    const resolveMember = async (q) => {
+      if (/^\d{17,20}$/.test(q)) {
+        return byId ? (byId.get(q) || null) : guild.members.fetch(q).catch(() => null);
+      }
+      const lower = q.toLowerCase();
+      if (byUsername) {
+        if (byUsername.has(lower)) return byUsername.get(lower);
+        const d = byDisplay.get(lower);
+        return d === 'DUP' ? 'AMBIGUOUS' : (d || null);
+      }
+      const found = await guild.members.search({ query: q, limit: 5 }).catch(() => null);
+      if (!found || found.size === 0) return null;
+      const exact = [...found.values()].filter(m =>
+        m.user.username.toLowerCase() === lower || (m.displayName || '').toLowerCase() === lower);
+      if (exact.length === 1) return exact[0];
+      if (found.size === 1) return found.first();
+      return 'AMBIGUOUS';
+    };
+
+    const { addParticipant, updateTournament } = require('../services/tournamentService');
+    let added = 0;
+    const skipped = [];
+    const seeds = new Map();
+    const addedIds = new Set();
+    let full = false;
+
+    for (const line of lines) {
+      if (full) { skipped.push({ line, reason: 'Tournament is full' }); continue; }
+      const cols = (line.includes('\t') ? line.split('\t') : line.includes(';') ? line.split(';') : line.split(','))
+        .map(c => c.trim());
+      const query = cols[0];
+      if (!query) { skipped.push({ line, reason: 'Missing Discord username/ID' }); continue; }
+
+      // Optional trailing seed — one extra numeric column beyond the fields
+      const rest = cols.slice(1);
+      let seed = null;
+      if (rest.length > nickFields.length && /^\d{1,4}$/.test(rest[rest.length - 1])) {
+        seed = parseInt(rest.pop(), 10);
+      }
+
+      // Game fields: same validation as the Discord signup modal
+      const gameFields = {};
+      let gameNick = null;
+      if (nickFields.length) {
+        let bad = null;
+        for (let i = 0; i < nickFields.length; i++) {
+          const check = validateNick(rest[i] || '', nickFields[i], 'The');
+          if (!check.ok) { bad = check.error; break; }
+          gameFields[nickFields[i].key] = check.value;
+          if (!nickFields[i].private && gameNick === null) gameNick = check.value;
+        }
+        if (bad) { skipped.push({ line, reason: bad }); continue; }
+      } else if (rest[0]) {
+        gameNick = rest[0];
+      }
+
+      const member = await resolveMember(query);
+      if (member === 'AMBIGUOUS') { skipped.push({ line, reason: `Several members match "${query}" — use their Discord user ID` }); continue; }
+      if (!member) { skipped.push({ line, reason: `No server member found for "${query}"` }); continue; }
+
+      const result = await addParticipant(t.id, {
+        id: member.user.id,
+        username: member.user.username,
+        displayName: member.displayName || member.user.username,
+        gameNick,
+        gameFields: nickFields.length ? gameFields : null,
+      }, { byAdmin: true });
+      if (!result.success) {
+        if (result.error === 'Tournament is full') full = true;
+        skipped.push({ line, reason: result.error === "You're already signed up!" ? 'Already signed up' : result.error });
+        continue;
+      }
+      added++;
+      addedIds.add(member.user.id);
+      if (seed) seeds.set(member.user.id, seed);
+    }
+
+    // Seeds + optional check-in in one write against the fresh row
+    let checkedIn = 0;
+    if (added > 0 && (seeds.size || checkinAll)) {
+      const fresh = await getTournament(t.id);
+      if (fresh) {
+        for (const p of fresh.participants) {
+          if (seeds.has(p.id)) p.seed = seeds.get(p.id);
+          if (checkinAll && addedIds.has(p.id) && !p.checkedIn) { p.checkedIn = true; checkedIn++; }
+        }
+        await updateTournament(fresh.id, { participants: fresh.participants });
+      }
+    }
+
+    if (added > 0) {
+      const freshT = await getTournament(t.id);
+      if (freshT) await updateTournamentMessages(getClient(), freshT).catch(() => {});
+    }
+    await audit(req, t, 'bulk-add-entrants', { added, skipped: skipped.length, checkedIn });
+    res.json({ ok: true, added, checkedIn, skipped });
   } catch (err) {
     console.error(`[web-admin] ${req.method} ${req.path} failed:`, err.message);
     res.status(400).json({ error: err.message });
