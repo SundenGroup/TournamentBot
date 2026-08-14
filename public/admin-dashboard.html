@@ -221,7 +221,10 @@
   .picked-bar .change { margin-left: auto; background: none; border: 0; color: var(--accent); font-size: 12px; font-weight: 600; cursor: pointer; }
   .cgrid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 13px; }
   .cgrid .field { min-width: 0; }
-  .cgrid .field input, .cgrid .field select, .cgrid .field textarea { width: 100%; max-width: 100%; box-sizing: border-box; }
+  /* Full width for text-like controls only — a stretched checkbox renders its
+     box mid-row and crushes the label text against the right edge */
+  .cgrid .field input:not([type="checkbox"]):not([type="radio"]), .cgrid .field select, .cgrid .field textarea { width: 100%; max-width: 100%; box-sizing: border-box; }
+  .cgrid .field input[type="checkbox"] { width: auto; flex: 0 0 auto; }
   .cgrid .field label { display: block; overflow-wrap: anywhere; }
   .cgrid .full { grid-column: 1 / -1; }
   @media (max-width: 560px) { .cgrid { grid-template-columns: 1fr; } }
