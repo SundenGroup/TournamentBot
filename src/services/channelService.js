@@ -635,6 +635,12 @@ function collectTournamentChannels(bracket) {
     if (bracket.finals?.channelId) {
       channelIds.push(bracket.finals.channelId);
     }
+  } else if (bracket.type === 'group_stage') {
+    // Nested sub-brackets: every group is a round robin, playoffs an elim
+    for (const g of bracket.groups || []) {
+      channelIds.push(...collectTournamentChannels(g.bracket));
+    }
+    if (bracket.playoffs) channelIds.push(...collectTournamentChannels(bracket.playoffs));
   } else if (bracket.type === 'double_elimination') {
     const allRounds = [
       ...(bracket.winnersRounds || []),
@@ -787,6 +793,12 @@ async function bulkCleanupChannels(guild, channelIds, mode) {
 
 function clearBracketChannelIds(bracket) {
   if (!bracket) return;
+
+  if (bracket.type === 'group_stage') {
+    for (const g of bracket.groups || []) clearBracketChannelIds(g.bracket);
+    if (bracket.playoffs) clearBracketChannelIds(bracket.playoffs);
+    return;
+  }
 
   if (bracket.type === 'battle_royale') {
     if (bracket.groups) {

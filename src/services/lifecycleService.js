@@ -261,6 +261,11 @@ function buildStartEmbed(tournament, summary) {
  * yet, winnerId is one of them, score already normalized (normalizeSeriesScore).
  */
 async function applyMatchReport({ client, guild, tournament, match, winnerId, score, goals }) {
+  // Cancelled/completed tournaments must not keep accepting results — the
+  // room buttons outlive the tournament and used to report into the void.
+  if (tournament.status !== 'active') {
+    throw new Error('This tournament is no longer running — results can\'t be reported.');
+  }
   const bracket = tournament.bracket;
   const service = getServiceForBracket(bracket);
   const isSolo = tournament.settings.teamSize === 1;
@@ -442,6 +447,22 @@ async function disqualifyFlow({ client, tournament, participantId, reason }) {
 async function cancelFlow({ client, tournament }) {
   await updateTournament(tournament.id, { status: 'cancelled' });
   tournament.status = 'cancelled';
+
+  // Take the match rooms down with the tournament (archive mode: transcripts
+  // are saved first where enabled). Best-effort — cancellation must succeed
+  // even if Discord cleanup hiccups.
+  try {
+    const guild = client.guilds.cache.get(tournament.guildId);
+    const channelIds = collectTournamentChannels(tournament.bracket);
+    if (guild && channelIds.length) {
+      await bulkCleanupChannels(guild, channelIds, 'archive');
+      clearBracketChannelIds(tournament.bracket);
+      await updateTournament(tournament.id, { bracket: tournament.bracket });
+      console.log(`Cancel cleanup for "${tournament.title}": ${channelIds.length} room(s) archived`);
+    }
+  } catch (err) {
+    console.error('cancelFlow room cleanup failed:', err);
+  }
 
   webhooks.onTournamentCancelled(tournament);
 
