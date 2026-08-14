@@ -942,7 +942,11 @@ function renderRunLeft() {
         <input id="addUser" placeholder="Discord username or user ID" style="flex:2;min-width:180px;background:var(--bg-sunken);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:7px 10px">
         ${d.nickSummary ? `<input id="addNick" placeholder="${esc(d.nickSummary)}" style="flex:1;min-width:140px;background:var(--bg-sunken);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:7px 10px">` : ''}
         <button class="btn btn-sm" data-add-entrant>＋ Add player</button>
-      </div>`;
+      </div>
+      <details style="margin:0 0 10px"><summary style="cursor:pointer;font-size:12.5px;color:var(--text-2)">🧪 Add test players (fake names + seeds, testing only)</summary>
+        <textarea id="testRoster" rows="5" placeholder="One per line — Name, seed (seed optional):&#10;Zlatan Ibrahimović, 1&#10;Alex Johnson, 2&#10;Kim Berg" style="width:100%;margin:8px 0 6px;background:var(--bg-sunken);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:8px 10px;font-size:13px"></textarea>
+        <button class="btn btn-sm" data-add-test-roster>Add test players</button>
+      </details>`;
     }
     if (d.entrants.length > 15) {
       html += `<input class="tab-filter" data-qfilter="entrants" placeholder="Filter entrants…" value="${esc(runQ.entrants || '')}">`;
@@ -1320,6 +1324,18 @@ function wireRunLeft(d, left) {
     addBtn.disabled = false;
     if (!r.ok) return toast(r.error, true);
     toast(`${r.data.name} added${r.data.checkedIn ? ' and checked in' : ''}.`);
+    refreshRun();
+  });
+
+  const rosterBtn = left.querySelector('[data-add-test-roster]');
+  if (rosterBtn) rosterBtn.addEventListener('click', async () => {
+    const list = left.querySelector('#testRoster').value;
+    if (!list.trim()) return toast('Paste at least one name.', true);
+    rosterBtn.disabled = true;
+    const r = await api(`/admin/api/tournaments/${d.id}/add-test-players`, { method: 'POST', body: { list } });
+    rosterBtn.disabled = false;
+    if (!r.ok) return toast(r.error, true);
+    toast(`${r.data.added} test player${r.data.added === 1 ? '' : 's'} added${r.data.skipped.length ? ` · ${r.data.skipped.length} skipped` : ''}.`);
     refreshRun();
   });
 

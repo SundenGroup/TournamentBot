@@ -922,6 +922,56 @@ router.post('/admin/api/tournaments/:id/checkin', ...mutate, async (req, res) =>
   }
 });
 
+// Test roster paste (testing only): create named FAKE players (no Discord
+// accounts) with optional seeds — same fake_ machinery as /admin
+// add-test-players (DMs skipped, marked 'test' everywhere).
+router.post('/admin/api/tournaments/:id/add-test-players', ...mutate, async (req, res) => {
+  const t = await loadOwnedForMutation(req, res);
+  if (!t) return;
+  try {
+    if (t.status !== 'registration' && t.status !== 'checkin') {
+      return res.status(400).json({ error: 'Test players can only be added before the tournament starts.' });
+    }
+    if (t.settings.teamSize > 1) return res.status(400).json({ error: 'Test rosters are solo-only for now.' });
+
+    const { v4: uuidv4 } = require('uuid');
+    const lines = String(req.body?.list || '').split('\n').map(l => l.trim()).filter(Boolean);
+    if (!lines.length) return res.status(400).json({ error: 'Paste one player per line: Name, seed (seed optional).' });
+    if (lines.length > 512) return res.status(400).json({ error: 'Max 512 lines at a time.' });
+
+    const existing = new Set(t.participants.map(pp => pp.username.toLowerCase()));
+    const cap = Math.max(t.settings.maxParticipants || 0, t.settings.signupCap || 0);
+    let added = 0; const skipped = [];
+    for (const line of lines) {
+      const m = /^(.*?)(?:[,;\t]\s*(\d{1,3}))?$/.exec(line);
+      const name = (m[1] || '').trim();
+      const seed = m[2] ? parseInt(m[2], 10) : null;
+      if (!name || name.length > 60) { skipped.push(line.slice(0, 30)); continue; }
+      if (existing.has(name.toLowerCase())) { skipped.push(name + ' (duplicate)'); continue; }
+      if (t.participants.length >= cap) { skipped.push(name + ' (full)'); continue; }
+      t.participants.push({
+        id: `fake_${uuidv4()}`,
+        username: name,
+        displayName: name,
+        seed,
+        checkedIn: false,
+        joinedAt: new Date(),
+        isFake: true,
+      });
+      existing.add(name.toLowerCase());
+      added++;
+    }
+    const { updateTournament } = require('../services/tournamentService');
+    await updateTournament(t.id, { participants: t.participants });
+    await updateTournamentMessages(getClient(), t).catch(() => {});
+    await audit(req, t, 'add-test-players', { added, skipped: skipped.length });
+    res.json({ ok: true, added, skipped });
+  } catch (err) {
+    console.error(`[web-admin] ${req.method} ${req.path} failed:`, err.message);
+    res.status(400).json({ error: err.message });
+  }
+});
+
 // Group stage: lock groups, build + announce the playoff bracket
 router.post('/admin/api/tournaments/:id/start-playoffs', ...mutate, async (req, res) => {
   const t = await loadOwnedForMutation(req, res);
