@@ -401,7 +401,8 @@ function normMatch(m, active) {
 function buildModel(d) {
   const b = d.bracket;
   if (!b || (b.type !== 'single_elimination' && b.type !== 'double_elimination')) return null;
-  const active = d.status === 'active';
+  // roomsPending: bracket published ahead of play — nothing is LIVE yet
+  const active = d.status === 'active' && !d.roomsPending;
 
   const mapRounds = rounds => (rounds || []).map(r => (r.matches || []).map(m => normMatch(m, active)));
 
@@ -745,7 +746,9 @@ function renderHero(d) {
   $('statusPill').outerHTML = {
     registration: '<span class="pill reg" id="statusPill">Registration open</span>',
     checkin: '<span class="pill check" id="statusPill">Check-in</span>',
-    active: '<span class="pill live" id="statusPill">● Live</span>',
+    active: d.roomsPending
+      ? '<span class="pill check" id="statusPill">Bracket set — starting soon</span>'
+      : '<span class="pill live" id="statusPill">● Live</span>',
     completed: '<span class="pill done" id="statusPill">Final</span>',
     cancelled: '<span class="pill done" id="statusPill">Cancelled</span>',
   }[d.status] || '<span id="statusPill"></span>';

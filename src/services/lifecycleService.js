@@ -37,7 +37,7 @@ const FORMAT_NAMES = {
  * persist, refresh the announcement, fire webhooks.
  * Throws on validation failure; rolls back the status lock on mid-flight failure.
  */
-async function startTournamentFlow({ client, guild, tournamentId }) {
+async function startTournamentFlow({ client, guild, tournamentId, openRooms = true }) {
   const tournament = await getTournament(tournamentId);
   if (!tournament) throw new Error('Tournament not found.');
   if (tournament.status !== 'registration' && tournament.status !== 'checkin') {
@@ -98,7 +98,7 @@ async function startTournamentFlow({ client, guild, tournamentId }) {
       ? bracket.groups.length
       : service.getActiveMatches(bracket).filter(m => m.participant1 && m.participant2).length;
     const capacity = getChannelCapacity(guild);
-    if (roomsNeeded > capacity.available) {
+    if (openRooms && roomsNeeded > capacity.available) {
       throw new Error(
         `Starting needs **${roomsNeeded}** ${format === 'battle_royale' ? 'lobby' : 'match'} rooms, but this server ` +
         `only has **${capacity.available}** channel slots free (${capacity.used}/${capacity.cap} used — Discord caps servers at ${capacity.cap} channels). ` +
@@ -113,7 +113,12 @@ async function startTournamentFlow({ client, guild, tournamentId }) {
     let roomsCreated = 0;
     let roomsFailed = 0;
     let capacityHit = false;
-    if (format === 'battle_royale') {
+    if (!openRooms) {
+      // "Publish bracket first": lock the field and show the full bracket
+      // everywhere, but hold the match rooms. The next create-rooms sweep
+      // (command or dashboard button) opens play and clears this flag.
+      bracket.roomsPending = true;
+    } else if (format === 'battle_royale') {
       for (const group of bracket.groups) {
         try {
           const channel = await createBRGroupRoom(guild, group, tournament);
@@ -175,6 +180,9 @@ async function startTournamentFlow({ client, guild, tournamentId }) {
         roomsCreated,
         roomsFailed,
         capacityHit,
+        roomsDeferred: !openRooms,
+        roomsNeeded,
+        capacityShort: !openRooms && roomsNeeded > capacity.available,
         capacity: getChannelCapacity(guild),
         missingPerms: roomsFailed > 0 ? getMissingBotPerms(guild) : [],
         byeSummary: getStartByeSummary(tournament),
@@ -194,15 +202,26 @@ async function startTournamentFlow({ client, guild, tournamentId }) {
 
 /** The "Tournament Started" embed — shared copy for slash + button + logs. */
 function buildStartEmbed(tournament, summary) {
-  const { participantCount, cutCount, isSolo, format, formatName, roomsCreated, roomsFailed, byeSummary, bracketUrl, capacityHit, capacity, missingPerms } = summary;
+  const { participantCount, cutCount, isSolo, format, formatName, roomsCreated, roomsFailed, byeSummary, bracketUrl, capacityHit, capacity, missingPerms, roomsDeferred, roomsNeeded, capacityShort } = summary;
   const bracket = tournament.bracket;
 
-  let description = `**${tournament.title}** is now live!\n\n`;
+  let description = roomsDeferred
+    ? `The bracket for **${tournament.title}** is locked in!\n\n`
+    : `**${tournament.title}** is now live!\n\n`;
   description += `• ${participantCount} ${isSolo ? 'players' : 'teams'} competing\n`;
   if (cutCount > 0) {
     description += `• ✂️ ${cutCount} ${isSolo ? (cutCount === 1 ? 'player' : 'players') : (cutCount === 1 ? 'team' : 'teams')} didn't get a spot — seeded and checked-in ${isSolo ? 'players' : 'teams'} were placed first\n`;
   }
-  description += `• ${roomsCreated} ${format === 'battle_royale' ? 'lobby' : 'match'} rooms created\n`;
+  if (roomsDeferred) {
+    description += `• 📋 ${format === 'battle_royale' ? 'Lobby' : 'Match'} rooms are **not open yet** — everyone can study the bracket first. ` +
+      `Open them when ready with \`/tournament create-rooms\` or the dashboard's **Open match rooms** button.\n`;
+    if (capacityShort) {
+      description += `• ⚠️ Heads-up: opening rooms will need **${roomsNeeded}** channels but only **${capacity?.available ?? '?'}** are free right now — ` +
+        `\`/admin cleanup mode:archive\` old rooms before then.\n`;
+    }
+  } else {
+    description += `• ${roomsCreated} ${format === 'battle_royale' ? 'lobby' : 'match'} rooms created\n`;
+  }
   if (capacityHit) {
     description += `• 🚨 **Server channel limit reached (Discord caps servers at 500)** — ${roomsFailed} room(s) missing. ` +
       `Free slots with \`/admin cleanup mode:archive\`, then run \`/tournament create-rooms\`.\n`;
@@ -228,7 +247,9 @@ function buildStartEmbed(tournament, summary) {
     description += `• Teams to Finals: ${bracket.totalAdvancing}\n`;
   }
 
-  if (format === 'battle_royale') {
+  if (roomsDeferred) {
+    description += `\nPlayers can check their matchups now — matches begin when the rooms open.`;
+  } else if (format === 'battle_royale') {
     description += `\nEach lobby room has a live standings board — admins report`;
     description += `\nresults by tapping the **\uD83C\uDFAE Game** buttons. No typing needed.`;
   } else {
@@ -243,8 +264,8 @@ function buildStartEmbed(tournament, summary) {
   }
 
   const embed = new EmbedBuilder()
-    .setTitle('🚀 Tournament Started!')
-    .setColor(0x2ecc71)
+    .setTitle(roomsDeferred ? '🔒 Bracket Published!' : '🚀 Tournament Started!')
+    .setColor(roomsDeferred ? 0x5865f2 : 0x2ecc71)
     .setDescription(description);
   if (tournament.game.logo) embed.setThumbnail(tournament.game.logo);
   return embed;
@@ -697,6 +718,10 @@ async function createRoomsFlow({ guild, tournament }) {
         const channel = await createBRGroupRoom(guild, group, tournament);
         group.channelId = channel.id;
         created++;
+        // Post the standings board (report buttons live there) — same as at
+        // start; without it a recreated lobby room has no way to report.
+        await refreshBRBoard(guild.client, { ...tournament, bracket }, group).catch(err =>
+          console.error('create-rooms BR board post failed:', err.message));
       } catch (error) {
         console.error('create-rooms BR error:', error);
         failed++;
@@ -733,11 +758,34 @@ async function createRoomsFlow({ guild, tournament }) {
   if (capacityHit) bracket.capacityHit = true;
   else if (failed === 0 && bracket.capacityHit) bracket.capacityHit = false;
 
-  if (created > 0 || capacityHit || (failed === 0 && bracket.capacityHit === false)) {
+  // Deferred start ("publish bracket first"): the first sweep that actually
+  // produces rooms is the moment play begins — clear the flag and tell players.
+  let opened = false;
+  if (bracket.roomsPending && (created > 0 || existing > 0)) {
+    delete bracket.roomsPending;
+    opened = true;
+  }
+
+  if (created > 0 || opened || capacityHit || (failed === 0 && bracket.capacityHit === false)) {
     await updateTournament(tournament.id, { bracket });
   }
+
+  if (opened) {
+    try {
+      const channel = await guild.client.channels.fetch(tournament.channelId);
+      await channel.send(
+        `🚪 **Match rooms are open for ${tournament.title}!** ` +
+        `${created} room${created === 1 ? '' : 's'} created — find your match room and play. Good luck! 🎮`
+      );
+    } catch (err) {
+      console.error('rooms-open announce failed:', err.message);
+    }
+    // Announcement embed drops its "rooms open soon" note
+    await require('../utils/tournamentUpdater').updateTournamentMessages(guild.client, tournament).catch(() => {});
+  }
+
   const capacity = getChannelCapacity(guild);
-  return { created, failed, existing, capacityHit, capacity };
+  return { created, failed, existing, capacityHit, capacity, opened };
 }
 
 // ─── Battle Royale: game reports, corrections, kills ─────────────────────────
@@ -1235,7 +1283,7 @@ async function triggerAutoCleanup(guild, tournament) {
 
 // ─── Group Stage: groups → playoffs transition (admin-triggered) ─────────────
 
-async function startPlayoffsFlow({ client, guild, tournament, useCustomSeeds = false }) {
+async function startPlayoffsFlow({ client, guild, tournament, useCustomSeeds = false, openRooms = true }) {
   if (tournament.status !== 'active') throw new Error('The tournament is not running.');
   if (tournament.bracket?.type !== 'group_stage') throw new Error('This tournament has no group stage.');
 
@@ -1245,12 +1293,17 @@ async function startPlayoffsFlow({ client, guild, tournament, useCustomSeeds = f
   // Throws with precise guidance when groups are open / already started / groups-only
   const { qualifiers, customSeeds } = groupStage.startPlayoffs(bracket, tournament.settings, { useCustomSeeds });
 
+  // Deferred: publish the playoff bracket for everyone first; the next
+  // create-rooms sweep opens play (clears the flag + pings the channel).
+  if (!openRooms) bracket.roomsPending = true;
   tournament.bracket = bracket;
   await updateTournament(tournament.id, { bracket });
 
   // Rooms for playoff round one (same sweep as /tournament create-rooms —
   // capacity-aware, repairs included)
-  const rooms = await createRoomsFlow({ guild, tournament });
+  const rooms = openRooms
+    ? await createRoomsFlow({ guild, tournament })
+    : { created: 0, failed: 0, existing: 0, deferred: true };
 
   await updateTournamentMessages(client, tournament);
 
@@ -1258,10 +1311,12 @@ async function startPlayoffsFlow({ client, guild, tournament, useCustomSeeds = f
   try {
     const channel = await client.channels.fetch(tournament.channelId);
     const lines = qualifiers.map(q => `**${q.group}${q.position}** ${q.participant.username || q.participant.name}`);
-    await channel.send(
-      `🏁 **Group stage complete — playoffs are live!**\n` +
-      `${qualifiers.length} qualified${customSeeds ? ' (custom seeding)' : ''}: ${lines.join(' · ')}\n` +
-      `${rooms.created} playoff room${rooms.created === 1 ? '' : 's'} created — check your match room!`
+    const intro = `${qualifiers.length} qualified${customSeeds ? ' (custom seeding)' : ''}: ${lines.join(' · ')}\n`;
+    await channel.send(openRooms
+      ? `🏁 **Group stage complete — playoffs are live!**\n` + intro +
+        `${rooms.created} playoff room${rooms.created === 1 ? '' : 's'} created — check your match room!`
+      : `🔒 **The playoff bracket is set!**\n` + intro +
+        `Check your matchups — match rooms open soon.`
     );
   } catch (err) {
     console.error('startPlayoffsFlow announce failed:', err);

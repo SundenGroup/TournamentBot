@@ -557,6 +557,17 @@
     1..N (CSV import works too) and press <strong>Start with custom seeds</strong>. Group results lock
     once the playoffs begin.</p>
 
+    <h3>Publish the bracket first, open rooms later</h3>
+    <p>Want everyone to see the bracket or the groups <em>before</em> play begins — say, matchups
+    revealed the day before? Start with rooms held back: the dashboard's
+    <strong>📋 Publish bracket only</strong> button, or <code>/tournament start open_rooms:False</code>.
+    The field locks, the full bracket appears on the live page and in the announcement, and bye players
+    get their DMs — but no match rooms are created and nothing can be played. When it's time,
+    press <strong>🚪 Open match rooms</strong> (or run <code>/tournament create-rooms</code>): the rooms
+    are created and players get pinged in the tournament channel. The same choice exists for
+    Group Stage playoffs — untick <strong>Open match rooms right away</strong> next to the Start playoffs
+    button, or use <code>/tournament start-playoffs open_rooms:False</code>.</p>
+
     <h3>Seeding from a spreadsheet <span class="tag tag-studio">Studio</span></h3>
     <p>For big fields, do the seeding in Excel or Google Sheets instead of typing into the form:</p>
     <ol>
@@ -786,7 +797,7 @@
           <tr><td><code>/tournament create-advanced</code></td><td>Create with full settings control — also takes <code>channel:</code></td></tr>
           <tr><td><code>/tournament list</code></td><td>List all tournaments in the server</td></tr>
           <tr><td><code>/tournament info</code></td><td>View a tournament's details</td></tr>
-          <tr><td><code>/tournament start</code></td><td>Start a tournament (generates bracket)</td></tr>
+          <tr><td><code>/tournament start</code></td><td>Start a tournament (generates bracket); <code>open_rooms:False</code> publishes the bracket only — open rooms later with create-rooms</td></tr>
           <tr><td><code>/tournament cancel</code></td><td>Cancel a tournament</td></tr>
           <tr><td><code>/tournament edit</code></td><td>Edit title, date, size, best-of, and check-in window (before start)</td></tr>
           <tr><td><code>/tournament signup-close</code></td><td>Set when signups close — a time, <code>now</code>, or <code>off</code> to keep them open until start</td></tr>

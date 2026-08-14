@@ -726,15 +726,23 @@ function renderRun() {
   }
   if (d.can.createRooms) {
     const b = document.createElement('button');
-    b.className = 'btn'; b.textContent = 'Create missing rooms';
-    b.addEventListener('click', async () => {
+    const doRooms = async () => {
       b.disabled = true;
       const r = await api(`/admin/api/tournaments/${d.id}/create-rooms`, { method: 'POST', body: {} });
       b.disabled = false;
       if (!r.ok) return toast(r.error, true);
-      toast(`Rooms: ${r.data.created} created, ${r.data.existing} already existed${r.data.failed ? `, ${r.data.failed} failed` : ''}`, false);
+      toast(r.data.opened
+        ? `🚪 Match rooms are open — ${r.data.created} created, players pinged in the tournament channel`
+        : `Rooms: ${r.data.created} created, ${r.data.existing} already existed${r.data.failed ? `, ${r.data.failed} failed` : ''}`, false);
       refreshRun();
-    });
+    };
+    if (d.roomsPending) {
+      b.className = 'btn btn-accent'; b.textContent = '🚪 Open match rooms';
+      armConfirm(b, '🚪 Open match rooms', 'Start play now? Players get pinged', doRooms);
+    } else {
+      b.className = 'btn'; b.textContent = 'Create missing rooms';
+      b.addEventListener('click', doRooms);
+    }
     actions.appendChild(b);
   }
   if (d.can.start) {
@@ -748,6 +756,16 @@ function renderRun() {
       refreshRun();
     });
     actions.appendChild(b);
+    const p = document.createElement('button');
+    p.className = 'btn'; p.textContent = '📋 Publish bracket only';
+    p.title = 'Locks the field and shows the finished bracket everywhere — match rooms open later with one click';
+    armConfirm(p, '📋 Publish bracket only', 'Lock field + show bracket?', async () => {
+      const r = await api(`/admin/api/tournaments/${d.id}/start`, { method: 'POST', body: { openRooms: false } });
+      if (!r.ok) return toast(r.error, true);
+      toast('📋 Bracket published — open match rooms from this page when ready');
+      refreshRun();
+    });
+    actions.appendChild(p);
   }
   if (d.can.cancel) {
     const b = document.createElement('button');
@@ -978,9 +996,12 @@ function renderRunLeft() {
             : `All groups are done. Starting the playoffs locks group results and builds the bracket (top ${gsd.advancingPerGroup} per group). To use a custom order, set seeds 1..N on the qualifiers in the Seeding tab first.`)
           : 'Playoffs unlock when every group match is reported.'}</p>
         ${gsd.groupsComplete && gsd.playoffFormat !== 'none' ? `
-          <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
             <button class="btn btn-accent btn-sm" data-start-playoffs="0">🏁 Start playoffs</button>
             <button class="btn btn-sm" data-start-playoffs="1" title="Uses the seeds set in the Seeding tab (must be a full 1..N)">Start with custom seeds</button>
+            <label style="display:flex;align-items:center;gap:6px;color:var(--text-2);font-size:13px;cursor:pointer" title="Untick to publish the playoff bracket first — everyone sees the matchups, and you open the rooms later with one click">
+              <input type="checkbox" id="poOpenRooms" checked> Open match rooms right away
+            </label>
           </div>` : ''}
       </div>`;
     }
@@ -1303,11 +1324,16 @@ function wireRunLeft(d, left) {
   left.querySelectorAll('[data-start-playoffs]').forEach(btn => armConfirm(btn, btn.textContent, 'Sure? Locks groups', async () => {
     btn.disabled = true;
     const r = await api(`/admin/api/tournaments/${d.id}/start-playoffs`, {
-      method: 'POST', body: { useCustomSeeds: btn.dataset.startPlayoffs === '1' },
+      method: 'POST', body: {
+        useCustomSeeds: btn.dataset.startPlayoffs === '1',
+        openRooms: left.querySelector('#poOpenRooms')?.checked !== false,
+      },
     });
     btn.disabled = false;
     if (!r.ok) return toast(r.error, true);
-    toast(`Playoffs started — ${r.data.qualifiers} qualified, ${r.data.roomsCreated} rooms created.`);
+    toast(r.data.roomsDeferred
+      ? `📋 Playoff bracket published — ${r.data.qualifiers} qualified. Open match rooms from the top bar when ready.`
+      : `Playoffs started — ${r.data.qualifiers} qualified, ${r.data.roomsCreated} rooms created.`);
     refreshRun();
   }));
 

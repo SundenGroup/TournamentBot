@@ -147,6 +147,9 @@ function buildPayload(tournament) {
     title: tournament.title,
     description: tournament.description,
     status: tournament.status,
+    // Deferred rooms: bracket published, play not started — page shows a
+    // "starting soon" pill instead of ● Live
+    roomsPending: !!tournament.bracket?.roomsPending,
     startTime: tournament.startTime,
     game: {
       name: tournament.game.displayName,

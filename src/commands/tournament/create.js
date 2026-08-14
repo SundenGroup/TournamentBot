@@ -84,6 +84,10 @@ module.exports = {
             .setRequired(true)
             .setAutocomplete(true)
         )
+        .addBooleanOption(option =>
+          option.setName('open_rooms')
+            .setDescription('Open match rooms now? No = publish the bracket only, open rooms later with create-rooms')
+        )
     )
     .addSubcommand(subcommand =>
       subcommand
@@ -269,6 +273,10 @@ module.exports = {
         .addBooleanOption(option =>
           option.setName('use_custom_seeds')
             .setDescription('Use the seeds you set (1..N on every qualifier) instead of standard group-position seeding')
+        )
+        .addBooleanOption(option =>
+          option.setName('open_rooms')
+            .setDescription('Open match rooms now? No = publish the playoff bracket only, open rooms later with create-rooms')
         )
     )
     .addSubcommand(subcommand =>
@@ -790,6 +798,7 @@ async function handleStart(interaction) {
       client: interaction.client,
       guild: interaction.guild,
       tournamentId,
+      openRooms: interaction.options.getBoolean('open_rooms') ?? true,
     });
     await interaction.editReply({ embeds: [buildStartEmbed(started, summary)] });
   } catch (error) {
@@ -1040,10 +1049,14 @@ async function handleStartPlayoffs(interaction) {
       guild: interaction.guild,
       tournament,
       useCustomSeeds,
+      openRooms: interaction.options.getBoolean('open_rooms') ?? true,
     });
     return interaction.editReply({
-      content: `🏁 **Playoffs started** — ${qualifiers.length} qualified${customSeeds ? ' with your custom seeding' : ''}, ` +
-        `${rooms.created} room${rooms.created === 1 ? '' : 's'} created${rooms.failed ? `, ${rooms.failed} failed (retry with /tournament create-rooms)` : ''}.`,
+      content: rooms.deferred
+        ? `🔒 **Playoff bracket published** — ${qualifiers.length} qualified${customSeeds ? ' with your custom seeding' : ''}. ` +
+          `Everyone can see the matchups; open the rooms with \`/tournament create-rooms\` when you're ready to play.`
+        : `🏁 **Playoffs started** — ${qualifiers.length} qualified${customSeeds ? ' with your custom seeding' : ''}, ` +
+          `${rooms.created} room${rooms.created === 1 ? '' : 's'} created${rooms.failed ? `, ${rooms.failed} failed (retry with /tournament create-rooms)` : ''}.`,
     });
   } catch (err) {
     return interaction.editReply({ content: `❌ ${err.message}` });
@@ -1236,6 +1249,7 @@ async function handleCreateRooms(interaction) {
   const { created, failed, existing, capacityHit, capacity } = result;
   let response = `🔧 **${tournament.title}** — match rooms:\n`;
   response += `• ${created} created\n`;
+  if (result.opened) response += `• 🚪 Play is on — players have been pinged in the tournament channel\n`;
   if (existing > 0) response += `• ${existing} already existed\n`;
   if (capacityHit) {
     response += `• 🚨 **Server channel limit reached** — Discord caps servers at ${capacity?.cap ?? 500} channels (${capacity?.used ?? '?'} in use). ` +

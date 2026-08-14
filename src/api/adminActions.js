@@ -331,6 +331,7 @@ router.get('/admin/api/tournaments/:id/manage', requireSession, async (req, res)
     br,
     channels,
     capacityHit: !!t.bracket?.capacityHit,
+    roomsPending: !!t.bracket?.roomsPending,
     transcripts,
     autoArchiveMinutes: t.settings.autoArchiveMinutes ?? null,
     counts: {
@@ -594,8 +595,9 @@ router.post('/admin/api/tournaments/:id/start', ...mutate, async (req, res) => {
   const guild = getGuildOr503(t.guildId, res);
   if (!guild) return;
   try {
-    const { summary } = await startTournamentFlow({ client: getClient(), guild, tournamentId: t.id });
-    await audit(req, t, 'start', { rooms: summary.roomsCreated, roomsFailed: summary.roomsFailed });
+    const openRooms = req.body?.openRooms !== false;
+    const { summary } = await startTournamentFlow({ client: getClient(), guild, tournamentId: t.id, openRooms });
+    await audit(req, t, 'start', { rooms: summary.roomsCreated, roomsFailed: summary.roomsFailed, roomsDeferred: !openRooms });
     res.json({ ok: true, ...summary });
   } catch (err) {
     console.error(`[web-admin] ${req.method} ${req.path} failed:`, err.message);
@@ -983,9 +985,10 @@ router.post('/admin/api/tournaments/:id/start-playoffs', ...mutate, async (req, 
     const result = await startPlayoffsFlow({
       client: getClient(), guild, tournament: t,
       useCustomSeeds: !!req.body?.useCustomSeeds,
+      openRooms: req.body?.openRooms !== false,
     });
-    await audit(req, t, 'start-playoffs', { customSeeds: result.customSeeds });
-    res.json({ ok: true, qualifiers: result.qualifiers.length, customSeeds: result.customSeeds, roomsCreated: result.rooms.created, roomsFailed: result.rooms.failed });
+    await audit(req, t, 'start-playoffs', { customSeeds: result.customSeeds, roomsDeferred: !!result.rooms.deferred });
+    res.json({ ok: true, qualifiers: result.qualifiers.length, customSeeds: result.customSeeds, roomsCreated: result.rooms.created, roomsFailed: result.rooms.failed, roomsDeferred: !!result.rooms.deferred });
   } catch (err) {
     console.error(`[web-admin] ${req.method} ${req.path} failed:`, err.message);
     res.status(400).json({ error: err.message });

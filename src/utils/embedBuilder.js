@@ -59,6 +59,11 @@ async function createTournamentEmbed(tournament) {
   const statusText = getStatusText(status);
   let descriptionText = `**Status: ${statusText}**\n\n`;
 
+  // Deferred rooms: the bracket is published but play hasn't begun
+  if (status === 'active' && tournament.bracket?.roomsPending) {
+    descriptionText += `📋 **The bracket is set — matches haven't started yet.** Check the bracket to see your matchups; match rooms open soon.\n\n`;
+  }
+
   // Overflow signups (signupCap > bracket size) OR the bracket was shrunk
   // below the current signup count: either way spots are decided at start,
   // not first-come — never show a broken-looking "200 / 64" fraction.
