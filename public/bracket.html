@@ -146,6 +146,10 @@
   table.standings tr.top td { background: rgba(255,21,77,.06); }
   table.standings .rank { font-family: var(--mono); color: var(--text-faint); width: 40px; }
   table.standings .num { font-family: var(--mono); text-align: center; }
+  /* Standings stat columns hug the right edge: the name column absorbs all
+     slack, stats stay compact. Scoped so the BR game matrix keeps auto width. */
+  table.standings .name { width: 100%; }
+  table.standings th.stat, table.standings td.stat { width: 54px; min-width: 54px; text-align: center; white-space: nowrap; }
   .rounds-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 12px; }
   .round-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; padding: 13px 15px; }
   .rc-head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 9px; font-weight: 700; font-size: 13.5px; }
@@ -844,12 +848,12 @@ function renderPodiumSection(r) {
 }
 
 function renderStandingsTable(standings, cols, topN = 1) {
-  let html = '<div class="table-wrap"><table class="standings"><thead><tr><th>#</th><th>Name</th>';
-  for (const c of cols) html += `<th style="text-align:center">${c.label}</th>`;
+  let html = '<div class="table-wrap"><table class="standings"><thead><tr><th>#</th><th class="name">Name</th>';
+  for (const c of cols) html += `<th class="stat">${c.label}</th>`;
   html += '</tr></thead><tbody>';
   standings.forEach((s, i) => {
-    html += `<tr class="${i < topN ? 'top' : ''}"><td class="rank">${i + 1}</td><td style="font-weight:${i === 0 ? 700 : 500}">${esc(s.participant.name)}</td>`;
-    for (const c of cols) html += `<td class="num">${c.value(s)}</td>`;
+    html += `<tr class="${i < topN ? 'top' : ''}"><td class="rank">${i + 1}</td><td class="name" style="font-weight:${i === 0 ? 700 : 500}">${esc(s.participant.name)}</td>`;
+    for (const c of cols) html += `<td class="num stat">${c.value(s)}</td>`;
     html += '</tr>';
   });
   return html + '</tbody></table></div>';
