@@ -314,6 +314,17 @@ router.get('/admin/api/tournaments/:id/manage', requireSession, async (req, res)
       playoffFormat: t.bracket.playoffFormat,
       advancingPerGroup: t.bracket.advancingPerGroup,
       groupsComplete: require('../services/groupStageService').groupsComplete(t.bracket),
+      // Real playoff results (byes don't count) — gates the rebuild button
+      playoffsDecided: (function count(node, n = { v: 0 }) {
+        if (Array.isArray(node)) { node.forEach(x => count(x, n)); return n.v; }
+        if (node && typeof node === 'object') {
+          if ('matchNumber' in node && 'id' in node && node.winner && !node.isBye && !node.isWalkover) n.v++;
+          for (const k of Object.keys(node)) {
+            if (!['participant1', 'participant2', 'winner', 'loser'].includes(k)) count(node[k], n);
+          }
+        }
+        return n.v;
+      })(t.bracket.playoffs || null),
       groups: require('../services/groupStageService').getGroupStandings(t.bracket).map(g => ({
         key: g.key, name: g.name, complete: g.complete,
         standings: g.standings.map(row => ({
@@ -994,6 +1005,25 @@ router.post('/admin/api/tournaments/:id/start-playoffs', ...mutate, async (req, 
     });
     await audit(req, t, 'start-playoffs', { customSeeds: result.customSeeds, roomsDeferred: !!result.rooms.deferred });
     res.json({ ok: true, qualifiers: result.qualifiers.length, customSeeds: result.customSeeds, roomsCreated: result.rooms.created, roomsFailed: result.rooms.failed, roomsDeferred: !!result.rooms.deferred });
+  } catch (err) {
+    console.error(`[web-admin] ${req.method} ${req.path} failed:`, err.message);
+    res.status(400).json({ error: err.message });
+  }
+});
+
+// Group stage: tear a freshly built playoff bracket back down (zero results
+// only — enforced by the service) so seeding can be redone and start-playoffs
+// run again. Archives any already-opened playoff rooms.
+router.post('/admin/api/tournaments/:id/rebuild-playoffs', ...mutate, async (req, res) => {
+  const t = await loadOwnedForMutation(req, res);
+  if (!t) return;
+  const guild = getGuildOr503(t.guildId, res);
+  if (!guild) return;
+  try {
+    const { rebuildPlayoffsFlow } = require('../services/lifecycleService');
+    const result = await rebuildPlayoffsFlow({ client: getClient(), guild, tournament: t });
+    await audit(req, t, 'rebuild-playoffs', result);
+    res.json({ ok: true, ...result });
   } catch (err) {
     console.error(`[web-admin] ${req.method} ${req.path} failed:`, err.message);
     res.status(400).json({ error: err.message });

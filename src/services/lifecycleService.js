@@ -1325,10 +1325,46 @@ async function startPlayoffsFlow({ client, guild, tournament, useCustomSeeds = f
   return { qualifiers, customSeeds, rooms };
 }
 
+/**
+ * Tear down a freshly built playoff bracket (zero results — the service
+ * enforces it) so the groups→playoffs transition can run again, e.g. to
+ * re-seed. Archives any playoff rooms that were already opened; a deferred
+ * "publish bracket first" playoff has none.
+ */
+async function rebuildPlayoffsFlow({ client, guild, tournament }) {
+  if (tournament.status !== 'active') throw new Error('The tournament is not running.');
+  const groupStage = require('./groupStageService');
+  const bracket = tournament.bracket;
+  if (bracket?.type !== 'group_stage') throw new Error('This tournament has no group stage.');
+  if (!bracket.playoffs) throw new Error('The playoffs have not been built yet — nothing to rebuild.');
+
+  // Guard BEFORE touching rooms: throws when any playoff result exists
+  const probe = JSON.parse(JSON.stringify(bracket));
+  groupStage.rebuildPlayoffs(probe);
+
+  let archived = 0;
+  const ids = collectTournamentChannels(bracket.playoffs);
+  if (ids.length) {
+    try {
+      archived = await bulkCleanupChannels(guild, ids, 'archive');
+      clearBracketChannelIds(bracket.playoffs);
+    } catch (err) {
+      console.error('rebuild-playoffs room archive failed:', err.message);
+    }
+  }
+
+  groupStage.rebuildPlayoffs(bracket);
+  tournament.bracket = bracket;
+  await updateTournament(tournament.id, { bracket });
+  await updateTournamentMessages(client, tournament);
+  return { archived };
+}
+
 module.exports = {
   startTournamentFlow,
   buildStartEmbed,
   startPlayoffsFlow,
+  rebuildPlayoffsFlow,
   applyMatchReport,
   correctMatchFlow,
   disqualifyFlow,

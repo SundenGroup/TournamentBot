@@ -67,6 +67,8 @@
   .pill.reg { background: rgba(88,185,255,.14); color: var(--st-reg); border: 1px solid rgba(88,185,255,.35); }
   .pill.check { background: rgba(255,194,75,.14); color: var(--st-check); border: 1px solid rgba(255,194,75,.35); }
   .pill.done { background: rgba(124,134,152,.14); color: var(--st-done); border: 1px solid rgba(124,134,152,.35); }
+  .stage-toggle { margin-top: 9px; display: inline-flex; align-items: center; gap: 6px; background: none; border: 1px solid var(--border-strong); color: var(--text-2); font-family: var(--mono); font-size: 10.5px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; padding: 5px 13px; border-radius: 999px; cursor: pointer; }
+  .stage-toggle:hover { border-color: var(--accent); color: var(--text); }
   .searchbox { margin-left: auto; display: flex; flex-direction: column; gap: 4px; align-items: flex-end; }
   .searchbox .row { display: flex; gap: 8px; }
   .searchbox input { background: var(--bg-card); border: 1px solid var(--border); color: var(--text); font-family: var(--sans); font-size: 12.5px; border-radius: 8px; padding: 8px 12px; width: 230px; }
@@ -322,7 +324,7 @@ const FORMAT_NAMES = {
 };
 
 // ── App state (survives polls) ──────────────────────────────────────────────
-const S = { zoom: 0.6, fromRound: 1, q: '', hitIdx: 0, fitted: false, controlsOpen: false };
+const S = { zoom: 0.6, fromRound: 1, q: '', hitIdx: 0, fitted: false, controlsOpen: false, groupsView: false };
 const isMobile = () => window.matchMedia('(max-width: 700px)').matches;
 /** On phones the toolbar is collapsed behind the ⚙ button so the bracket is
  *  reachable without scrolling past three rows of controls. */
@@ -773,6 +775,22 @@ function renderHero(d) {
     bits.push(d.bracket.scoring?.label || null);
   }
   $('metaLine').textContent = bits.filter(Boolean).join(' · ');
+
+  // Group stage with playoffs built: let viewers flip between the playoff
+  // canvas and the final group tables — the groups stay one tap away.
+  const wantToggle = d.bracket && d.bracket.type === 'group_stage' && d.bracket.playoffs;
+  let tg = $('stageToggle');
+  if (wantToggle && !tg) {
+    tg = document.createElement('button');
+    tg.id = 'stageToggle';
+    tg.className = 'stage-toggle';
+    $('metaLine').after(tg);
+  }
+  if (tg && !wantToggle) { tg.remove(); tg = null; }
+  if (tg) {
+    tg.textContent = S.groupsView ? '◆ View playoff bracket' : '☷ View group results';
+    tg.onclick = () => { S.groupsView = !S.groupsView; render(); };
+  }
 }
 
 function renderStrip(d) {
@@ -1035,6 +1053,13 @@ function render() {
   if (!d.bracket) {
     renderStrip(d);
     renderRegistration(d);
+    return;
+  }
+
+  // Group-results view during playoffs (hero toggle)
+  if (d.bracket.type === 'group_stage' && d.bracket.playoffs && S.groupsView) {
+    renderStrip(d);
+    renderGroupStage(d);
     return;
   }
 

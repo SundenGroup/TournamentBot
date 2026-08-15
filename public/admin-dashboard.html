@@ -999,6 +999,14 @@ function renderRunLeft() {
 
   if (runTab === 'groupsTab' && d.groupStage) {
     const gsd = d.groupStage;
+    if (gsd.stage === 'playoffs' && gsd.playoffsDecided === 0) {
+      html += `<div class="edit-card"><div class="qlabel">Playoffs built — no results yet</div>
+        <p style="color:var(--text-2);font-size:13px;margin:6px 0 10px">Need a different seeding? Rebuilding tears the playoff bracket down
+        (archiving any playoff rooms), reopens this window, and you start the playoffs again — standard cross-seeding or custom seeds.
+        Locked the moment the first playoff result lands.</p>
+        <button class="btn btn-sm" data-rebuild-playoffs>↩️ Rebuild playoffs (re-seed)</button>
+      </div>`;
+    }
     if (gsd.stage === 'groups') {
       html += `<div class="edit-card"><div class="qlabel">Group stage</div>
         <p style="color:var(--text-2);font-size:13px;margin:6px 0 10px">${gsd.groupsComplete
@@ -1332,6 +1340,16 @@ function wireRunLeft(d, left) {
   }
 
   // ── Groups tab ──
+  const rebuildBtn = left.querySelector('[data-rebuild-playoffs]');
+  if (rebuildBtn) armConfirm(rebuildBtn, rebuildBtn.textContent, 'Tear down + re-seed?', async () => {
+    rebuildBtn.disabled = true;
+    const r = await api(`/admin/api/tournaments/${d.id}/rebuild-playoffs`, { method: 'POST', body: {} });
+    rebuildBtn.disabled = false;
+    if (!r.ok) return toast(r.error, true);
+    toast(`Playoffs torn down${r.data.archived ? ` (${r.data.archived} rooms archived)` : ''} — adjust seeds if needed, then start the playoffs again.`);
+    refreshRun();
+  });
+
   left.querySelectorAll('[data-start-playoffs]').forEach(btn => armConfirm(btn, btn.textContent, 'Sure? Locks groups', async () => {
     btn.disabled = true;
     const r = await api(`/admin/api/tournaments/${d.id}/start-playoffs`, {

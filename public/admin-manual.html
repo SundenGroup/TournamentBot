@@ -563,8 +563,13 @@
     (seed 1 → Group A, 2 → B, … then back), each group plays a round robin with normal match rooms and
     reporting, and the live bracket page shows every group table.</p>
     <p>When all group matches are reported, <strong>admins start the playoffs</strong> — the dashboard's
-    Groups tab has the button, or <code>/tournament start-playoffs</code>. Standard playoff seeding places
-    group winners first (two players from the same group can't meet in round one). Want your own order?
+    Groups tab has the button, or <code>/tournament start-playoffs</code>. For the classic top-2 shape,
+    standard seeding follows the <strong>cross template</strong>: each group winner opens against the
+    runner-up of the group at the opposite end (A1 vs H2, B1 vs G2, …), and a group's two qualifiers are
+    placed in opposite halves — so a <strong>same-group rematch can only happen in the final</strong>.
+    Built the playoffs and changed your mind about the order? While <strong>no playoff result has been
+    reported</strong>, the Groups tab offers <strong>↩️ Rebuild playoffs</strong>: it tears the bracket
+    down (archiving any playoff rooms), reopens seeding, and you start again. Want your own order?
     The <strong>Seeding tab stays open between groups and playoffs</strong>: give the qualifiers seeds
     1..N (CSV import works too) and press <strong>Start with custom seeds</strong>. Group results lock
     once the playoffs begin.</p>

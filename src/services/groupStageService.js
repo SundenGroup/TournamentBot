@@ -17,6 +17,7 @@
 const roundRobin = require('./roundRobinService');
 const singleElim = require('./singleEliminationService');
 const doubleElim = require('./doubleEliminationService');
+const { generateSeedOrder } = require('../utils/seedingUtils');
 
 const GROUP_KEYS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
 
@@ -219,10 +220,37 @@ function startPlayoffs(bracket, settings, { useCustomSeeds = false } = {}) {
     }
     seeded = qs.map(q => ({ ...q.participant }));
   } else {
-    // position-major: all 1st places (group order), then all 2nd places, …
-    const ordered = [...qs].sort((a, b) =>
-      a.position - b.position || bracket.groups.findIndex(g => g.key === a.group) - bracket.groups.findIndex(g => g.key === b.group));
-    seeded = ordered.map((q, i) => ({ ...q.participant, seed: i + 1 }));
+    const g = bracket.groups.length;
+    const N = qs.length;
+    // Mirror-cross template for the classic top-2 shape (full power-of-two
+    // bracket): each group winner meets the RUNNER-UP OF ITS MIRROR GROUP
+    // (A↔H, B↔G, …), and a mirror pair's two matches land in opposite halves.
+    // Every half then contains each group exactly once, so a same-group
+    // rematch is impossible before the final. Seeds double as bracket
+    // positions: winners carry 1..g, runners-up g+1..2g.
+    if (bracket.advancingPerGroup === 2 && N === g * 2 && g >= 2 && (N & (N - 1)) === 0) {
+      const winnersOrder = generateSeedOrder(g);   // winner seeds in match-slot order
+      const topSorted = [...winnersOrder.slice(0, g / 2)].sort((a, b) => a - b);
+      const botSorted = [...winnersOrder.slice(g / 2)].sort((a, b) => a - b);
+      const winnerSeed = new Array(g);             // group index → playoff seed of its winner
+      let ti = 0, bi = 0;
+      for (let i = 0; i < g; i++) winnerSeed[i] = i % 2 === 0 ? topSorted[ti++] : botSorted[bi++];
+      const groupIndex = new Map(bracket.groups.map((grp, i) => [grp.key, i]));
+      seeded = qs.map(q => {
+        const gi = groupIndex.get(q.group);
+        const seed = q.position === 1
+          ? winnerSeed[gi]
+          : N + 1 - winnerSeed[g - 1 - gi];        // partner slot of the mirror group's winner
+        return { ...q.participant, seed };
+      });
+    } else {
+      // Fallback (top-1, top-3+, or non-power-of-two fields) — position-major:
+      // all 1st places (group order), then all 2nd places, … Guarantees no
+      // same-group meeting in round one.
+      const ordered = [...qs].sort((a, b) =>
+        a.position - b.position || bracket.groups.findIndex(gr => gr.key === a.group) - bracket.groups.findIndex(gr => gr.key === b.group));
+      seeded = ordered.map((q, i) => ({ ...q.participant, seed: i + 1 }));
+    }
   }
 
   const engine = playoffEngine(bracket);
@@ -246,6 +274,36 @@ function startPlayoffs(bracket, settings, { useCustomSeeds = false } = {}) {
   bracket.stage = 'playoffs';
 
   return { qualifiers: qs, customSeeds: useCustomSeeds };
+}
+
+/**
+ * Tear a freshly built playoff bracket back down (re-seed window): only while
+ * ZERO playoff matches have real results — byes don't count. Returns the
+ * bracket to the groups-complete state so startPlayoffs can run again.
+ */
+function rebuildPlayoffs(bracket) {
+  if (bracket?.type !== 'group_stage') throw new Error('This tournament has no group stage.');
+  if (!bracket.playoffs) throw new Error('The playoffs have not been built yet — nothing to rebuild.');
+
+  let decided = 0;
+  (function walk(node) {
+    if (Array.isArray(node)) { node.forEach(walk); return; }
+    if (node && typeof node === 'object') {
+      if ('matchNumber' in node && 'id' in node && node.winner && !node.isBye && !node.isWalkover) decided++;
+      for (const k of Object.keys(node)) {
+        if (k === 'participant1' || k === 'participant2' || k === 'winner' || k === 'loser') continue;
+        walk(node[k]);
+      }
+    }
+  })(bracket.playoffs);
+  if (decided > 0) {
+    throw new Error(`Can't rebuild — ${decided} playoff match${decided === 1 ? ' already has a result' : 'es already have results'}. Use corrections instead.`);
+  }
+
+  delete bracket.playoffs;
+  delete bracket.roomsPending;
+  bracket.stage = 'groups';
+  return true;
 }
 
 // ── Results / standings ─────────────────────────────────────────────────────
@@ -289,5 +347,6 @@ module.exports = {
   groupsComplete,
   qualifiers,
   startPlayoffs,
+  rebuildPlayoffs,
   getGroupStandings,
 };
