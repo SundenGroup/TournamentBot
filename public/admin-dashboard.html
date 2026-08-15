@@ -748,6 +748,20 @@ function renderRun() {
       b.addEventListener('click', doRooms);
     }
     actions.appendChild(b);
+    if (!d.roomsPending) {
+      const h = document.createElement('button');
+      h.className = 'btn'; h.textContent = '⏸ Hold new rooms';
+      h.title = 'Results keep landing and the bracket advances, but no new match rooms open until you press 🚪 Open match rooms';
+      h.addEventListener('click', async () => {
+        h.disabled = true;
+        const r = await api(`/admin/api/tournaments/${d.id}/hold-rooms`, { method: 'POST', body: {} });
+        h.disabled = false;
+        if (!r.ok) return toast(r.error, true);
+        toast('⏸ New rooms on hold — release with 🚪 Open match rooms');
+        refreshRun();
+      });
+      actions.appendChild(h);
+    }
   }
   if (d.can.start) {
     const b = document.createElement('button');
@@ -770,6 +784,18 @@ function renderRun() {
       refreshRun();
     });
     actions.appendChild(p);
+  }
+  if (d.can.end) {
+    const b = document.createElement('button');
+    b.className = 'btn'; b.textContent = '🏁 End tournament';
+    b.title = 'Close as Completed without playing the rest of the bracket — reporting locks, no champion is announced (corrections stay possible)';
+    armConfirm(b, '🏁 End tournament', 'End now? Locks reporting', async () => {
+      const r = await api(`/admin/api/tournaments/${d.id}/end`, { method: 'POST', body: {} });
+      if (!r.ok) return toast(r.error, true);
+      toast(`Tournament closed — ${r.data.decided} result${r.data.decided === 1 ? '' : 's'} locked in.`);
+      refreshRun();
+    });
+    actions.appendChild(b);
   }
   if (d.can.cancel) {
     const b = document.createElement('button');
@@ -1022,6 +1048,19 @@ function renderRunLeft() {
               <input type="checkbox" id="poOpenRooms" checked> Open match rooms right away
             </label>
           </div>` : ''}
+      </div>`;
+      const gsize = gsd.groups?.[0]?.standings?.length || 4;
+      html += `<div class="edit-card"><div class="qlabel">Playoff format</div>
+        <p style="color:var(--text-2);font-size:13px;margin:6px 0 10px">Changeable until the playoff bracket is built. “No playoffs” ends the tournament on the group tables.</p>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+          <select id="pfFormat" style="flex:2;min-width:180px;background:var(--bg-sunken);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:7px 10px">
+            <option value="single_elimination" ${gsd.playoffFormat === 'single_elimination' ? 'selected' : ''}>Playoffs: Single Elim</option>
+            <option value="double_elimination" ${gsd.playoffFormat === 'double_elimination' ? 'selected' : ''}>Playoffs: Double Elim</option>
+            <option value="none" ${gsd.playoffFormat === 'none' ? 'selected' : ''}>No playoffs — group tables decide</option>
+          </select>
+          <input id="pfAdv" type="number" min="1" max="${gsize - 1}" value="${gsd.advancingPerGroup || 2}" title="Advance per group to the playoffs" style="width:90px;background:var(--bg-sunken);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:7px 10px">
+          <button class="btn btn-sm" data-pf-save>Save format</button>
+        </div>
       </div>`;
     }
     const adv = gsd.playoffFormat === 'none' ? 1 : (gsd.advancingPerGroup || 1);
@@ -1372,6 +1411,23 @@ function wireRunLeft(d, left) {
   }
 
   // ── Groups tab ──
+  const pfSave = left.querySelector('[data-pf-save]');
+  if (pfSave) pfSave.addEventListener('click', async () => {
+    pfSave.disabled = true;
+    const r = await api(`/admin/api/tournaments/${d.id}/playoff-config`, {
+      method: 'POST', body: {
+        playoffFormat: left.querySelector('#pfFormat').value,
+        advancingPerGroup: parseInt(left.querySelector('#pfAdv').value, 10),
+      },
+    });
+    pfSave.disabled = false;
+    if (!r.ok) return toast(r.error, true);
+    toast(r.data.playoffFormat === 'none'
+      ? 'Saved — this tournament ends on the group tables.'
+      : `Saved — top ${r.data.advancingPerGroup} per group advance to ${r.data.playoffFormat === 'double_elimination' ? 'double' : 'single'}-elim playoffs.`);
+    refreshRun();
+  });
+
   const rebuildBtn = left.querySelector('[data-rebuild-playoffs]');
   if (rebuildBtn) armConfirm(rebuildBtn, rebuildBtn.textContent, 'Tear down + re-seed?', async () => {
     rebuildBtn.disabled = true;

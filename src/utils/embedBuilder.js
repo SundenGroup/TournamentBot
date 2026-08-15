@@ -61,9 +61,13 @@ async function createTournamentEmbed(tournament) {
   const statusText = getStatusText(status);
   let descriptionText = `**Status: ${statusText}**\n\n`;
 
-  // Deferred rooms: the bracket is published but play hasn't begun
+  // roomsPending covers two states: pre-play publish (bracket out, nothing
+  // played) and a mid-event hold (results exist, next round's rooms paused)
   if (status === 'active' && tournament.bracket?.roomsPending) {
-    descriptionText += `📋 **The bracket is set — matches haven't started yet.** Check the bracket to see your matchups; match rooms open soon.\n\n`;
+    const { countRealResults } = require('../utils/matchUtils');
+    descriptionText += countRealResults(tournament.bracket) === 0
+      ? `📋 **The bracket is set — matches haven't started yet.** Check the bracket to see your matchups; match rooms open soon.\n\n`
+      : `⏸ **New match rooms are on hold.** Matches already in a room play out normally; the next rooms open when admins release the hold.\n\n`;
   }
 
   // Overflow signups (signupCap > bracket size) OR the bracket was shrunk

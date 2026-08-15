@@ -16,6 +16,7 @@ const express = require('express');
 const config = require('../config');
 const db = require('../db');
 const { getTournament } = require('../services/tournamentService');
+const { countRealResults } = require('../utils/matchUtils');
 
 /**
  * Opaque, stable key for a participant. The browser only needs to match a
@@ -152,8 +153,9 @@ function buildPayload(tournament) {
     description: tournament.description,
     status: tournament.status,
     // Deferred rooms: bracket published, play not started — page shows a
-    // "starting soon" pill instead of ● Live
-    roomsPending: !!tournament.bracket?.roomsPending,
+    // "starting soon" pill instead of ● Live. A MID-event room hold (results
+    // already exist) is admin plumbing and doesn't change the public pill.
+    roomsPending: !!(tournament.bracket?.roomsPending && countRealResults(tournament.bracket) === 0),
     startTime: tournament.startTime,
     game: {
       name: tournament.game.displayName,

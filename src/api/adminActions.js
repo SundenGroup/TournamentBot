@@ -367,6 +367,7 @@ router.get('/admin/api/tournaments/:id/manage', requireSession, async (req, res)
       correct: !!t.bracket,
       disqualify: t.status === 'active' && !isBR,
       createRooms: t.status === 'active',
+      end: t.status === 'active',
     },
   });
 });
@@ -1030,6 +1031,66 @@ router.post('/admin/api/tournaments/:id/slug', ...mutate, async (req, res) => {
     await updateTournamentMessages(getClient(), result.tournament).catch(() => {});
     await audit(req, t, 'slug', { slug: result.slug });
     res.json({ ok: true, slug: result.slug, url: result.slug ? `/b/${result.slug}` : `/b/${t.id}` });
+  } catch (err) {
+    console.error(`[web-admin] ${req.method} ${req.path} failed:`, err.message);
+    res.status(400).json({ error: err.message });
+  }
+});
+
+// Group stage: change what happens after the groups (format / advancing per
+// group) — any time before the playoff bracket is built.
+router.post('/admin/api/tournaments/:id/playoff-config', ...mutate, async (req, res) => {
+  const t = await loadOwnedForMutation(req, res);
+  if (!t) return;
+  try {
+    if (t.status !== 'active') return res.status(400).json({ error: 'The tournament is not running.' });
+    const groupStage = require('../services/groupStageService');
+    const result = groupStage.setPlayoffConfig(t.bracket, t.settings, {
+      playoffFormat: String(req.body?.playoffFormat || ''),
+      advancingPerGroup: req.body?.advancingPerGroup,
+    });
+    const { updateTournament } = require('../services/tournamentService');
+    await updateTournament(t.id, { bracket: t.bracket, settings: t.settings });
+    await updateTournamentMessages(getClient(), t).catch(() => {});
+    await audit(req, t, 'playoff-config', result);
+    res.json({ ok: true, ...result });
+  } catch (err) {
+    console.error(`[web-admin] ${req.method} ${req.path} failed:`, err.message);
+    res.status(400).json({ error: err.message });
+  }
+});
+
+// Pause automatic room creation (release = the create-rooms sweep)
+router.post('/admin/api/tournaments/:id/hold-rooms', ...mutate, async (req, res) => {
+  const t = await loadOwnedForMutation(req, res);
+  if (!t) return;
+  try {
+    if (t.status !== 'active' || !t.bracket) return res.status(400).json({ error: 'The tournament is not running.' });
+    if (t.bracket.roomsPending) return res.status(400).json({ error: 'New rooms are already on hold.' });
+    t.bracket.roomsPending = true;
+    const { updateTournament } = require('../services/tournamentService');
+    await updateTournament(t.id, { bracket: t.bracket });
+    await updateTournamentMessages(getClient(), t).catch(() => {});
+    await audit(req, t, 'hold-rooms', {});
+    res.json({ ok: true });
+  } catch (err) {
+    console.error(`[web-admin] ${req.method} ${req.path} failed:`, err.message);
+    res.status(400).json({ error: err.message });
+  }
+});
+
+// End an active tournament as COMPLETED without playing the full bracket
+// (e.g. a qualification round whose winners simply advance)
+router.post('/admin/api/tournaments/:id/end', ...mutate, async (req, res) => {
+  const t = await loadOwnedForMutation(req, res);
+  if (!t) return;
+  const guild = getGuildOr503(t.guildId, res);
+  if (!guild) return;
+  try {
+    const { endTournamentFlow } = require('../services/lifecycleService');
+    const result = await endTournamentFlow({ client: getClient(), guild, tournament: t });
+    await audit(req, t, 'end', result);
+    res.json({ ok: true, ...result });
   } catch (err) {
     console.error(`[web-admin] ${req.method} ${req.path} failed:`, err.message);
     res.status(400).json({ error: err.message });

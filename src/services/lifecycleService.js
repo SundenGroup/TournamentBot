@@ -346,9 +346,11 @@ async function applyMatchReport({ client, guild, tournament, match, winnerId, sc
     return { winner, loser, isSolo, swissRoundStarted, completed: true, results, newRooms: 0 };
   }
 
-  // Create rooms for matches that just became ready
+  // Create rooms for matches that just became ready — unless an admin put new
+  // rooms on hold (⏸ button / publish-first flow). Results keep landing and
+  // the bracket keeps advancing; the next create-rooms sweep releases the hold.
   let newRooms = 0;
-  for (const activeMatch of service.getActiveMatches(bracket)) {
+  for (const activeMatch of bracket.roomsPending ? [] : service.getActiveMatches(bracket)) {
     if (!activeMatch.channelId && activeMatch.participant1 && activeMatch.participant2) {
       try {
         const channel = await createMatchRoom(guild, activeMatch, tournament);
@@ -712,7 +714,9 @@ async function createRoomsFlow({ guild, tournament }) {
   let created = 0, failed = 0, existing = 0, capacityHit = false;
 
   if (bracket.type === 'battle_royale') {
-    for (const group of bracket.groups || []) {
+    // Groups first, then an active finals stage (a hold can defer its room)
+    const stages = [...(bracket.groups || []), ...(bracket.finals ? [bracket.finals] : [])];
+    for (const group of stages) {
       if (group.channelId) { existing++; continue; }
       try {
         const channel = await createBRGroupRoom(guild, group, tournament);
@@ -857,8 +861,9 @@ async function finishBRMutation({ client, guild, tournament, result, groupKey, g
   const { stage, finalsCreated, tournamentComplete, finalsRegenerated } = result;
 
   // New finals stage → create its lobby room + board; group lobbies are done,
-  // so the rolling auto-archive can reclaim them.
-  if (finalsCreated && guild) {
+  // so the rolling auto-archive can reclaim them. Held rooms stay held —
+  // the create-rooms sweep builds the finals room on release.
+  if (finalsCreated && guild && !bracket.roomsPending) {
     try {
       const channel = await createBRGroupRoom(guild, bracket.finals, tournament);
       bracket.finals.channelId = channel.id;
@@ -1326,6 +1331,44 @@ async function startPlayoffsFlow({ client, guild, tournament, useCustomSeeds = f
 }
 
 /**
+ * Close an active tournament as COMPLETED without requiring the bracket to be
+ * fully played — for formats that intentionally stop early (e.g. a
+ * qualification round where the winners simply advance). Reporting locks
+ * (status guard), rooms archive per the server's cleanup settings, and no
+ * champion is announced: unplayed matches just stay unplayed. Corrections
+ * remain possible afterwards.
+ */
+async function endTournamentFlow({ client, guild, tournament }) {
+  if (tournament.status !== 'active') throw new Error('The tournament is not running.');
+  const { countRealResults } = require('../utils/matchUtils');
+  const decided = countRealResults(tournament.bracket);
+  if (decided === 0) {
+    throw new Error('No results have been reported — to scrap an unplayed tournament, use Cancel instead.');
+  }
+
+  tournament.status = 'completed';
+  await updateTournament(tournament.id, { status: 'completed' });
+
+  try {
+    const channel = await client.channels.fetch(tournament.channelId);
+    const url = getBracketUrl(tournament);
+    await channel.send(
+      `🏁 **${tournament.title}** has wrapped up — ${decided} match${decided === 1 ? '' : 'es'} decided. ` +
+      (url ? `Final standings: ${url}` : 'Thanks for playing!')
+    );
+  } catch (err) {
+    console.error('end-tournament announce failed:', err.message);
+  }
+
+  await updateTournamentMessages(client, tournament);
+  await triggerAutoCleanup(guild, tournament);
+  const { recordTournamentCompletion } = require('./subscriptionService');
+  await recordTournamentCompletion(tournament.guildId).catch(err =>
+    console.error('recordTournamentCompletion failed:', err.message));
+  return { decided };
+}
+
+/**
  * Tear down a freshly built playoff bracket (zero results — the service
  * enforces it) so the groups→playoffs transition can run again, e.g. to
  * re-seed. Archives any playoff rooms that were already opened; a deferred
@@ -1365,6 +1408,7 @@ module.exports = {
   buildStartEmbed,
   startPlayoffsFlow,
   rebuildPlayoffsFlow,
+  endTournamentFlow,
   applyMatchReport,
   correctMatchFlow,
   disqualifyFlow,

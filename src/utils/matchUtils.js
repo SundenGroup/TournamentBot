@@ -138,6 +138,21 @@ function listAllMatches(bracket) {
   return out;
 }
 
+/**
+ * Count matches with a REAL result anywhere in a bracket (nested sub-brackets
+ * included) — byes/walkovers don't count. Works on any bracket shape.
+ */
+function countRealResults(node) {
+  if (Array.isArray(node)) return node.reduce((n, v) => n + countRealResults(v), 0);
+  if (!node || typeof node !== 'object') return 0;
+  let n = ('matchNumber' in node && 'id' in node && node.winner && !node.isBye && !node.isWalkover) ? 1 : 0;
+  for (const k of Object.keys(node)) {
+    if (k === 'participant1' || k === 'participant2' || k === 'winner' || k === 'loser') continue;
+    n += countRealResults(node[k]);
+  }
+  return n;
+}
+
 module.exports = {
   getServiceForBracket,
   findMatchByNumber,
@@ -145,4 +160,5 @@ module.exports = {
   validSeriesScores,
   normalizeSeriesScore,
   listAllMatches,
+  countRealResults,
 };

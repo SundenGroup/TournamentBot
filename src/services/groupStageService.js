@@ -277,6 +277,37 @@ function startPlayoffs(bracket, settings, { useCustomSeeds = false } = {}) {
 }
 
 /**
+ * Change what happens after the groups — allowed any time BEFORE the playoffs
+ * are built (the setting only takes effect at the groups→playoffs transition).
+ * Mutates both the live bracket and settings; the caller persists.
+ */
+function setPlayoffConfig(bracket, settings, { playoffFormat, advancingPerGroup }) {
+  if (bracket?.type !== 'group_stage') throw new Error('This tournament has no group stage.');
+  if (bracket.playoffs) {
+    throw new Error('The playoffs are already built — rebuild them first (possible while no playoff result exists), then change the format.');
+  }
+  if (!['single_elimination', 'double_elimination', 'none'].includes(playoffFormat)) {
+    throw new Error('Playoff format must be single elimination, double elimination, or none.');
+  }
+
+  const groupSize = settings.groupSize || bracket.groups?.[0]?.bracket?.standings?.length || 4;
+  let adv = 0;
+  if (playoffFormat !== 'none') {
+    adv = parseInt(advancingPerGroup, 10);
+    if (!Number.isInteger(adv) || adv < 1 || adv >= groupSize) {
+      throw new Error(`Advancing per group must be between 1 and ${groupSize - 1}.`);
+    }
+    if (adv * bracket.groups.length < 2) throw new Error('At least 2 players must advance to play playoffs.');
+  }
+
+  bracket.playoffFormat = playoffFormat;
+  bracket.advancingPerGroup = adv;
+  settings.playoffFormat = playoffFormat;
+  settings.advancingPerGroup = adv;
+  return { playoffFormat, advancingPerGroup: adv };
+}
+
+/**
  * Tear a freshly built playoff bracket back down (re-seed window): only while
  * ZERO playoff matches have real results — byes don't count. Returns the
  * bracket to the groups-complete state so startPlayoffs can run again.
@@ -347,6 +378,7 @@ module.exports = {
   groupsComplete,
   qualifiers,
   startPlayoffs,
+  setPlayoffConfig,
   rebuildPlayoffs,
   getGroupStandings,
 };
