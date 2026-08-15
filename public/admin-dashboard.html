@@ -1059,6 +1059,24 @@ function renderRunLeft() {
     }
   }
 
+  // Custom public link (Studio) — shown on every tab, under the content
+  if (runTournament.publicBracket && d.publicSlug !== undefined) {
+    html += `<div class="edit-card" style="margin-top:12px"><div class="qlabel">🔗 Custom link ${d.slugAllowed ? '' : '<span class="protag">STUDIO</span>'}</div>`;
+    if (d.slugAllowed) {
+      html += `<p style="color:var(--text-2);font-size:12.5px;margin:6px 0 8px">Give this bracket a memorable URL. The old links (uuid and any previous custom link) permanently redirect to the new one.</p>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+          <span style="font-family:var(--mono);font-size:12px;color:var(--text-faint)">${location.host}/b/</span>
+          <input id="slugInput" value="${esc(d.publicSlug || '')}" placeholder="goals-asia-qualifiers" maxlength="64"
+            style="flex:1;min-width:160px;background:var(--bg-sunken);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:7px 10px;font-family:var(--mono);font-size:13px">
+          <button class="btn btn-sm" data-slug-save>Save link</button>
+          ${d.publicSlug ? '<button class="btn btn-sm" data-slug-clear title="Back to the standard link — the custom one keeps redirecting">Remove</button>' : ''}
+        </div>`;
+    } else {
+      html += `<p style="color:var(--text-faint);font-size:12.5px;margin:6px 0 0">Memorable bracket URLs (with permanent redirects from old links) are part of Studio.</p>`;
+    }
+    html += `</div>`;
+  }
+
   left.innerHTML = html;
   wireRunLeft(d, left);
 }
@@ -1337,6 +1355,20 @@ function wireRunLeft(d, left) {
       editOpen = false;
       refreshRun();
     });
+  }
+
+  // ── Custom link ──
+  const slugSave = left.querySelector('[data-slug-save]');
+  if (slugSave) {
+    const postSlug = async (value) => {
+      const r = await api(`/admin/api/tournaments/${d.id}/slug`, { method: 'POST', body: { slug: value } });
+      if (!r.ok) return toast(r.error, true);
+      toast(r.data.slug ? `Link saved — ${location.host}${r.data.url} (old links redirect)` : 'Custom link removed — standard link active again');
+      refreshRun();
+    };
+    slugSave.addEventListener('click', () => postSlug(left.querySelector('#slugInput').value.trim()));
+    const slugClear = left.querySelector('[data-slug-clear]');
+    if (slugClear) armConfirm(slugClear, 'Remove', 'Back to standard link?', () => postSlug(''));
   }
 
   // ── Groups tab ──

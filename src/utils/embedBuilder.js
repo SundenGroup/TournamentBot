@@ -6,7 +6,9 @@ const config = require('../config');
 /** Public live-bracket page URL for a tournament (Pro/Business feature). */
 function getBracketUrl(tournament) {
   if (!tournament.settings?.publicBracket) return null;
-  return `${config.publicBaseUrl}/b/${tournament.id}`;
+  // Custom slug when set (uuid links 301 there anyway — this keeps new
+  // embeds/DMs pointing at the pretty URL directly)
+  return `${config.publicBaseUrl}/b/${tournament.settings.publicSlug || tournament.id}`;
 }
 
 /**

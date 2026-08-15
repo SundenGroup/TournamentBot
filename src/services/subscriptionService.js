@@ -100,6 +100,7 @@ const STUDIO_FEATURES = [
   'custom_presets',
   'seed_csv',
   'signup_overflow',
+  'custom_slug',
 ];
 
 // Legacy aliases (old call sites / display code)
@@ -121,6 +122,7 @@ const FEATURE_NAMES = {
   tournament_templates: 'Tournament Templates',
   advanced_analytics: 'Advanced Analytics',
   public_bracket: 'Live Web Bracket',
+  custom_slug: 'Custom Bracket URL (your own /b/ link)',
   multi_lobby_br: 'Multi-Lobby Battle Royale (group stages)',
   group_stage: 'Group Stage format (groups → playoffs)',
   footer_removal: 'Bracket Footer Removal',

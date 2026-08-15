@@ -339,6 +339,8 @@ router.get('/admin/api/tournaments/:id/manage', requireSession, async (req, res)
       })),
     } : null,
     seedCsv: (await checkFeature(t.guildId, 'seed_csv')).allowed,
+    publicSlug: t.settings.publicSlug || null,
+    slugAllowed: (await checkFeature(t.guildId, 'custom_slug')).allowed,
     nickSummary: t.settings.requireGameNick ? getNickSummary(t.game) : null,
     // Column labels for the bulk-add hint (e.g. GOALS Username, GOALS User ID)
     nickFieldLabels: t.settings.requireGameNick ? getNickFields(t.game).map(f => f.label) : [],
@@ -1005,6 +1007,29 @@ router.post('/admin/api/tournaments/:id/start-playoffs', ...mutate, async (req, 
     });
     await audit(req, t, 'start-playoffs', { customSeeds: result.customSeeds, roomsDeferred: !!result.rooms.deferred });
     res.json({ ok: true, qualifiers: result.qualifiers.length, customSeeds: result.customSeeds, roomsCreated: result.rooms.created, roomsFailed: result.rooms.failed, roomsDeferred: !!result.rooms.deferred });
+  } catch (err) {
+    console.error(`[web-admin] ${req.method} ${req.path} failed:`, err.message);
+    res.status(400).json({ error: err.message });
+  }
+});
+
+// Custom public URL: set/clear a memorable /b/ slug (Studio). Old links —
+// the uuid URL and any previous slug — 301 to the current one.
+router.post('/admin/api/tournaments/:id/slug', ...mutate, async (req, res) => {
+  const t = await loadOwnedForMutation(req, res);
+  if (!t) return;
+  try {
+    const gate = await checkFeature(t.guildId, 'custom_slug');
+    if (!gate.allowed) return res.status(403).json({ error: 'Custom bracket links are a Studio feature.' });
+
+    const { setPublicSlug } = require('../services/tournamentService');
+    const result = await setPublicSlug(t.id, req.body?.slug);
+    if (!result.success) return res.status(400).json({ error: result.error });
+
+    // New embeds/DMs pick the new link up via getBracketUrl
+    await updateTournamentMessages(getClient(), result.tournament).catch(() => {});
+    await audit(req, t, 'slug', { slug: result.slug });
+    res.json({ ok: true, slug: result.slug, url: result.slug ? `/b/${result.slug}` : `/b/${t.id}` });
   } catch (err) {
     console.error(`[web-admin] ${req.method} ${req.path} failed:`, err.message);
     res.status(400).json({ error: err.message });

@@ -3,8 +3,9 @@
 //   GET /b/:id                 — Clutch-branded HTML page (OG tags injected)
 //   GET /api/public/brackets/:id — sanitized tournament JSON, polled by the page
 //
-// No authentication: the tournament id is an unguessable UUID and the data is
-// only exposed when the organizer enabled the Live Web Bracket toggle
+// No authentication: the tournament id is an unguessable UUID (organizers can
+// opt into a memorable custom slug — public by intent) and the data is only
+// exposed when the organizer enabled the Live Web Bracket toggle
 // (settings.publicBracket, a Pro/Business feature) at creation.
 
 const fs = require('node:fs');
@@ -13,6 +14,7 @@ const crypto = require('node:crypto');
 const zlib = require('node:zlib');
 const express = require('express');
 const config = require('../config');
+const db = require('../db');
 const { getTournament } = require('../services/tournamentService');
 
 /**
@@ -144,6 +146,8 @@ function buildPayload(tournament) {
 
   return {
     id: tournament.id,
+    // Custom /b/ link, when set — uuid URLs 301 to it
+    slug: tournament.settings.publicSlug || null,
     title: tournament.title,
     description: tournament.description,
     status: tournament.status,
@@ -220,12 +224,62 @@ async function loadPublicTournament(id) {
   return (await loadPublicEntry(id)).value;
 }
 
+// ── Custom slug resolution ──────────────────────────────────────────────────
+// /b/<slug> serves the page; the uuid URL and every PAST slug 301 to the
+// current identifier, so shared links never die. Postgres jsonb lookups with
+// a small TTL cache (a slug change propagates within 30s).
+
+const UUID_RE = /^[0-9a-f-]{36}$/i;
+const SLUG_TTL_MS = 30000;
+const slugCache = new Map(); // slug → { ts, uuid, current }
+
+async function resolveSlug(slug) {
+  const hit = slugCache.get(slug);
+  if (hit && Date.now() - hit.ts < SLUG_TTL_MS) return hit;
+
+  let uuid = null;
+  let current = false;
+  const row = await db('tournaments').whereRaw(`settings->>'publicSlug' = ?`, [slug]).first('id').catch(() => null);
+  if (row) {
+    uuid = row.id;
+    current = true;
+  } else {
+    const past = await db('tournaments').whereRaw(`settings->'pastSlugs' \\? ?`, [slug]).first('id').catch(() => null);
+    if (past) uuid = past.id;
+  }
+
+  const entry = { ts: Date.now(), uuid, current };
+  slugCache.set(slug, entry);
+  if (slugCache.size > 1000) slugCache.delete(slugCache.keys().next().value);
+  return entry;
+}
+
+/** → { uuid|null, redirect: '/b/…'|null } for any /b/:id identifier. */
+async function resolvePublicId(idOrSlug) {
+  if (UUID_RE.test(idOrSlug)) {
+    const entry = await loadPublicEntry(idOrSlug);
+    const slug = entry.value?.slug || null;
+    return { uuid: idOrSlug, redirect: slug ? `/b/${slug}` : null };
+  }
+  const s = await resolveSlug(idOrSlug.toLowerCase());
+  if (!s.uuid) return { uuid: null, redirect: null };
+  if (s.current) return { uuid: s.uuid, redirect: null };
+  const entry = await loadPublicEntry(s.uuid);
+  return { uuid: s.uuid, redirect: `/b/${entry.value?.slug || s.uuid}` };
+}
+
 // ============================================================================
 // Routes
 // ============================================================================
 
 router.get('/api/public/brackets/:id', async (req, res) => {
-  const entry = await loadPublicEntry(req.params.id);
+  let id = req.params.id;
+  if (!UUID_RE.test(id)) {
+    const s = await resolveSlug(id.toLowerCase());
+    if (!s.uuid) return res.status(404).json({ error: 'Bracket not available' });
+    id = s.uuid;
+  }
+  const entry = await loadPublicEntry(id);
   if (!entry.body) {
     return res.status(404).json({ error: 'Bracket not available' });
   }
@@ -262,7 +316,15 @@ function escapeHtml(s) {
 }
 
 router.get('/b/:id', async (req, res) => {
-  const payload = await loadPublicTournament(req.params.id);
+  // Custom slugs: uuid URLs and past slugs 301 to the current link — shared
+  // links keep working forever. Query string (e.g. ?stage=groups) rides along.
+  const resolved = await resolvePublicId(req.params.id);
+  if (resolved.redirect) {
+    const q = req.originalUrl.indexOf('?');
+    return res.redirect(301, resolved.redirect + (q === -1 ? '' : req.originalUrl.slice(q)));
+  }
+  const dataId = resolved.uuid || req.params.id;
+  const payload = resolved.uuid ? await loadPublicTournament(resolved.uuid) : null;
 
   const title = payload ? `${payload.title} — Live Bracket` : 'Tournament Bracket';
   const overflowOpen = payload && (payload.signupCap || 0) > payload.maxParticipants &&
@@ -277,8 +339,8 @@ router.get('/b/:id', async (req, res) => {
     .replaceAll('{{TITLE}}', escapeHtml(title))
     .replaceAll('{{DESCRIPTION}}', escapeHtml(desc))
     .replaceAll('{{BASE}}', escapeHtml(config.publicBaseUrl))
-    .replaceAll('{{DATA_URL}}', `/api/public/brackets/${escapeHtml(req.params.id)}`)
-    .replaceAll('{{TOURNAMENT_ID}}', escapeHtml(req.params.id));
+    .replaceAll('{{DATA_URL}}', `/api/public/brackets/${escapeHtml(dataId)}`)
+    .replaceAll('{{TOURNAMENT_ID}}', escapeHtml(dataId));
 
   res.set('Content-Type', 'text/html; charset=utf-8');
   res.send(html);

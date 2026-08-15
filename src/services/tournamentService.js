@@ -530,6 +530,62 @@ async function adminSetCheckedIn(tournamentId, entrantId, present) {
   return result;
 }
 
+// ─── Custom public URL (slug) ────────────────────────────────────────────────
+
+const SLUG_RE = /^[a-z0-9](?:[a-z0-9-]{1,62}[a-z0-9])?$/;
+const SLUG_RESERVED = new Set(['api', 'admin', 'b', 'health', 'assets', 'static', 'new']);
+
+/**
+ * Set (or clear, with '') a tournament's custom /b/ slug. Old identifiers keep
+ * working: the uuid URL and every previous slug 301-redirect to the current
+ * one, so a replaced slug goes into settings.pastSlugs and can never be
+ * claimed by another tournament. Postgres-only jsonb queries (production DB).
+ */
+async function setPublicSlug(tournamentId, rawSlug) {
+  const tournament = await getTournament(tournamentId);
+  if (!tournament) return { success: false, error: 'Tournament not found' };
+  if (!tournament.settings.publicBracket) {
+    return { success: false, error: 'This tournament has no public bracket page — enable the live web bracket first.' };
+  }
+
+  const slug = String(rawSlug || '').trim().toLowerCase();
+  const current = tournament.settings.publicSlug || null;
+  const past = Array.isArray(tournament.settings.pastSlugs) ? tournament.settings.pastSlugs : [];
+
+  if (!slug) {
+    if (!current) return { success: true, slug: null, tournament, unchanged: true };
+    tournament.settings.publicSlug = null;
+    tournament.settings.pastSlugs = [...new Set([...past, current])].slice(-10);
+    await updateTournament(tournamentId, { settings: tournament.settings });
+    return { success: true, slug: null, tournament };
+  }
+
+  if (slug === current) return { success: true, slug, tournament, unchanged: true };
+  if (slug.length < 3) return { success: false, error: 'Custom links need at least 3 characters.' };
+  if (!SLUG_RE.test(slug)) {
+    return { success: false, error: 'Custom links can use lowercase letters, numbers and hyphens (not at the start/end), up to 64 characters.' };
+  }
+  if (SLUG_RESERVED.has(slug) || /^[0-9a-f-]{36}$/.test(slug)) {
+    return { success: false, error: 'That link is reserved — pick another.' };
+  }
+
+  // Globally unique across every tournament's CURRENT and PAST slugs (past
+  // ones still 301 to their tournament, so they can't be handed to another).
+  const clash = await db('tournaments')
+    .whereNot('id', tournamentId)
+    .where(function () {
+      this.whereRaw(`settings->>'publicSlug' = ?`, [slug])
+        .orWhereRaw(`settings->'pastSlugs' \\? ?`, [slug]);
+    })
+    .first('id');
+  if (clash) return { success: false, error: 'That link is already taken by another tournament.' };
+
+  tournament.settings.publicSlug = slug;
+  if (current) tournament.settings.pastSlugs = [...new Set([...past, current])].slice(-10);
+  await updateTournament(tournamentId, { settings: tournament.settings });
+  return { success: true, slug, tournament };
+}
+
 async function setTournamentSeeds(tournamentId, { seeds, action } = {}) {
   let result;
   try {
@@ -909,6 +965,7 @@ module.exports = {
   addParticipant,
   toggleCheckedIn,
   setTournamentSeeds,
+  setPublicSlug,
   pastSignupClose,
   selectStartingField,
   adminSetCheckedIn,

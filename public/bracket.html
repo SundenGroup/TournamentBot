@@ -67,8 +67,12 @@
   .pill.reg { background: rgba(88,185,255,.14); color: var(--st-reg); border: 1px solid rgba(88,185,255,.35); }
   .pill.check { background: rgba(255,194,75,.14); color: var(--st-check); border: 1px solid rgba(255,194,75,.35); }
   .pill.done { background: rgba(124,134,152,.14); color: var(--st-done); border: 1px solid rgba(124,134,152,.35); }
-  .stage-toggle { margin-top: 9px; display: inline-flex; align-items: center; gap: 6px; background: none; border: 1px solid var(--border-strong); color: var(--text-2); font-family: var(--mono); font-size: 10.5px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; padding: 5px 13px; border-radius: 999px; cursor: pointer; }
-  .stage-toggle:hover { border-color: var(--accent); color: var(--text); }
+  .stage-tabs { margin-top: 11px; display: inline-flex; border: 1px solid var(--border-strong); border-radius: 10px; overflow: hidden; background: var(--bg-sunken, rgba(255,255,255,.02)); }
+  .stage-tabs .st-tab { background: none; border: 0; color: var(--text-2); font-family: var(--mono); font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; padding: 8px 18px; cursor: pointer; }
+  .stage-tabs .st-tab + .st-tab { border-left: 1px solid var(--border-strong); }
+  .stage-tabs .st-tab.on { background: var(--accent); color: #fff; }
+  .stage-tabs .st-tab:not(.on):not(:disabled):hover { color: var(--text); }
+  .stage-tabs .st-tab:disabled { opacity: .45; cursor: default; }
   .searchbox { margin-left: auto; display: flex; flex-direction: column; gap: 4px; align-items: flex-end; }
   .searchbox .row { display: flex; gap: 8px; }
   .searchbox input { background: var(--bg-card); border: 1px solid var(--border); color: var(--text); font-family: var(--sans); font-size: 12.5px; border-radius: 8px; padding: 8px 12px; width: 230px; }
@@ -325,6 +329,8 @@ const FORMAT_NAMES = {
 
 // ── App state (survives polls) ──────────────────────────────────────────────
 const S = { zoom: 0.6, fromRound: 1, q: '', hitIdx: 0, fitted: false, controlsOpen: false, groupsView: false };
+// Deep link: /b/…?stage=groups opens the group tables directly
+if (new URLSearchParams(location.search).get('stage') === 'groups') S.groupsView = true;
 const isMobile = () => window.matchMedia('(max-width: 700px)').matches;
 /** On phones the toolbar is collapsed behind the ⚙ button so the bracket is
  *  reachable without scrolling past three rows of controls. */
@@ -776,20 +782,32 @@ function renderHero(d) {
   }
   $('metaLine').textContent = bits.filter(Boolean).join(' · ');
 
-  // Group stage with playoffs built: let viewers flip between the playoff
-  // canvas and the final group tables — the groups stay one tap away.
-  const wantToggle = d.bracket && d.bracket.type === 'group_stage' && d.bracket.playoffs;
-  let tg = $('stageToggle');
-  if (wantToggle && !tg) {
-    tg = document.createElement('button');
-    tg.id = 'stageToggle';
-    tg.className = 'stage-toggle';
-    $('metaLine').after(tg);
+  // Group-stage tournaments: a clear two-stage switcher. Each stage has a
+  // shareable URL (?stage=groups / ?stage=playoffs); Playoffs unlocks once
+  // the groups finish and the bracket is built.
+  const wantTabs = d.bracket && d.bracket.type === 'group_stage';
+  let tabs = $('stageTabs');
+  if (wantTabs && !tabs) {
+    tabs = document.createElement('div');
+    tabs.id = 'stageTabs';
+    tabs.className = 'stage-tabs';
+    $('metaLine').after(tabs);
   }
-  if (tg && !wantToggle) { tg.remove(); tg = null; }
-  if (tg) {
-    tg.textContent = S.groupsView ? '◆ View playoff bracket' : '☷ View group results';
-    tg.onclick = () => { S.groupsView = !S.groupsView; render(); };
+  if (tabs && !wantTabs) { tabs.remove(); tabs = null; }
+  if (tabs) {
+    const hasPo = !!d.bracket.playoffs;
+    const groupsOn = !hasPo || S.groupsView;
+    tabs.innerHTML = `
+      <button class="st-tab ${groupsOn ? 'on' : ''}" data-stage="groups">☷ Group stage</button>
+      <button class="st-tab ${groupsOn ? '' : 'on'}" data-stage="playoffs" ${hasPo ? '' : 'disabled title="Opens when all group matches are done"'}>◆ Playoffs</button>`;
+    tabs.querySelectorAll('[data-stage]').forEach(b => b.onclick = () => {
+      if (b.disabled) return;
+      S.groupsView = b.dataset.stage === 'groups';
+      const u = new URL(location.href);
+      u.searchParams.set('stage', b.dataset.stage);
+      history.replaceState(null, '', u);
+      render();
+    });
   }
 }
 
@@ -947,7 +965,9 @@ function renderGroupStage(d) {
   let html = '';
   if (d.results) html += renderPodiumSection(d.results);
   const adv = d.bracket.advancingPerGroup;
-  if (adv) html += `<div class="section"><div class="section-title">Top ${adv} per group advance to the playoffs</div></div>`;
+  if (adv) html += `<div class="section"><div class="section-title">${d.bracket.playoffs
+    ? `Groups are final — the top ${adv} of each group advanced to the playoffs`
+    : `Top ${adv} per group advance to the playoffs`}</div></div>`;
   for (const g of d.bracket.groups) {
     // Same order the engine uses: wins → game diff (H2H nuances resolved server-side rankings arrive pre-sorted when complete)
     const sorted = [...g.bracket.standings].sort((a, b) => b.wins - a.wins || gdiff(b) - gdiff(a) || goald(b) - goald(a) || (b.goalsFor || 0) - (a.goalsFor || 0) || a.losses - b.losses);
