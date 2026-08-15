@@ -913,7 +913,10 @@ function renderSwissRR(d) {
 function renderGroupStage(d) {
   const gdiff = (s) => (s.gamesWon || 0) - (s.gamesLost || 0);
   const goald = (s) => (s.goalsFor || 0) - (s.goalsAgainst || 0);
-  const hasGoals = d.bracket.groups.some(g => g.bracket.standings.some(s => (s.goalsFor || 0) + (s.goalsAgainst || 0) > 0));
+  // GD column: always there when the tournament tracks goals (0s before any
+  // reports); data-presence fallback covers payloads without the flag
+  const hasGoals = d.trackGoals === true ||
+    d.bracket.groups.some(g => g.bracket.standings.some(s => (s.goalsFor || 0) + (s.goalsAgainst || 0) > 0));
   const cols = [
     { label: 'W', value: s => s.wins }, { label: 'L', value: s => s.losses },
     { label: 'Diff', value: s => { const d2 = gdiff(s); return d2 > 0 ? `+${d2}` : d2; } },

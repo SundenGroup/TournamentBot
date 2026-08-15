@@ -320,7 +320,10 @@ router.get('/admin/api/tournaments/:id/manage', requireSession, async (req, res)
           name: isSolo ? (row.participant.displayName || row.participant.username) : row.participant.name,
           wins: row.wins, losses: row.losses,
           diff: (row.gamesWon || 0) - (row.gamesLost || 0),
-          gd: (row.goalsFor || 0) + (row.goalsAgainst || 0) > 0 ? (row.goalsFor || 0) - (row.goalsAgainst || 0) : null,
+          // Goal diff shows from the first render when the tournament tracks
+          // goals (0s pre-play); otherwise only once goal data exists
+          gd: (t.settings.trackGoals !== false || (row.goalsFor || 0) + (row.goalsAgainst || 0) > 0)
+            ? (row.goalsFor || 0) - (row.goalsAgainst || 0) : null,
         })),
       })),
     } : null,

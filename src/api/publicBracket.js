@@ -158,6 +158,8 @@ function buildPayload(tournament) {
       logo: tournament.game.logo,
     },
     format: tournament.settings.format,
+    // Group tables show the GD column from the start when goals are tracked
+    trackGoals: tournament.settings.trackGoals !== false,
     teamSize: tournament.settings.teamSize,
     bestOf: tournament.settings.bestOf,
     maxParticipants: tournament.settings.maxParticipants,
