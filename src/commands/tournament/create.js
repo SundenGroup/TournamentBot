@@ -1386,6 +1386,14 @@ async function handleBracket(interaction) {
  * Shared by both /tournament bracket and /match bracket.
  */
 function buildBracketEmbeds(tournament) {
+  if (tournament.bracket?.type === 'group_stage') {
+    const { buildGroupStageEmbeds } = require('../../utils/groupStageEmbeds');
+    const embeds = buildGroupStageEmbeds(tournament);
+    const { getBracketUrl } = require('../../utils/embedBuilder');
+    const url = getBracketUrl(tournament);
+    if (url) embeds.push(new (require('discord.js').EmbedBuilder)().setColor(0xff154d).setDescription(`🌐 **Live web bracket:** ${url}`));
+    return embeds;
+  }
   const bracket = tournament.bracket;
   const isSolo = tournament.settings.teamSize === 1;
   const getName = (p) => isSolo ? p?.username : p?.name;

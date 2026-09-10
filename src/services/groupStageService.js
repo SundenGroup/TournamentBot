@@ -345,6 +345,8 @@ function getGroupStandings(bracket) {
     name: g.name,
     complete: roundRobin.isComplete(g.bracket),
     standings: roundRobin.getStandings(g.bracket),
+    // Why tied rows are ordered the way they are (same code path as the sort)
+    notes: roundRobin.tiebreakNotes(roundRobin.getStandings(g.bracket)),
   }));
 }
 

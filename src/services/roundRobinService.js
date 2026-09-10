@@ -441,7 +441,35 @@ function correctResult(bracket, matchId, newWinnerId, newScore = null, newGoals 
   return bracket;
 }
 
+/**
+ * Explain adjacent tiebreaks in SORTED standings (from getStandings): for each
+ * row sharing its win count with the row above, which rung of the ladder put
+ * the upper row ahead. Mirrors sortStandings exactly so every display can say
+ * WHY the order is what it is (the public page once re-sorted without the
+ * head-to-head rung and showed the wrong qualifier).
+ * @returns {Array<{ahead: Object, behind: Object, on: string}>}
+ */
+function tiebreakNotes(sorted) {
+  const notes = [];
+  for (let i = 1; i < sorted.length; i++) {
+    const a = sorted[i - 1], b = sorted[i];
+    if (a.wins !== b.wins) continue;
+    let on;
+    if (gameDiff(a) !== gameDiff(b)) on = 'game record';
+    else {
+      const cohort = sorted.filter(s => s.wins === a.wins && gameDiff(s) === gameDiff(a));
+      if (cohort.length === 2 && a.headToHead && a.headToHead[b.participant.id] === 'win') on = 'head-to-head';
+      else if (goalDiff(a) !== goalDiff(b)) on = 'goal difference';
+      else if ((a.goalsFor || 0) !== (b.goalsFor || 0)) on = 'goals scored';
+      else on = 'every tiebreaker level — order is provisional';
+    }
+    notes.push({ ahead: a.participant, behind: b.participant, on });
+  }
+  return notes;
+}
+
 module.exports = {
+  tiebreakNotes,
   generateBracket,
   advanceWinner,
   correctResult,

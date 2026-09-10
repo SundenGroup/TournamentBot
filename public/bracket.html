@@ -155,6 +155,8 @@
   /* Standings stat columns hug the right edge: the name column absorbs all
      slack, stats stay compact. Scoped so the BR game matrix keeps auto width. */
   table.standings .name { width: 100%; }
+  .tb-notes { display: flex; flex-wrap: wrap; gap: 6px 18px; margin: 8px 2px 0; font-family: var(--mono); font-size: 11px; letter-spacing: .03em; color: var(--text-faint); }
+  .tb-notes b { color: var(--text-2); font-weight: 600; }
   table.standings th.stat, table.standings td.stat { width: 54px; min-width: 54px; text-align: center; white-space: nowrap; }
   .rounds-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 12px; }
   .round-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; padding: 13px 15px; }
@@ -970,9 +972,14 @@ function renderGroupStage(d) {
     : `Top ${adv} per group advance to the playoffs`}</div></div>`;
   for (const g of d.bracket.groups) {
     // Same order the engine uses: wins → game diff (H2H nuances resolved server-side rankings arrive pre-sorted when complete)
-    const sorted = [...g.bracket.standings].sort((a, b) => b.wins - a.wins || gdiff(b) - gdiff(a) || goald(b) - goald(a) || (b.goalsFor || 0) - (a.goalsFor || 0) || a.losses - b.losses);
+    // Ranked by the server (engine ladder incl. head-to-head). The client
+    // sort is only a fallback for a payload without ranks.
+    const sorted = g.bracket.standings.every(s => s.rank)
+      ? [...g.bracket.standings].sort((a, b) => a.rank - b.rank)
+      : [...g.bracket.standings].sort((a, b) => b.wins - a.wins || gdiff(b) - gdiff(a) || goald(b) - goald(a) || (b.goalsFor || 0) - (a.goalsFor || 0) || a.losses - b.losses);
     html += `<div class="section"><div class="section-title">${esc(g.name)}</div>
       ${renderStandingsTable(sorted, cols, adv || 1)}
+      ${(g.notes || []).length ? `<div class="tb-notes">${g.notes.map(n => `<span>${esc(n.ahead)} ahead of ${esc(n.behind)} on <b>${esc(n.on)}</b></span>`).join('')}</div>` : ''}
       ${renderRoundCards(g.bracket.rounds, g.bracket.currentRound)}</div>`;
   }
   showPanel(html);

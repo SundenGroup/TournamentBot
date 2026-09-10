@@ -145,7 +145,7 @@ function buildPayload(tournament) {
     }
   }
 
-  return {
+  const payload = {
     id: tournament.id,
     // Custom /b/ link, when set — uuid URLs 301 to it
     slug: tournament.settings.publicSlug || null,
@@ -185,6 +185,30 @@ function buildPayload(tournament) {
     results,
     generatedAt: new Date().toISOString(),
   };
+  // Group stage: the table order is decided by the engine's full tiebreak
+  // ladder (wins → game record → head-to-head → goal diff → goals scored),
+  // the same call that picks the qualifiers. Ship rows ranked, with the
+  // reason tied rows are ordered, and never re-sort on the client. Rows are
+  // rebuilt here so internal fields (raw head-to-head ids) don't leak.
+  if (tournament.bracket?.type === 'group_stage' && payload.bracket?.groups) {
+    const groupStage = require('../services/groupStageService');
+    const ranked = groupStage.getGroupStandings(tournament.bracket);
+    payload.bracket.groups.forEach((g, i) => {
+      const src = ranked[i];
+      if (!src) return;
+      g.bracket.standings = src.standings.map((row, r) => ({
+        rank: r + 1,
+        participant: sanitizeParticipant(row.participant),
+        wins: row.wins, losses: row.losses, matchesPlayed: row.matchesPlayed ?? 0,
+        gamesWon: row.gamesWon || 0, gamesLost: row.gamesLost || 0,
+        goalsFor: row.goalsFor || 0, goalsAgainst: row.goalsAgainst || 0,
+      }));
+      g.notes = src.notes.map(n => ({
+        ahead: sanitizeParticipant(n.ahead).name, behind: sanitizeParticipant(n.behind).name, on: n.on,
+      }));
+    });
+  }
+  return payload;
 }
 
 // ============================================================================

@@ -24,7 +24,10 @@ module.exports = {
 
     const embeds = [];
 
-    if (bracket.type === 'swiss') {
+    if (bracket.type === 'group_stage') {
+      const { buildGroupStageEmbeds } = require('../utils/groupStageEmbeds');
+      embeds.push(...buildGroupStageEmbeds(tournament));
+    } else if (bracket.type === 'swiss') {
       // Swiss format - show standings and current round matches
       const standings = swiss.getStandings(bracket);
 

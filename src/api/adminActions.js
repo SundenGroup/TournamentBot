@@ -327,6 +327,11 @@ router.get('/admin/api/tournaments/:id/manage', requireSession, async (req, res)
       })(t.bracket.playoffs || null),
       groups: require('../services/groupStageService').getGroupStandings(t.bracket).map(g => ({
         key: g.key, name: g.name, complete: g.complete,
+        notes: (g.notes || []).map(n => ({
+          ahead: isSolo ? (n.ahead.displayName || n.ahead.username) : n.ahead.name,
+          behind: isSolo ? (n.behind.displayName || n.behind.username) : n.behind.name,
+          on: n.on,
+        })),
         standings: g.standings.map(row => ({
           name: isSolo ? (row.participant.displayName || row.participant.username) : row.participant.name,
           wins: row.wins, losses: row.losses,

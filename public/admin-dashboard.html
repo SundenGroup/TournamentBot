@@ -1068,6 +1068,7 @@ function renderRunLeft() {
     html += gsd.groups.map(g => `
       <div class="edit-card"><div class="qlabel">${esc(g.name)} ${g.complete ? '· ✓ done' : ''}</div>
         ${g.standings.map((row, i) => `<div class="ent-row"><span class="nm">${i < adv ? '<span style="color:var(--accent);font-weight:700">↑</span> ' : ''}${i + 1}. ${esc(row.name)}</span><span class="idsub">${row.wins}–${row.losses}${row.diff != null ? ` · ${row.diff > 0 ? '+' + row.diff : row.diff}` : ''}${row.gd != null ? ` · GD ${row.gd > 0 ? '+' + row.gd : row.gd}` : ''}</span></div>`).join('')}
+        ${(g.notes || []).map(n => `<div class="idsub" style="margin-top:6px">↕ ${esc(n.ahead)} ahead of ${esc(n.behind)} on <b>${esc(n.on)}</b></div>`).join('')}
       </div>`).join('');
   }
 
