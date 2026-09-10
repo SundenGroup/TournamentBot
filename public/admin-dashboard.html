@@ -259,7 +259,7 @@
 .br-standings td.num { text-align: center; font-variant-numeric: tabular-nums; }
 .br-standings tr.cut td { border-bottom: 1px dashed var(--accent); }
 /* ── Run-view section tabs (big tournaments: no more endless scroll) ── */
-.run-tabs { display: flex; gap: 6px; position: sticky; top: 0; z-index: 6; background: var(--bg); padding: 10px 0 8px; margin-bottom: 10px; border-bottom: 1px solid var(--hairline); }
+.run-tabs { display: flex; flex-wrap: wrap; gap: 6px; position: sticky; top: 0; z-index: 6; background: var(--bg); padding: 10px 0 8px; margin-bottom: 10px; border-bottom: 1px solid var(--hairline); }
 .run-tab { font: inherit; font-size: 12.5px; font-weight: 600; padding: 7px 13px; border-radius: 8px; border: 1px solid var(--border); background: var(--bg-card); color: var(--text-2); cursor: pointer; display: flex; align-items: center; gap: 7px; }
 .run-tab:hover { color: var(--text); border-color: var(--border-strong); }
 .run-tab.on { background: rgba(255,21,77,.10); border-color: rgba(255,21,77,.45); color: var(--accent-soft); }
@@ -1044,6 +1044,7 @@ function renderRunLeft() {
           <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
             <button class="btn btn-accent btn-sm" data-start-playoffs="0">🏁 Start playoffs</button>
             <button class="btn btn-sm" data-start-playoffs="1" title="Uses the seeds set in the Seeding tab (must be a full 1..N)">Start with custom seeds</button>
+            <button class="btn btn-sm" data-goto-seed title="Open the Seeding tab to give the qualifiers seeds 1..N">✎ Re-seed the qualifiers</button>
             <label style="display:flex;align-items:center;gap:6px;color:var(--text-2);font-size:13px;cursor:pointer" title="Untick to publish the playoff bracket first — everyone sees the matchups, and you open the rooms later with one click">
               <input type="checkbox" id="poOpenRooms" checked> Open match rooms right away
             </label>
@@ -1427,6 +1428,9 @@ function wireRunLeft(d, left) {
       : `Saved — top ${r.data.advancingPerGroup} per group advance to ${r.data.playoffFormat === 'double_elimination' ? 'double' : 'single'}-elim playoffs.`);
     refreshRun();
   });
+
+  const gotoSeed = left.querySelector('[data-goto-seed]');
+  if (gotoSeed) gotoSeed.addEventListener('click', () => { runTab = 'seed'; renderRunLeft(); left.scrollTop = 0; });
 
   const rebuildBtn = left.querySelector('[data-rebuild-playoffs]');
   if (rebuildBtn) armConfirm(rebuildBtn, rebuildBtn.textContent, 'Tear down + re-seed?', async () => {
