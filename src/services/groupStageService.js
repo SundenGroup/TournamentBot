@@ -295,7 +295,7 @@ function setPlayoffConfig(bracket, settings, { playoffFormat, advancingPerGroup 
   if (playoffFormat !== 'none') {
     adv = parseInt(advancingPerGroup, 10);
     if (!Number.isInteger(adv) || adv < 1 || adv >= groupSize) {
-      throw new Error(`Advancing per group must be between 1 and ${groupSize - 1}.`);
+      throw new Error(`Advance per group must be between 1 and ${groupSize - 1} — fewer than the ${groupSize} players in each group.`);
     }
     if (adv * bracket.groups.length < 2) throw new Error('At least 2 players must advance to play playoffs.');
   }

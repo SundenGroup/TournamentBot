@@ -27,7 +27,7 @@ function buildOptionsMessage(session) {
     rows.push(new ActionRowBuilder().addComponents(
       new StringSelectMenuBuilder()
         .setCustomId(`wizardOptions:${session.id}:groupSize`)
-        .setPlaceholder('Group size')
+        .setPlaceholder('Players per group')
         .addOptions([...new Set([3, 4, 5, 6, 8, curSize])].sort((a, b) => a - b).map(n => ({
           label: `Groups of ${n} ${unit}`, value: String(n), default: n === curSize,
         })))

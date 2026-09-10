@@ -482,7 +482,7 @@ router.post('/admin/api/guilds/:guildId/tournaments', ...mutate, requireGuildAdm
     playoffFormat = ['single_elimination', 'double_elimination', 'none'].includes(b.playoffFormat) ? b.playoffFormat : 'single_elimination';
     advancingPerGroup2 = playoffFormat === 'none' ? 0 : (parseInt(b.advancingPerGroup, 10) || 2);
     if (playoffFormat !== 'none' && (advancingPerGroup2 < 1 || advancingPerGroup2 >= groupSize)) {
-      return res.status(400).json({ error: `Advancing per group must be between 1 and ${groupSize - 1}` });
+      return res.status(400).json({ error: `Advance per group must be between 1 and ${groupSize - 1} — fewer than the ${groupSize} players in each group. (Groups are formed from max entrants ÷ players per group; e.g. 12 entrants, 6 per group, 4 advancing → 2 groups → 8-player playoff.)` });
     }
   }
 

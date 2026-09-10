@@ -1761,6 +1761,34 @@ function gameDefaults(g) {
   return `${(FORMAT_NAMES[g.defaultFormat] || g.defaultFormat).replace('Elim', 'Elim')} · ${team} · Bo${g.defaultBestOf}`;
 }
 
+// Group stage: spell out what the numbers produce, and catch impossible combos
+// before the server does ("2 groups of 6, top 4 → 8-player playoff").
+function gsSummary(body) {
+  const el = body.querySelector('#cGSSummary');
+  if (!el) return null;
+  const max = parseInt(body.querySelector('#cMax').value, 10) || 0;
+  const size = parseInt(body.querySelector('#cGroupSize').value, 10) || 0;
+  const fmt = body.querySelector('#cPlayoffFormat').value;
+  const adv = parseInt(body.querySelector('#cAdvancing').value, 10) || 0;
+  if (!max || !size) { el.textContent = ''; return null; }
+  const groups = Math.ceil(max / size);
+  const last = max - size * (groups - 1);
+  let err = null;
+  if (groups < 2) err = `${size} players per group with ${max} entrants makes only one group — lower players per group (e.g. ${Math.ceil(max / 2)} for 2 groups).`;
+  else if (last === 1) err = `${max} entrants in groups of ${size} leaves one group with a single player — change one of the two numbers.`;
+  else if (fmt !== 'none' && (adv < 1 || adv >= size)) err = `Advance per group (${adv}) must be smaller than players per group (${size}).${adv >= size && size < max / 2 ? ` If you meant ${size} groups, set players per group to ${Math.ceil(max / size)}.` : ''}`;
+  let text = `${max} players → ${groups} groups of ${size}${last !== size ? ` (the last one ${last})` : ''}`;
+  if (fmt === 'none') text += ' → the tournament ends on the group tables.';
+  else if (!err) {
+    const q = groups * adv;
+    text += ` → top ${adv} from each group → ${q}-player ${fmt === 'double_elimination' ? 'double' : 'single'}-elim playoff`;
+    text += (q & (q - 1)) === 0 ? '.' : ` (${q} isn't a power of two, so the bracket includes byes).`;
+  }
+  el.textContent = err || text;
+  el.style.color = err ? '#ff6b6b' : 'var(--text-2)';
+  return err;
+}
+
 function renderCreate() {
   $('createStepLabel').textContent = `Step ${createStep} of 2`;
   const body = $('createBody');
@@ -1826,16 +1854,17 @@ function renderCreate() {
         <div id="cRolesList" style="max-height:104px;overflow-y:auto;border:1px solid var(--border);border-radius:8px;padding:8px 10px;display:flex;flex-direction:column;gap:6px"></div>
       </div>
       <div class="field full" id="cGSWrap" style="display:none">
-        <label>Group stage <span class="protag">PRO</span></label>
-        <div style="display:flex;gap:8px;flex-wrap:wrap">
-          <input type="number" id="cGroupSize" min="2" max="16" value="4" title="Players per group" style="flex:1;min-width:110px" placeholder="Group size">
-          <select id="cPlayoffFormat" style="flex:2;min-width:170px">
+        <label>Group stage <span class="protag">PRO</span> <span style="font-size:11px;color:var(--text-faint);font-weight:400;text-transform:none;letter-spacing:0">— the number of groups comes from max entrants ÷ players per group</span></label>
+        <div style="display:flex;gap:10px;flex-wrap:wrap">
+          <div class="field" style="flex:1;min-width:130px;margin:0"><label style="font-size:11px;color:var(--text-faint)">Players per group</label><input type="number" id="cGroupSize" min="2" max="16" value="4"></div>
+          <div class="field" style="flex:2;min-width:190px;margin:0"><label style="font-size:11px;color:var(--text-faint)">After the groups</label><select id="cPlayoffFormat">
             <option value="single_elimination">Playoffs: Single Elim</option>
             <option value="double_elimination">Playoffs: Double Elim</option>
             <option value="none">No playoffs — group tables decide</option>
-          </select>
-          <input type="number" id="cAdvancing" min="1" max="15" value="2" title="Advance per group to playoffs" style="flex:1;min-width:120px" placeholder="Advance/group">
+          </select></div>
+          <div class="field" style="flex:1;min-width:130px;margin:0"><label style="font-size:11px;color:var(--text-faint)">Advance per group</label><input type="number" id="cAdvancing" min="1" max="15" value="2"></div>
         </div>
+        <p id="cGSSummary" style="font-size:12.5px;color:var(--text-2);margin:8px 0 0;line-height:1.55"></p>
       </div>
       <div class="field full" id="cBRWrap" style="display:none">
         <label>Battle Royale <span style="font-size:11px;color:var(--text-faint);font-weight:400;text-transform:none;letter-spacing:0">— blank fields use the game's defaults</span></label>
@@ -1880,15 +1909,23 @@ function renderCreate() {
     body.querySelector('#cThirdWrap').style.display = fmt === 'single_elimination' ? '' : 'none';
     body.querySelector('#cBRWrap').style.display = fmt === 'battle_royale' ? '' : 'none';
     body.querySelector('#cGSWrap').style.display = fmt === 'group_stage' ? '' : 'none';
+    if (fmt === 'group_stage') gsSummary(body);
     body.querySelector('#cCaptainWrap').style.display = team ? '' : 'none';
   };
   body.querySelector('#cFormat').addEventListener('change', syncCreateOptions);
+  ['#cMax', '#cGroupSize', '#cAdvancing'].forEach(sel => body.querySelector(sel).addEventListener('input', () => gsSummary(body)));
   body.querySelector('#cPlayoffFormat').addEventListener('change', () => {
+    gsSummary(body);
     body.querySelector('#cAdvancing').disabled = body.querySelector('#cPlayoffFormat').value === 'none';
   });
   body.querySelector('#cTeamSize').addEventListener('change', syncCreateOptions);
   syncCreateOptions();
   body.querySelector('#cSubmit').addEventListener('click', async ev => {
+    // Group stage: explain impossible combinations before they hit the server
+    if (body.querySelector('#cFormat').value === 'group_stage') {
+      const gsErr = gsSummary(body);
+      if (gsErr) return toast(gsErr, true);
+    }
     const startVal = body.querySelector('#cStart').value;
     if (!startVal) return toast('Pick a start time', true);
     ev.target.disabled = true;
