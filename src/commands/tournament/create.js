@@ -1037,10 +1037,18 @@ async function handleStartPlayoffs(interaction) {
   await interaction.deferReply({ ephemeral: true });
 
   const tournamentId = interaction.options.getString('tournament');
-  const useCustomSeeds = interaction.options.getBoolean('use_custom_seeds') ?? false;
+  const customOpt = interaction.options.getBoolean('use_custom_seeds');
+  const useCustomSeeds = customOpt ?? false;
 
   const tournament = await getGuildTournament(interaction.guildId, tournamentId);
   if (!tournament) return interaction.editReply({ content: '❌ Tournament not found.' });
+
+  // Saved seeds must never be ignored silently: make the admin choose.
+  if (customOpt === null && require('../../services/groupStageService').customSeedsReady(tournament.bracket)) {
+    return interaction.editReply({
+      content: '🌱 The qualifiers carry seeds 1..N. Run again with `use_custom_seeds:True` to build the playoffs from them, or `use_custom_seeds:False` for standard seeding.',
+    });
+  }
 
   try {
     const { startPlayoffsFlow } = require('../../services/lifecycleService');

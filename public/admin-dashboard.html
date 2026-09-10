@@ -1038,12 +1038,15 @@ function renderRunLeft() {
         <p style="color:var(--text-2);font-size:13px;margin:6px 0 10px">${gsd.groupsComplete
           ? (gsd.playoffFormat === 'none'
             ? 'All groups are done — final tables below. This tournament ends on group standings.'
-            : `All groups are done. Starting the playoffs locks group results and builds the bracket (top ${gsd.advancingPerGroup} per group). To use a custom order, set seeds 1..N on the qualifiers in the Seeding tab first.`)
+            : `All groups are done. Starting the playoffs locks group results and builds the bracket (top ${gsd.advancingPerGroup} per group). ${gsd.customSeedsReady ? '✅ The qualifiers carry your seeds 1..N — the red button builds the bracket from them.' : 'To use a custom order, set seeds 1..N on the qualifiers in the Seeding tab first.'}`)
           : 'Playoffs unlock when every group match is reported.'}</p>
         ${gsd.groupsComplete && gsd.playoffFormat !== 'none' ? `
           <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
-            <button class="btn btn-accent btn-sm" data-start-playoffs="0">🏁 Start playoffs</button>
-            <button class="btn btn-sm" data-start-playoffs="1" title="Uses the seeds set in the Seeding tab (must be a full 1..N)">Start with custom seeds</button>
+            ${gsd.customSeedsReady ? `
+            <button class="btn btn-accent btn-sm" data-start-playoffs="1">🏁 Start playoffs with your seeding</button>
+            <button class="btn btn-sm" data-start-playoffs="0" title="Ignores the seeds you set and uses the standard cross-seeding">Use standard seeding instead</button>` : `
+            <button class="btn btn-accent btn-sm" data-start-playoffs="0">🏁 Start playoffs (standard seeding)</button>
+            <button class="btn btn-sm" data-start-playoffs="1" disabled title="First give every qualifier a distinct seed 1..N in the Seeding tab">Start with custom seeds</button>`}
             <button class="btn btn-sm" data-goto-seed title="Open the Seeding tab to give the qualifiers seeds 1..N">✎ Re-seed the qualifiers</button>
             <label style="display:flex;align-items:center;gap:6px;color:var(--text-2);font-size:13px;cursor:pointer" title="Untick to publish the playoff bracket first — everyone sees the matchups, and you open the rooms later with one click">
               <input type="checkbox" id="poOpenRooms" checked> Open match rooms right away
@@ -1080,6 +1083,10 @@ function renderRunLeft() {
     } else {
       const ents = d.entrants;
       const seededCount = ents.filter(e => e.seed != null).length;
+      if (d.groupStage && d.groupStage.stage === 'groups' && d.status === 'active') {
+        html += `<div class="edit-card" style="margin-bottom:10px"><div class="qlabel">Re-seeding the playoffs</div>
+          <p style="color:var(--text-2);font-size:13px;margin:6px 0 0">Give the ${d.groupStage.groups.length * (d.groupStage.advancingPerGroup || 0)} qualifiers distinct seeds 1..N and press <b>Save seeds</b>. Once they're complete, the Groups tab's red button starts the playoffs <b>from your seeds</b>; other players' seeds are ignored.</p></div>`;
+      }
       html += `<div><div class="qlabel">Seeding · ${seededCount}/${ents.length} seeded</div>
         <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:2px 0 10px">
           <button class="btn btn-sm" data-seed-rand>🎲 Randomize</button>
@@ -1443,7 +1450,7 @@ function wireRunLeft(d, left) {
     refreshRun();
   });
 
-  left.querySelectorAll('[data-start-playoffs]').forEach(btn => armConfirm(btn, btn.textContent, 'Sure? Locks groups', async () => {
+  left.querySelectorAll('[data-start-playoffs]').forEach(btn => armConfirm(btn, btn.textContent, btn.dataset.startPlayoffs === '0' && d.groupStage?.customSeedsReady ? 'Ignore your seeds — sure?' : 'Sure? Locks groups', async () => {
     btn.disabled = true;
     const r = await api(`/admin/api/tournaments/${d.id}/start-playoffs`, {
       method: 'POST', body: {

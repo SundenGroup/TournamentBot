@@ -179,6 +179,24 @@ function isComplete(bracket) {
   return bracket.playoffs ? playoffEngine(bracket).isComplete(bracket.playoffs) : false;
 }
 
+/** True when the qualifiers carry a complete, distinct 1..Q seed set. */
+function customSeedsValid(qs) {
+  const seeds = qs.map(q => q.participant.seed).filter(x => Number.isInteger(x));
+  return seeds.length === qs.length && new Set(seeds).size === qs.length
+    && Math.min(...seeds) === 1 && Math.max(...seeds) === qs.length;
+}
+
+/**
+ * Can the playoffs be built from admin seeds right now? Groups done, playoffs
+ * not built, and every qualifier seeded 1..Q. Surfaces use this to make the
+ * seeded start the PRIMARY action, so saved seeds are never silently ignored.
+ */
+function customSeedsReady(bracket) {
+  if (!bracket || bracket.type !== 'group_stage' || bracket.playoffs) return false;
+  if (bracket.playoffFormat === 'none' || !groupsComplete(bracket)) return false;
+  return customSeedsValid(qualifiers(bracket));
+}
+
 /** Top advancingPerGroup per group, in standing order, tagged with origin. */
 function qualifiers(bracket) {
   const out = [];
@@ -212,10 +230,7 @@ function startPlayoffs(bracket, settings, { useCustomSeeds = false } = {}) {
 
   let seeded;
   if (useCustomSeeds) {
-    const seeds = qs.map(q => q.participant.seed).filter(s => Number.isInteger(s));
-    const valid = seeds.length === qs.length && new Set(seeds).size === qs.length
-      && Math.min(...seeds) === 1 && Math.max(...seeds) === qs.length;
-    if (!valid) {
+    if (!customSeedsValid(qs)) {
       throw new Error(`Custom playoff seeding needs every qualifier to have a distinct seed 1–${qs.length}. Fix the seeds (Seeding tab / CSV) or start with standard seeding.`);
     }
     seeded = qs.map(q => ({ ...q.participant }));
@@ -380,6 +395,7 @@ module.exports = {
   groupsComplete,
   qualifiers,
   startPlayoffs,
+  customSeedsReady,
   setPlayoffConfig,
   rebuildPlayoffs,
   getGroupStandings,
