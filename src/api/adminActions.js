@@ -347,6 +347,8 @@ router.get('/admin/api/tournaments/:id/manage', requireSession, async (req, res)
     } : null,
     seedCsv: (await checkFeature(t.guildId, 'seed_csv')).allowed,
     publicSlug: t.settings.publicSlug || null,
+    hideSeeds: !!t.settings.hideSeeds,
+    hideSeedsAllowed: (await checkFeature(t.guildId, 'hide_seeds')).allowed,
     slugAllowed: (await checkFeature(t.guildId, 'custom_slug')).allowed,
     nickSummary: t.settings.requireGameNick ? getNickSummary(t.game) : null,
     // Column labels for the bulk-add hint (e.g. GOALS Username, GOALS User ID)
@@ -439,6 +441,10 @@ router.post('/admin/api/guilds/:guildId/tournaments', ...mutate, requireGuildAdm
   const captainMode = !!b.captainMode && teamSize > 1;
   const thirdPlaceMatch = !!b.thirdPlaceMatch && format === 'single_elimination';
   const trackGoals = b.trackGoals === undefined ? true : !!b.trackGoals;
+  const hideSeeds = !!b.hideSeeds;
+  if (hideSeeds && !(await checkFeature(req.params.guildId, 'hide_seeds')).allowed) {
+    return res.status(400).json({ error: 'Hiding seed numbers on the public bracket is a Pro feature.' });
+  }
 
   let requiredRoles = [];
   if (Array.isArray(b.requiredRoles) && b.requiredRoles.length) {
@@ -550,6 +556,7 @@ router.post('/admin/api/guilds/:guildId/tournaments', ...mutate, requireGuildAdm
         captainMode,
         thirdPlaceMatch,
         trackGoals,
+        hideSeeds,
         requiredRoles,
         brScoringModel,
         gamesPerStage,
@@ -1061,6 +1068,26 @@ router.post('/admin/api/tournaments/:id/playoff-config', ...mutate, async (req, 
     await updateTournamentMessages(getClient(), t).catch(() => {});
     await audit(req, t, 'playoff-config', result);
     res.json({ ok: true, ...result });
+  } catch (err) {
+    console.error(`[web-admin] ${req.method} ${req.path} failed:`, err.message);
+    res.status(400).json({ error: err.message });
+  }
+});
+
+// Public-page display options — changeable at any time (display only)
+router.post('/admin/api/tournaments/:id/public-options', ...mutate, async (req, res) => {
+  const t = await loadOwnedForMutation(req, res);
+  if (!t) return;
+  try {
+    const hideSeeds = !!req.body?.hideSeeds;
+    if (hideSeeds && !(await checkFeature(t.guildId, 'hide_seeds')).allowed) {
+      return res.status(400).json({ error: 'Hiding seed numbers on the public bracket is a Pro feature.' });
+    }
+    t.settings.hideSeeds = hideSeeds;
+    const { updateTournament } = require('../services/tournamentService');
+    await updateTournament(t.id, { settings: t.settings });
+    await audit(req, t, 'public-options', { hideSeeds });
+    res.json({ ok: true, hideSeeds });
   } catch (err) {
     console.error(`[web-admin] ${req.method} ${req.path} failed:`, err.message);
     res.status(400).json({ error: err.message });

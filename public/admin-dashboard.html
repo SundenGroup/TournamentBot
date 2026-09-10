@@ -1109,7 +1109,11 @@ function renderRunLeft() {
 
   // Custom public link (Studio) — shown on every tab, under the content
   if (runTournament.publicBracket && d.publicSlug !== undefined) {
-    html += `<div class="edit-card" style="margin-top:12px"><div class="qlabel">🔗 Custom link ${d.slugAllowed ? '' : '<span class="protag">STUDIO</span>'}</div>`;
+    html += `<div class="edit-card" style="margin-top:12px"><div class="qlabel">🌐 Public page</div>
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;margin:6px 0 12px" title="Spectators see names only — you keep seeing seeds here and in the admin bracket">
+        <input type="checkbox" data-hide-seeds ${d.hideSeeds ? 'checked' : ''} ${d.hideSeedsAllowed ? '' : 'disabled'} style="accent-color:var(--accent)"> Hide seed numbers on the public bracket ${d.hideSeedsAllowed ? '' : '<span class="protag">PRO</span>'}
+      </label>
+      <div class="qlabel">🔗 Custom link ${d.slugAllowed ? '' : '<span class="protag">STUDIO</span>'}</div>`;
     if (d.slugAllowed) {
       html += `<p style="color:var(--text-2);font-size:12.5px;margin:6px 0 8px">Give this bracket a memorable URL. The old links (uuid and any previous custom link) permanently redirect to the new one.</p>
         <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
@@ -1435,6 +1439,14 @@ function wireRunLeft(d, left) {
       ? 'Saved — this tournament ends on the group tables.'
       : `Saved — top ${r.data.advancingPerGroup} per group advance to ${r.data.playoffFormat === 'double_elimination' ? 'double' : 'single'}-elim playoffs.`);
     refreshRun();
+  });
+
+  const hideSeedsBox = left.querySelector('[data-hide-seeds]');
+  if (hideSeedsBox) hideSeedsBox.addEventListener('change', async () => {
+    const r = await api(`/admin/api/tournaments/${d.id}/public-options`, { method: 'POST', body: { hideSeeds: hideSeedsBox.checked } });
+    if (!r.ok) { hideSeedsBox.checked = !hideSeedsBox.checked; return toast(r.error, true); }
+    toast(r.data.hideSeeds ? 'Seed numbers hidden on the public bracket' : 'Seed numbers shown on the public bracket');
+    const iframe = $('runRight').querySelector('iframe'); if (iframe) iframe.src = iframe.src;
   });
 
   const gotoSeed = left.querySelector('[data-goto-seed]');
@@ -1846,7 +1858,8 @@ function renderCreate() {
         <select id="cBestOf" style="flex:1">${g.bestOfOptions.map(n => `<option value="${n}" ${n === g.defaultBestOf ? 'selected' : ''}>Bo${n}</option>`).join('')}</select>
       </div></div>
       <div class="field"><label>Announcement channel</label><select id="cChannel"><option value="">Server default</option>${channels.map(c => `<option value="${esc(c.id)}"># ${esc(c.name)}${c.category ? ` — ${esc(c.category)}` : ''}</option>`).join('')}</select></div>
-      <div style="display:flex;align-items:center;gap:8px;margin-top:20px"><label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px"><input type="checkbox" id="cPublic" checked style="accent-color:var(--accent)"> Live web bracket <span class="protag">PRO</span></label></div>
+      <div style="display:flex;align-items:center;gap:8px;margin-top:20px"><label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px"><input type="checkbox" id="cPublic" checked style="accent-color:var(--accent)"> Live web bracket <span class="protag">PRO</span></label>
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;margin-left:10px" title="Spectators see names only — seeds stay visible to admins"><input type="checkbox" id="cHideSeeds" style="accent-color:var(--accent)"> Hide seed numbers <span class="protag">PRO</span></label></div>
       <div class="field full"><label>Description <span style="font-size:11px;color:var(--text-faint);font-weight:400">(optional)</span></label><textarea id="cDesc" rows="2" maxlength="1000" placeholder="Rules, prize, notes…"></textarea></div>
 
       <div class="field full" style="border-top:1px solid var(--border);margin-top:6px;padding-top:12px"><label>More options — same as Discord's advanced mode</label></div>
@@ -1964,6 +1977,7 @@ function renderCreate() {
         thirdPlaceMatch: body.querySelector('#cThird').checked,
         requireGameNick: body.querySelector('#cNick').checked,
         trackGoals: body.querySelector('#cTrackGoals').checked,
+        hideSeeds: body.querySelector('#cHideSeeds').checked,
         requiredRoles: [...body.querySelectorAll('.crole:checked')].map(el => el.value),
         brScoringModel: body.querySelector('#cBRScoring').value || undefined,
         gamesPerStage: body.querySelector('#cBRGames').value || undefined,

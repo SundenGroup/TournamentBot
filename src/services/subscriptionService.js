@@ -79,6 +79,7 @@ const TIER_LIMITS = {
 
 const PRO_FEATURES = [
   'seeding',
+  'hide_seeds',
   'captain_mode',
   'auto_cleanup',
   'auto_archive',

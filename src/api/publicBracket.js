@@ -122,7 +122,7 @@ function buildBRPayload(bracket) {
   };
 }
 
-function buildPayload(tournament) {
+function buildPayload(tournament, { admin = false } = {}) {
   const isSolo = tournament.settings.teamSize === 1;
   const entrants = isSolo ? tournament.participants : tournament.teams;
 
@@ -207,6 +207,20 @@ function buildPayload(tournament) {
         ahead: sanitizeParticipant(n.ahead).name, behind: sanitizeParticipant(n.behind).name, on: n.on,
       }));
     });
+  }
+  // Pro option: no seed numbers on the public page (admins keep them)
+  if (tournament.settings.hideSeeds && !admin) {
+    for (const e of payload.participants) e.seed = null;
+    (function strip(node) {
+      if (Array.isArray(node)) { node.forEach(strip); return; }
+      if (!node || typeof node !== 'object') return;
+      for (const k of Object.keys(node)) {
+        const v = node[k];
+        if (PARTICIPANT_KEYS.has(k)) { if (v && typeof v === 'object') v.seed = null; }
+        else strip(v);
+      }
+    })(payload.bracket);
+    payload.seedsHidden = true;
   }
   return payload;
 }

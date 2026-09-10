@@ -98,6 +98,7 @@ async function createTournament(data) {
       // Optional goal tracking (default on): tap-report asks for goal totals,
       // feeding the goal-diff tiebreakers. Off = no goal prompts anywhere.
       trackGoals: data.trackGoals ?? true,
+      hideSeeds: !!data.hideSeeds,          // public bracket page shows no seed numbers
 
       // Group Stage format options
       groupSize: data.groupSize ?? 4,

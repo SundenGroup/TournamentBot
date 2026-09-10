@@ -79,7 +79,7 @@ router.get('/admin/api/tournaments/:id', requireSession, async (req, res) => {
   const { tournament, error } = await loadOwnedTournament(req);
   if (error) return res.status(error).json({ error: error === 404 ? 'Not found' : 'You do not manage this server' });
   res.set('Cache-Control', 'no-store');
-  res.json(buildPayload(tournament));
+  res.json(buildPayload(tournament, { admin: true }));
 });
 
 // ── Bracket page wired to the admin feed (iframe target) ─────────────────────
