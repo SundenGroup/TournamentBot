@@ -1044,7 +1044,9 @@ async function handleStartPlayoffs(interaction) {
   if (!tournament) return interaction.editReply({ content: '❌ Tournament not found.' });
 
   // Saved seeds must never be ignored silently: make the admin choose.
-  if (customOpt === null && require('../../services/groupStageService').customSeedsReady(tournament.bracket)) {
+  const gsSvc = require('../../services/groupStageService');
+  if (tournament.bracket?.type === 'group_stage') gsSvc.applyEntrantSeeds(tournament.bracket, tournament.settings.teamSize === 1 ? tournament.participants : tournament.teams);
+  if (customOpt === null && gsSvc.customSeedsReady(tournament.bracket)) {
     return interaction.editReply({
       content: '🌱 The qualifiers carry seeds 1..N. Run again with `use_custom_seeds:True` to build the playoffs from them, or `use_custom_seeds:False` for standard seeding.',
     });

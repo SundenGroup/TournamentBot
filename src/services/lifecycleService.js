@@ -1295,6 +1295,9 @@ async function startPlayoffsFlow({ client, guild, tournament, useCustomSeeds = f
   const groupStage = require('./groupStageService');
   const bracket = tournament.bracket;
 
+  // Seeds saved in the re-seed window live on the entrant list — push them
+  // onto the bracket's participant copies before the qualifier check.
+  groupStage.applyEntrantSeeds(bracket, tournament.settings.teamSize === 1 ? tournament.participants : tournament.teams);
   // Throws with precise guidance when groups are open / already started / groups-only
   const { qualifiers, customSeeds } = groupStage.startPlayoffs(bracket, tournament.settings, { useCustomSeeds });
 

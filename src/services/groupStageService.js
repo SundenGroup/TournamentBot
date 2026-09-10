@@ -179,6 +179,27 @@ function isComplete(bracket) {
   return bracket.playoffs ? playoffEngine(bracket).isComplete(bracket.playoffs) : false;
 }
 
+/**
+ * Copy the CURRENT entrant seeds onto every participant copy inside the
+ * bracket (group standings rows, match slots). The bracket stores copies,
+ * so seeds saved after the groups were built (the re-seed window) would
+ * otherwise never reach the qualifier check or the playoff builder.
+ */
+function applyEntrantSeeds(bracket, entrants) {
+  const seedOf = new Map((entrants || []).map(e => [String(e.id), e.seed ?? null]));
+  (function walk(node) {
+    if (Array.isArray(node)) { node.forEach(walk); return; }
+    if (!node || typeof node !== 'object') return;
+    for (const k of Object.keys(node)) {
+      const v = node[k];
+      if (['participant', 'participant1', 'participant2', 'winner', 'loser'].includes(k)) {
+        if (v && typeof v === 'object' && seedOf.has(String(v.id))) v.seed = seedOf.get(String(v.id));
+      } else walk(v);
+    }
+  })(bracket);
+  return bracket;
+}
+
 /** True when the qualifiers carry a complete, distinct 1..Q seed set. */
 function customSeedsValid(qs) {
   const seeds = qs.map(q => q.participant.seed).filter(x => Number.isInteger(x));
@@ -396,6 +417,7 @@ module.exports = {
   qualifiers,
   startPlayoffs,
   customSeedsReady,
+  applyEntrantSeeds,
   setPlayoffConfig,
   rebuildPlayoffs,
   getGroupStandings,

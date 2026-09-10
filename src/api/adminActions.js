@@ -314,7 +314,8 @@ router.get('/admin/api/tournaments/:id/manage', requireSession, async (req, res)
       playoffFormat: t.bracket.playoffFormat,
       advancingPerGroup: t.bracket.advancingPerGroup,
       groupsComplete: require('../services/groupStageService').groupsComplete(t.bracket),
-      customSeedsReady: require('../services/groupStageService').customSeedsReady(t.bracket),
+      customSeedsReady: require('../services/groupStageService').customSeedsReady(
+        require('../services/groupStageService').applyEntrantSeeds(t.bracket, isSolo ? t.participants : t.teams)),
       // Real playoff results (byes don't count) — gates the rebuild button
       playoffsDecided: (function count(node, n = { v: 0 }) {
         if (Array.isArray(node)) { node.forEach(x => count(x, n)); return n.v; }
