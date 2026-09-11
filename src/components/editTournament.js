@@ -32,6 +32,15 @@ module.exports = {
     };
 
     try {
+      if (tournament.status === 'active') {
+        const { renameTournamentFlow } = require('../services/lifecycleService');
+        const { updated, changes } = await renameTournamentFlow({
+          client: interaction.client, tournament, title: get('title'), description: get('description'),
+        });
+        return interaction.editReply({
+          content: changes.length ? `✅ **${updated.title}** updated: ${changes.join(', ')}.` : 'No changes made — everything matches the current values.',
+        });
+      }
       const { updated, changes } = await editTournamentFlow({
         client: interaction.client,
         tournament,

@@ -827,11 +827,24 @@ async function handleEdit(interaction) {
     return interaction.reply({ content: '❌ Tournament not found.', ephemeral: true });
   }
 
-  if (tournament.status !== 'registration' && tournament.status !== 'checkin') {
-    return interaction.reply({
-      content: '❌ Only tournaments in registration/check-in can be edited. Game and format are never editable.',
-      ephemeral: true,
-    });
+  if (tournament.status === 'completed' || tournament.status === 'cancelled') {
+    return interaction.reply({ content: '❌ This tournament is over and can no longer be edited.', ephemeral: true });
+  }
+  if (tournament.status === 'active') {
+    // Started: title + description only (display-only, safe mid-event)
+    const { ActionRowBuilder } = require('discord.js');
+    const modal = new ModalBuilder()
+      .setCustomId(`editTournament:${tournamentId}`)
+      .setTitle('Rename tournament')
+      .addComponents(
+        new ActionRowBuilder().addComponents(
+          new TextInputBuilder().setCustomId('title').setLabel('Tournament Title').setStyle(TextInputStyle.Short)
+            .setValue(tournament.title).setMaxLength(100).setRequired(true)),
+        new ActionRowBuilder().addComponents(
+          new TextInputBuilder().setCustomId('description').setLabel('Description').setStyle(TextInputStyle.Paragraph)
+            .setValue(tournament.description || '').setMaxLength(1000).setRequired(false)),
+      );
+    return interaction.showModal(modal);
   }
 
   const isSolo = tournament.settings.teamSize === 1;

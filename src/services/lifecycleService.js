@@ -1334,6 +1334,32 @@ async function startPlayoffsFlow({ client, guild, tournament, useCustomSeeds = f
 }
 
 /**
+ * Rename (title / description) at any point before the event is over. These
+ * are display-only, so unlike the full edit this is safe mid-event: embeds
+ * refresh, the public page reads the new title live, existing rooms keep
+ * their old names.
+ */
+async function renameTournamentFlow({ client, tournament, title, description }) {
+  if (tournament.status === 'completed' || tournament.status === 'cancelled') {
+    throw new Error('This tournament is over and can no longer be renamed.');
+  }
+  const newTitle = String(title ?? tournament.title).trim();
+  if (!newTitle || newTitle.length > 100) throw new Error('Title must be 1-100 characters.');
+  const newDesc = description === undefined ? (tournament.description || '') : String(description).trim().slice(0, 1000);
+
+  const changes = [];
+  if (newTitle !== tournament.title) changes.push('title');
+  if (newDesc !== (tournament.description || '')) changes.push('description');
+  if (!changes.length) return { updated: tournament, changes };
+
+  tournament.title = newTitle;
+  tournament.description = newDesc;
+  await updateTournament(tournament.id, { title: newTitle, description: newDesc });
+  await updateTournamentMessages(client, tournament);
+  return { updated: tournament, changes };
+}
+
+/**
  * Close an active tournament as COMPLETED without requiring the bracket to be
  * fully played — for formats that intentionally stop early (e.g. a
  * qualification round where the winners simply advance). Reporting locks
@@ -1412,6 +1438,7 @@ module.exports = {
   startPlayoffsFlow,
   rebuildPlayoffsFlow,
   endTournamentFlow,
+  renameTournamentFlow,
   applyMatchReport,
   correctMatchFlow,
   disqualifyFlow,

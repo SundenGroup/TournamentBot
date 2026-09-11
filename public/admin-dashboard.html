@@ -724,7 +724,7 @@ function renderRun() {
   actions.innerHTML = '';
   if (d.can.edit) {
     const b = document.createElement('button');
-    b.className = 'btn'; b.textContent = '✏️ Edit';
+    b.className = 'btn'; b.textContent = d.can.editLimited ? '✏️ Rename' : '✏️ Edit';
     b.addEventListener('click', () => { editOpen = !editOpen; renderRunLeft(); });
     actions.appendChild(b);
   }
@@ -844,7 +844,14 @@ function renderRunLeft() {
   }
 
   // edit card
-  if (editOpen && d.can.edit) {
+  if (editOpen && d.can.edit && d.can.editLimited) {
+    html += `<div class="edit-card"><div class="qlabel">Rename tournament</div>
+      <p style="color:var(--text-2);font-size:12.5px;margin:4px 0 10px">The event has started, so only the title and description can change. Rooms already created keep their names.</p>
+      <div class="field"><label>Title</label><input type="text" id="eTitle" maxlength="100" value="${esc(d.title)}"></div>
+      <div class="field"><label>Description</label><textarea id="eDesc" rows="2" maxlength="1000">${esc(d.description)}</textarea></div>
+      <div style="display:flex;justify-content:flex-end;gap:8px"><button class="btn btn-sm" id="eCancel">Discard</button><button class="btn btn-accent btn-sm" id="eSave">Save changes</button></div>
+    </div>`;
+  } else if (editOpen && d.can.edit) {
     html += `<div class="edit-card"><div class="qlabel">Edit tournament</div>
       <div class="field"><label>Title</label><input type="text" id="eTitle" maxlength="100" value="${esc(d.title)}"></div>
       <div class="field"><label>Start time</label><input type="datetime-local" id="eStart" value="${toDatetimeLocal(d.startTime)}"></div>
@@ -1382,23 +1389,23 @@ function wireRunLeft(d, left) {
     const eCheckinWin = left.querySelector('#eCheckinWin');
     if (eCheckin) eCheckin.addEventListener('change', () => { eCheckinWin.disabled = !eCheckin.checked; });
     eSave.addEventListener('click', async () => {
-      const startVal = left.querySelector('#eStart').value;
+      const startVal = left.querySelector('#eStart')?.value;
       eSave.disabled = true;
       const r = await api(`/admin/api/tournaments/${d.id}`, {
         method: 'PATCH',
         body: {
-          title: left.querySelector('#eTitle').value,
+          title: left.querySelector('#eTitle')?.value,
           startTime: startVal ? new Date(startVal).toISOString() : undefined,
-          maxParticipants: left.querySelector('#eMax').value,
-          bestOf: left.querySelector('#eBestOf').value,
-          description: left.querySelector('#eDesc').value,
+          maxParticipants: left.querySelector('#eMax')?.value,
+          bestOf: left.querySelector('#eBestOf')?.value,
+          description: left.querySelector('#eDesc')?.value,
           checkinRequired: eCheckin ? eCheckin.checked : undefined,
           checkinWindow: eCheckin && eCheckin.checked ? eCheckinWin.value : undefined,
           signupCloseTime: (() => {
-            const v = left.querySelector('#eSignupClose').value;
+            const v = left.querySelector('#eSignupClose')?.value;
             return v ? new Date(v).toISOString() : null; // empty field clears the deadline
           })(),
-          signupCap: left.querySelector('#eSignupCap').value || null, // empty clears overflow
+          signupCap: left.querySelector('#eSignupCap')?.value || null, // empty clears overflow
         },
       });
       eSave.disabled = false;

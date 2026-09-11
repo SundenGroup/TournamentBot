@@ -368,7 +368,8 @@ router.get('/admin/api/tournaments/:id/manage', requireSession, async (req, res)
         : matches.filter(m => !m.winnerId && m.participant1 && m.participant2).length,
     },
     can: {
-      edit: ['registration', 'checkin'].includes(t.status),
+      edit: ['registration', 'checkin', 'active'].includes(t.status),
+      editLimited: t.status === 'active', // title + description only
       start: ['registration', 'checkin'].includes(t.status) && entrants.length >= 2,
       cancel: ['registration', 'checkin', 'active'].includes(t.status),
       removeEntrant: ['registration', 'checkin'].includes(t.status),
@@ -582,6 +583,15 @@ router.patch('/admin/api/tournaments/:id', ...mutate, async (req, res) => {
   const t = await loadOwnedForMutation(req, res);
   if (!t) return;
   try {
+    // Started tournaments: only title/description can change (display-only)
+    if (t.status === 'active') {
+      const { renameTournamentFlow } = require('../services/lifecycleService');
+      const { updated, changes } = await renameTournamentFlow({
+        client: getClient(), tournament: t, title: req.body?.title, description: req.body?.description,
+      });
+      await audit(req, t, 'rename', { changes });
+      return res.json({ ok: true, changes, title: updated.title });
+    }
     // Turning seeding ON is a Pro feature — gate it (turning it off is free).
     if (req.body?.seedingEnabled === true && !t.settings.seedingEnabled) {
       const check = await checkFeature(t.guildId, 'seeding');
