@@ -461,7 +461,7 @@ function tiebreakNotes(sorted) {
       if (cohort.length === 2 && a.headToHead && a.headToHead[b.participant.id] === 'win') on = 'head-to-head';
       else if (goalDiff(a) !== goalDiff(b)) on = 'goal difference';
       else if ((a.goalsFor || 0) !== (b.goalsFor || 0)) on = 'goals scored';
-      else on = 'every tiebreaker level — order is provisional';
+      else continue; // nothing separates them (typically 0-0 before play) — no note
     }
     notes.push({ ahead: a.participant, behind: b.participant, on });
   }
