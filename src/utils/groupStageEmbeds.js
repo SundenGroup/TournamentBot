@@ -47,6 +47,13 @@ function playoffLines(po) {
       }
     }
   }
+  const tp = po.thirdPlaceMatch;
+  if (tp) {
+    const p1 = tp.participant1 ? (tp.participant1.displayName || tp.participant1.username || tp.participant1.name) : 'TBD';
+    const p2 = tp.participant2 ? (tp.participant2.displayName || tp.participant2.username || tp.participant2.name) : 'TBD';
+    const w = tp.winner ? ` ✓ ${tp.winner.displayName || tp.winner.username || tp.winner.name}${tp.score ? ` (${tp.score})` : ''}` : '';
+    out += `**Bronze match**\n#${tp.matchNumber}: ${p1} vs ${p2}${w}\n`;
+  }
   return out;
 }
 

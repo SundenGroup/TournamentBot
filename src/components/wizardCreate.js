@@ -105,7 +105,7 @@ async function createTournamentFromWizard(interaction, session) {
         autoArchiveMinutes: data.autoArchiveMinutes,
         requiredRoles: data.requiredRoles || [],
         publicBracket: data.publicBracket ?? false,
-        thirdPlaceMatch: (data.format === 'single_elimination' && data.thirdPlaceMatch) || false,
+        thirdPlaceMatch: ((data.format === 'single_elimination' || data.format === 'group_stage') && data.thirdPlaceMatch) || false,
         startTime: new Date(data.datetime),
         setupMode: 'advanced',
         createdBy: session.userId,

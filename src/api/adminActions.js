@@ -314,6 +314,7 @@ router.get('/admin/api/tournaments/:id/manage', requireSession, async (req, res)
       playoffFormat: t.bracket.playoffFormat,
       advancingPerGroup: t.bracket.advancingPerGroup,
       groupsComplete: require('../services/groupStageService').groupsComplete(t.bracket),
+      thirdPlaceMatch: !!t.settings.thirdPlaceMatch,
       customSeedsReady: require('../services/groupStageService').customSeedsReady(
         require('../services/groupStageService').applyEntrantSeeds(t.bracket, isSolo ? t.participants : t.teams)),
       // Real playoff results (byes don't count) — gates the rebuild button
@@ -384,6 +385,15 @@ router.get('/admin/api/tournaments/:id/manage', requireSession, async (req, res)
       // Round-based formats know every pairing up front (LAN: all rooms at once)
       createRoomsAll: t.status === 'active' && (t.settings.format === 'round_robin' || (t.bracket?.type === 'group_stage' && t.bracket.stage === 'groups')),
       end: t.status === 'active',
+      // Bronze match can be added to a running single-elim bracket until the final is decided
+      addBronze: (() => {
+        const b = t.bracket;
+        if (t.status !== 'active' || !b) return false;
+        const se = b.type === 'single_elimination' ? b : (b.type === 'group_stage' && b.playoffFormat === 'single_elimination' && b.playoffs ? b.playoffs : null);
+        if (!se || se.thirdPlaceMatch || (se.rounds || []).length < 2) return false;
+        const final = se.rounds[se.rounds.length - 1].matches[0];
+        return !final?.winner;
+      })(),
     },
   });
 });
@@ -446,7 +456,7 @@ router.post('/admin/api/guilds/:guildId/tournaments', ...mutate, requireGuildAdm
   const seedingEnabled = !!b.seedingEnabled;
   const requireGameNick = !!b.requireGameNick;
   const captainMode = !!b.captainMode && teamSize > 1;
-  const thirdPlaceMatch = !!b.thirdPlaceMatch && format === 'single_elimination';
+  const thirdPlaceMatch = !!b.thirdPlaceMatch && (format === 'single_elimination' || format === 'group_stage');
   const trackGoals = b.trackGoals === undefined ? true : !!b.trackGoals;
   const hideSeeds = !!b.hideSeeds;
   if (hideSeeds && !(await checkFeature(req.params.guildId, 'hide_seeds')).allowed) {
@@ -1088,6 +1098,7 @@ router.post('/admin/api/tournaments/:id/playoff-config', ...mutate, async (req, 
     const result = groupStage.setPlayoffConfig(t.bracket, t.settings, {
       playoffFormat: String(req.body?.playoffFormat || ''),
       advancingPerGroup: req.body?.advancingPerGroup,
+      thirdPlaceMatch: req.body?.thirdPlaceMatch,
     });
     const { updateTournament } = require('../services/tournamentService');
     await updateTournament(t.id, { bracket: t.bracket, settings: t.settings });
@@ -1131,6 +1142,23 @@ router.post('/admin/api/tournaments/:id/public-options', ...mutate, async (req, 
     await updateTournament(t.id, { settings: t.settings });
     await audit(req, t, 'public-options', changes);
     res.json({ ok: true, ...changes });
+  } catch (err) {
+    console.error(`[web-admin] ${req.method} ${req.path} failed:`, err.message);
+    res.status(400).json({ error: err.message });
+  }
+});
+
+// Add a bronze (3rd-place) match to a running single-elim bracket
+router.post('/admin/api/tournaments/:id/add-bronze', ...mutate, async (req, res) => {
+  const t = await loadOwnedForMutation(req, res);
+  if (!t) return;
+  const guild = getGuildOr503(t.guildId, res);
+  if (!guild) return;
+  try {
+    const { addBronzeMatchFlow } = require('../services/lifecycleService');
+    const result = await addBronzeMatchFlow({ client: getClient(), guild, tournament: t });
+    await audit(req, t, 'add-bronze', result);
+    res.json({ ok: true, ...result });
   } catch (err) {
     console.error(`[web-admin] ${req.method} ${req.path} failed:`, err.message);
     res.status(400).json({ error: err.message });

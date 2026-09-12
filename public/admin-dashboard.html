@@ -799,6 +799,18 @@ function renderRun() {
     });
     actions.appendChild(p);
   }
+  if (d.can.addBronze) {
+    const b = document.createElement('button');
+    b.className = 'btn'; b.textContent = '🥉 Add bronze match';
+    b.title = 'Adds a 3rd-place match between the two semifinal losers — possible until the final is decided';
+    armConfirm(b, '🥉 Add bronze match', 'Add 3rd-place match?', async () => {
+      const r = await api(`/admin/api/tournaments/${d.id}/add-bronze`, { method: 'POST', body: {} });
+      if (!r.ok) return toast(r.error, true);
+      toast(`Bronze match added as #${r.data.matchNumber}${r.data.ready ? (r.data.roomCreated ? ' — room open' : ' — both players known') : ' — fills in when the semifinals are decided'}`);
+      refreshRun();
+    });
+    actions.appendChild(b);
+  }
   if (d.can.end) {
     const b = document.createElement('button');
     b.className = 'btn'; b.textContent = '🏁 End tournament';
@@ -1084,6 +1096,7 @@ function renderRunLeft() {
             <option value="none" ${gsd.playoffFormat === 'none' ? 'selected' : ''}>No playoffs — group tables decide</option>
           </select>
           <input id="pfAdv" type="number" min="1" max="${gsize - 1}" value="${gsd.advancingPerGroup || 2}" title="Advance per group to the playoffs" style="width:90px;background:var(--bg-sunken);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:7px 10px">
+          <label style="display:flex;align-items:center;gap:6px;color:var(--text-2);font-size:13px;cursor:pointer" title="Single-elim playoffs only: the two semifinal losers play for 3rd"><input type="checkbox" id="pfBronze" ${gsd.thirdPlaceMatch ? 'checked' : ''}> Bronze match</label>
           <button class="btn btn-sm" data-pf-save>Save format</button>
         </div>
       </div>`;
@@ -1458,6 +1471,7 @@ function wireRunLeft(d, left) {
       method: 'POST', body: {
         playoffFormat: left.querySelector('#pfFormat').value,
         advancingPerGroup: parseInt(left.querySelector('#pfAdv').value, 10),
+        thirdPlaceMatch: left.querySelector('#pfBronze').checked,
       },
     });
     pfSave.disabled = false;
@@ -1981,7 +1995,7 @@ function renderCreate() {
   const syncCreateOptions = () => {
     const fmt = body.querySelector('#cFormat').value;
     const team = parseInt(body.querySelector('#cTeamSize').value, 10) > 1;
-    body.querySelector('#cThirdWrap').style.display = fmt === 'single_elimination' ? '' : 'none';
+    body.querySelector('#cThirdWrap').style.display = (fmt === 'single_elimination' || fmt === 'group_stage') ? '' : 'none';
     body.querySelector('#cBRWrap').style.display = fmt === 'battle_royale' ? '' : 'none';
     body.querySelector('#cGSWrap').style.display = fmt === 'group_stage' ? '' : 'none';
     if (fmt === 'group_stage') gsSummary(body);

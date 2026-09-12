@@ -1363,6 +1363,36 @@ async function openMatchRoomFlow({ guild, tournament, matchNumber }) {
 }
 
 /**
+ * Add a bronze (3rd-place) match to a running single-elim bracket — standalone
+ * or group-stage playoffs — until the final is decided. Its room follows the
+ * normal rules (auto when both semifinal losers are known, unless rooms are
+ * on hold; or 🚪 Open room).
+ */
+async function addBronzeMatchFlow({ client, guild, tournament }) {
+  if (tournament.status !== 'active' || !tournament.bracket) throw new Error('The tournament is not running.');
+  const b = tournament.bracket;
+  let tp;
+  if (b.type === 'group_stage') {
+    tp = require('./groupStageService').addThirdPlaceMatch(b);
+  } else if (b.type === 'single_elimination') {
+    const { listAllMatches } = require('../utils/matchUtils');
+    const maxNo = listAllMatches(b).reduce((m, x) => Math.max(m, x.match.matchNumber || 0), 0);
+    tp = require('./singleEliminationService').addThirdPlaceMatch(b, maxNo + 1);
+  } else {
+    throw new Error('A bronze match only applies to single-elimination brackets.');
+  }
+  tournament.settings.thirdPlaceMatch = true;
+  let roomCreated = false;
+  if (tp.participant1 && tp.participant2 && !tp.winner && !b.roomsPending && guild) {
+    try { const ch = await createMatchRoom(guild, tp, tournament); tp.channelId = ch.id; roomCreated = true; }
+    catch (err) { console.error('bronze room create failed:', err.message); }
+  }
+  await updateTournament(tournament.id, { bracket: b, settings: tournament.settings });
+  await updateTournamentMessages(client, tournament);
+  return { matchNumber: tp.matchNumber, ready: !!(tp.participant1 && tp.participant2), roomCreated };
+}
+
+/**
  * Rename (title / description) at any point before the event is over. These
  * are display-only, so unlike the full edit this is safe mid-event: embeds
  * refresh, the public page reads the new title live, existing rooms keep
@@ -1469,6 +1499,7 @@ module.exports = {
   endTournamentFlow,
   renameTournamentFlow,
   openMatchRoomFlow,
+  addBronzeMatchFlow,
   applyMatchReport,
   correctMatchFlow,
   disqualifyFlow,

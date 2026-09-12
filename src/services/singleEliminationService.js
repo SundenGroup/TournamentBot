@@ -138,6 +138,40 @@ function generateBracket(participants, settings) {
 }
 
 /**
+ * Add a third-place match to a bracket that was built without one — allowed
+ * until the final is decided. Mirrors the generation-time shape exactly; a
+ * semifinal already decided seeds its loser straight in.
+ * @param {number} matchNumber  next free match number (caller decides — group
+ *                              stages number matches globally)
+ */
+function addThirdPlaceMatch(bracket, matchNumber) {
+  if (bracket.thirdPlaceMatch) return bracket.thirdPlaceMatch;
+  const totalRounds = bracket.rounds.length;
+  if (totalRounds < 2) throw new Error('A bronze match needs semifinals — this bracket has only a final.');
+  const final = bracket.rounds[totalRounds - 1].matches[0];
+  if (final?.winner) throw new Error('The final is already decided — too late to add a bronze match.');
+  const semis = bracket.rounds[totalRounds - 2].matches;
+  const loserOf = m => (m.winner ? (m.winner.id === m.participant1?.id ? m.participant2 : m.participant1) : null);
+  bracket.thirdPlaceMatch = {
+    id: uuidv4(),
+    matchNumber,
+    round: totalRounds,
+    roundName: 'Third Place Match',
+    isThirdPlace: true,
+    participant1: semis[0].isBye ? null : loserOf(semis[0]),
+    participant2: semis[1].isBye ? null : loserOf(semis[1]),
+    winner: null,
+    score: null,
+    isBye: false,
+    sourceSemi1Id: semis[0].id,
+    sourceSemi2Id: semis[1].id,
+    channelId: null,
+  };
+  resolveThirdPlaceWalkover(bracket);
+  return bracket.thirdPlaceMatch;
+}
+
+/**
  * A semifinal that was a bye never produces a loser, so its third-place slot
  * can never fill — when the other slot has a real player, they win 3rd by
  * walkover (picked up by the bye notifier via isWalkover).
@@ -370,6 +404,7 @@ function correctResult(bracket, matchId, newWinnerId, newScore = null) {
 }
 
 module.exports = {
+  addThirdPlaceMatch,
   generateBracket,
   advanceWinner,
   correctResult,

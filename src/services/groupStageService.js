@@ -168,6 +168,22 @@ function getActiveMatches(bracket) {
   return bracket.groups.flatMap(g => roundRobin.getActiveMatches(g.bracket));
 }
 
+/** Add a bronze match to built single-elim playoffs (until the final is decided). */
+function addThirdPlaceMatch(bracket) {
+  if (!bracket.playoffs) throw new Error('The playoffs have not been built yet — set “Bronze match” in the playoff format instead.');
+  if (bracket.playoffFormat !== 'single_elimination') throw new Error('A bronze match only applies to single-elimination playoffs.');
+  let maxNo = 0;
+  (function walk(node) {
+    if (Array.isArray(node)) { node.forEach(walk); return; }
+    if (!node || typeof node !== 'object') return;
+    if ('matchNumber' in node && 'id' in node && node.matchNumber > maxNo) maxNo = node.matchNumber;
+    for (const k of Object.keys(node)) if (!['participant1', 'participant2', 'winner', 'loser'].includes(k)) walk(node[k]);
+  })(bracket);
+  const tp = singleElim.addThirdPlaceMatch(bracket.playoffs, maxNo + 1);
+  tp.roundName = 'Playoffs · Third Place Match';
+  return tp;
+}
+
 /** All remaining group matches (any round); in the playoffs, the playable ones. */
 function getAllPendingMatches(bracket) {
   if (bracket.stage === 'playoffs' && bracket.playoffs) {
@@ -325,7 +341,7 @@ function startPlayoffs(bracket, settings, { useCustomSeeds = false } = {}) {
  * are built (the setting only takes effect at the groups→playoffs transition).
  * Mutates both the live bracket and settings; the caller persists.
  */
-function setPlayoffConfig(bracket, settings, { playoffFormat, advancingPerGroup }) {
+function setPlayoffConfig(bracket, settings, { playoffFormat, advancingPerGroup, thirdPlaceMatch }) {
   if (bracket?.type !== 'group_stage') throw new Error('This tournament has no group stage.');
   if (bracket.playoffs) {
     throw new Error('The playoffs are already built — rebuild them first (possible while no playoff result exists), then change the format.');
@@ -348,7 +364,8 @@ function setPlayoffConfig(bracket, settings, { playoffFormat, advancingPerGroup 
   bracket.advancingPerGroup = adv;
   settings.playoffFormat = playoffFormat;
   settings.advancingPerGroup = adv;
-  return { playoffFormat, advancingPerGroup: adv };
+  if (thirdPlaceMatch !== undefined) settings.thirdPlaceMatch = !!thirdPlaceMatch && playoffFormat === 'single_elimination';
+  return { playoffFormat, advancingPerGroup: adv, thirdPlaceMatch: !!settings.thirdPlaceMatch };
 }
 
 /**
@@ -421,6 +438,7 @@ module.exports = {
   getAllPendingMatches,
   isComplete,
   getResults,
+  addThirdPlaceMatch,
   // group-stage specific
   groupsComplete,
   qualifiers,
