@@ -932,7 +932,7 @@ function renderRunLeft() {
           : `<span class="slbl">SCORE</span><input class="free" data-freescore placeholder="optional" value="${esc(sel.score || '')}">`;
         const ready = sel.winner && (d.validScores ? sel.score : true);
         return `<div class="rep-card" data-match="${m.matchNumber}">
-          <div class="lbl">${label}</div>
+          <div class="lbl" style="display:flex;justify-content:space-between;align-items:center;gap:8px"><span>${label}</span>${m.hasRoom ? '' : `<button class="btn btn-sm" data-open-room="${m.matchNumber}" title="Create the Discord room for just this match — the way to play a bracket one match at a time (pair with ⏸ Hold new rooms)">🚪 Open room</button>`}</div>
           <div class="rep-vs">
             <button class="wbtn ${sel.winner === m.participant1.id ? 'on' : ''}" data-win="${esc(m.participant1.id)}" title="${esc(m.participant1.name)}">${esc(m.participant1.name)}</button>
             <span class="vs">VS</span>
@@ -1678,6 +1678,13 @@ function wireRunLeft(d, left) {
   });
 
   // report cards
+  left.querySelectorAll('[data-open-room]').forEach(b => b.addEventListener('click', async () => {
+    b.disabled = true; b.textContent = 'Opening…';
+    const r = await api(`/admin/api/tournaments/${d.id}/open-room`, { method: 'POST', body: { matchNumber: Number(b.dataset.openRoom) } });
+    if (!r.ok) { b.disabled = false; b.textContent = '🚪 Open room'; return toast(r.error, true); }
+    toast(`Room open for match #${r.data.matchNumber}`);
+    refreshRun();
+  }));
   left.querySelectorAll('.rep-card').forEach(card => {
     const n = Number(card.dataset.match);
     card.querySelectorAll('[data-win]').forEach(b => b.addEventListener('click', () => {

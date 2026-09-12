@@ -1123,6 +1123,25 @@ router.post('/admin/api/tournaments/:id/public-options', ...mutate, async (req, 
   }
 });
 
+// Open the room for ONE match (staged play)
+router.post('/admin/api/tournaments/:id/open-room', ...mutate, async (req, res) => {
+  const t = await loadOwnedForMutation(req, res);
+  if (!t) return;
+  const guild = getGuildOr503(t.guildId, res);
+  if (!guild) return;
+  try {
+    const matchNumber = parseInt(req.body?.matchNumber, 10);
+    if (!Number.isInteger(matchNumber)) return res.status(400).json({ error: 'Match number required.' });
+    const { openMatchRoomFlow } = require('../services/lifecycleService');
+    const result = await openMatchRoomFlow({ guild, tournament: t, matchNumber });
+    await audit(req, t, 'open-room', { matchNumber, created: result.created });
+    res.json({ ok: true, created: result.created, matchNumber });
+  } catch (err) {
+    console.error(`[web-admin] ${req.method} ${req.path} failed:`, err.message);
+    res.status(400).json({ error: err.message });
+  }
+});
+
 // Pause automatic room creation (release = the create-rooms sweep)
 router.post('/admin/api/tournaments/:id/hold-rooms', ...mutate, async (req, res) => {
   const t = await loadOwnedForMutation(req, res);

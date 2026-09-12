@@ -390,7 +390,7 @@ setInterval(() => {
 
 // ── Normalization: production JSON → elimination model ─────────────────────
 // Slot semantics: object = player, null = BYE hole, undefined = TBD.
-function normMatch(m, active) {
+function normMatch(m, active, usesRooms = false) {
   const slot = p => p ? { id: p.id, seed: p.seed, name: p.name } : (m.isBye ? null : undefined);
   const p1 = slot(m.participant1);
   const p2 = slot(m.participant2);
@@ -409,7 +409,7 @@ function normMatch(m, active) {
     rawScore: m.score || null,
     bye: !!(m.isBye || m.isWalkover),
     dq: !!m.isDQ,
-    live: active && !!(p1 && p2 && !m.winner),
+    live: active && !!(p1 && p2 && !m.winner) && (!usesRooms || !!m.hasRoom),
   };
 }
 
@@ -419,7 +419,7 @@ function buildModel(d) {
   // roomsPending: bracket published ahead of play — nothing is LIVE yet
   const active = d.status === 'active' && !d.roomsPending;
 
-  const mapRounds = rounds => (rounds || []).map(r => (r.matches || []).map(m => normMatch(m, active)));
+  const mapRounds = rounds => (rounds || []).map(r => (r.matches || []).map(m => normMatch(m, active, d.usesRooms)));
 
   let W, L = [], GFs = [], TP = null;
   if (b.type === 'double_elimination') {
@@ -427,11 +427,11 @@ function buildModel(d) {
     L = mapRounds(b.losersRounds);
     const gf = b.grandFinalsRounds?.[0]?.matches?.[0];
     const reset = b.grandFinalsRounds?.[1]?.matches?.[0];
-    if (gf) GFs.push(normMatch(gf, active));
-    if (reset && (b.needsReset || reset.winner)) GFs.push(normMatch(reset, active));
+    if (gf) GFs.push(normMatch(gf, active, d.usesRooms));
+    if (reset && (b.needsReset || reset.winner)) GFs.push(normMatch(reset, active, d.usesRooms));
   } else {
     W = mapRounds(b.rounds);
-    if (b.thirdPlaceMatch) TP = normMatch(b.thirdPlaceMatch, active);
+    if (b.thirdPlaceMatch) TP = normMatch(b.thirdPlaceMatch, active, d.usesRooms);
   }
 
   const placed = [];

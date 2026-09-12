@@ -69,6 +69,8 @@ function sanitize(node) {
       if (DROPPED_KEYS.has(key)) continue;
       out[key] = PARTICIPANT_KEYS.has(key) ? sanitizeParticipant(value) : sanitize(value);
     }
+    // A match node: expose whether its room is open (a boolean, never the id)
+    if ('matchNumber' in node && 'id' in node) out.hasRoom = !!node.channelId;
     return out;
   }
   return node;
@@ -208,6 +210,16 @@ function buildPayload(tournament, { admin = false } = {}) {
       }));
     });
   }
+  // Does this event run on match rooms at all? If yes, the page only calls a
+  // match LIVE once its room is open (staged play opens one room at a time);
+  // room-less events keep the old rule (playable = live).
+  payload.usesRooms = (function any(node) {
+    if (Array.isArray(node)) return node.some(any);
+    if (!node || typeof node !== 'object') return false;
+    if ('matchNumber' in node && 'id' in node && node.channelId) return true;
+    return Object.entries(node).some(([k, v]) => !PARTICIPANT_KEYS.has(k) && any(v));
+  })(tournament.bracket || null);
+
   // Pro option: no 'Live now' ticker (the podium still shows when finished)
   payload.liveStripHidden = !!tournament.settings.hideLiveStrip;
 

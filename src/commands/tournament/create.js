@@ -144,6 +144,10 @@ module.exports = {
           option.setName('all_rounds')
             .setDescription('LAN mode: open a room for EVERY remaining match now (round robin / groups)')
         )
+        .addIntegerOption(option =>
+          option.setName('match_number')
+            .setDescription('Open the room for just this one match (staged play, one match at a time)')
+        )
     )
     .addSubcommand(subcommand =>
       subcommand
@@ -1265,7 +1269,16 @@ async function handleCreateRooms(interaction) {
   const tournament = await getGuildTournament(interaction.guildId, tournamentId);
   if (!tournament) return interaction.editReply({ content: '❌ Tournament not found.' });
 
-  const { createRoomsFlow } = require('../../services/lifecycleService');
+  const { createRoomsFlow, openMatchRoomFlow } = require('../../services/lifecycleService');
+  const one = interaction.options.getInteger('match_number');
+  if (one != null) {
+    try {
+      const r = await openMatchRoomFlow({ guild: interaction.guild, tournament, matchNumber: one });
+      return interaction.editReply({ content: r.created ? `🚪 Room open for match **#${one}** — <#${r.channelId}>` : `Match #${one} already has a room.` });
+    } catch (error) {
+      return interaction.editReply({ content: `❌ ${error.message}` });
+    }
+  }
   let result;
   try {
     result = await createRoomsFlow({ guild: interaction.guild, tournament, allRounds: interaction.options.getBoolean('all_rounds') ?? false });

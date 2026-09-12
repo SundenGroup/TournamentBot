@@ -1345,6 +1345,24 @@ async function startPlayoffsFlow({ client, guild, tournament, useCustomSeeds = f
 }
 
 /**
+ * Open the room for exactly one match (staged play: hold new rooms, then
+ * open matches one at a time). Works while rooms are on hold.
+ */
+async function openMatchRoomFlow({ guild, tournament, matchNumber }) {
+  if (tournament.status !== 'active' || !tournament.bracket) throw new Error('The tournament is not running.');
+  const { findMatchByNumber } = require('../utils/matchUtils');
+  const match = findMatchByNumber(tournament.bracket, matchNumber);
+  if (!match) throw new Error(`Match #${matchNumber} not found.`);
+  if (match.winner) throw new Error(`Match #${matchNumber} is already decided.`);
+  if (!match.participant1 || !match.participant2) throw new Error(`Match #${matchNumber} doesn't have both players yet.`);
+  if (match.channelId) return { match, created: false };
+  const channel = await createMatchRoom(guild, match, tournament);
+  match.channelId = channel.id;
+  await updateTournament(tournament.id, { bracket: tournament.bracket });
+  return { match, created: true, channelId: channel.id };
+}
+
+/**
  * Rename (title / description) at any point before the event is over. These
  * are display-only, so unlike the full edit this is safe mid-event: embeds
  * refresh, the public page reads the new title live, existing rooms keep
@@ -1450,6 +1468,7 @@ module.exports = {
   rebuildPlayoffsFlow,
   endTournamentFlow,
   renameTournamentFlow,
+  openMatchRoomFlow,
   applyMatchReport,
   correctMatchFlow,
   disqualifyFlow,
