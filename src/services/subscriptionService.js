@@ -81,6 +81,7 @@ const PRO_FEATURES = [
   'seeding',
   'hide_seeds',
   'hide_live_strip',
+  'hide_live_markers',
   'captain_mode',
   'auto_cleanup',
   'auto_archive',

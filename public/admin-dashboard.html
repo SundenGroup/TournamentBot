@@ -1137,6 +1137,9 @@ function renderRunLeft() {
       <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;margin:0 0 12px" title="Removes the scrolling 'Live now' match ticker above the bracket; the podium still shows when the event is over">
         <input type="checkbox" data-hide-live ${d.hideLiveStrip ? 'checked' : ''} ${d.hideLiveStripAllowed ? '' : 'disabled'} style="accent-color:var(--accent)"> Hide the “Live now” ticker on the public bracket ${d.hideLiveStripAllowed ? '' : '<span class="protag">PRO</span>'}
       </label>
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;margin:0 0 12px" title="Removes the red LIVE badges and outlines on match cards and the 'In progress' round labels — the page just shows the bracket and results">
+        <input type="checkbox" data-hide-markers ${d.hideLiveMarkers ? 'checked' : ''} ${d.hideLiveMarkersAllowed ? '' : 'disabled'} style="accent-color:var(--accent)"> Hide the red LIVE / “In progress” markers on the public bracket ${d.hideLiveMarkersAllowed ? '' : '<span class="protag">PRO</span>'}
+      </label>
       <div class="qlabel">🔗 Custom link ${d.slugAllowed ? '' : '<span class="protag">STUDIO</span>'}</div>`;
     if (d.slugAllowed) {
       html += `<p style="color:var(--text-2);font-size:12.5px;margin:6px 0 8px">Give this bracket a memorable URL. The old links (uuid and any previous custom link) permanently redirect to the new one.</p>
@@ -1465,6 +1468,13 @@ function wireRunLeft(d, left) {
     refreshRun();
   });
 
+  const hideMarkersBox = left.querySelector('[data-hide-markers]');
+  if (hideMarkersBox) hideMarkersBox.addEventListener('change', async () => {
+    const r = await api(`/admin/api/tournaments/${d.id}/public-options`, { method: 'POST', body: { hideLiveMarkers: hideMarkersBox.checked } });
+    if (!r.ok) { hideMarkersBox.checked = !hideMarkersBox.checked; return toast(r.error, true); }
+    toast(r.data.hideLiveMarkers ? 'Live markers hidden on the public bracket' : 'Live markers shown on the public bracket');
+    const iframe = $('runRight').querySelector('iframe'); if (iframe) iframe.src = iframe.src;
+  });
   const hideLiveBox = left.querySelector('[data-hide-live]');
   if (hideLiveBox) hideLiveBox.addEventListener('change', async () => {
     const r = await api(`/admin/api/tournaments/${d.id}/public-options`, { method: 'POST', body: { hideLiveStrip: hideLiveBox.checked } });
@@ -1898,7 +1908,8 @@ function renderCreate() {
       <div class="field"><label>Announcement channel</label><select id="cChannel"><option value="">Server default</option>${channels.map(c => `<option value="${esc(c.id)}"># ${esc(c.name)}${c.category ? ` — ${esc(c.category)}` : ''}</option>`).join('')}</select></div>
       <div style="display:flex;align-items:center;gap:8px;margin-top:20px"><label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px"><input type="checkbox" id="cPublic" checked style="accent-color:var(--accent)"> Live web bracket <span class="protag">PRO</span></label>
         <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;margin-left:10px" title="Spectators see names only — seeds stay visible to admins"><input type="checkbox" id="cHideSeeds" style="accent-color:var(--accent)"> Hide seed numbers <span class="protag">PRO</span></label>
-        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;margin-left:10px" title="No 'Live now' ticker on the public page"><input type="checkbox" id="cHideLive" style="accent-color:var(--accent)"> Hide “Live now” ticker <span class="protag">PRO</span></label></div>
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;margin-left:10px" title="No 'Live now' ticker on the public page"><input type="checkbox" id="cHideLive" style="accent-color:var(--accent)"> Hide “Live now” ticker <span class="protag">PRO</span></label>
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;margin-left:10px" title="No red LIVE badges, outlines or 'In progress' labels on the public page"><input type="checkbox" id="cHideMarkers" style="accent-color:var(--accent)"> Hide live markers <span class="protag">PRO</span></label></div>
       <div class="field full"><label>Description <span style="font-size:11px;color:var(--text-faint);font-weight:400">(optional)</span></label><textarea id="cDesc" rows="2" maxlength="1000" placeholder="Rules, prize, notes…"></textarea></div>
 
       <div class="field full" style="border-top:1px solid var(--border);margin-top:6px;padding-top:12px"><label>More options — same as Discord's advanced mode</label></div>
@@ -2018,6 +2029,7 @@ function renderCreate() {
         trackGoals: body.querySelector('#cTrackGoals').checked,
         hideSeeds: body.querySelector('#cHideSeeds').checked,
         hideLiveStrip: body.querySelector('#cHideLive').checked,
+        hideLiveMarkers: body.querySelector('#cHideMarkers').checked,
         requiredRoles: [...body.querySelectorAll('.crole:checked')].map(el => el.value),
         brScoringModel: body.querySelector('#cBRScoring').value || undefined,
         gamesPerStage: body.querySelector('#cBRGames').value || undefined,

@@ -417,7 +417,7 @@ function buildModel(d) {
   const b = d.bracket;
   if (!b || (b.type !== 'single_elimination' && b.type !== 'double_elimination')) return null;
   // roomsPending: bracket published ahead of play — nothing is LIVE yet
-  const active = d.status === 'active' && !d.roomsPending;
+  const active = d.status === 'active' && !d.roomsPending && !d.liveMarkersHidden;
 
   const mapRounds = rounds => (rounds || []).map(r => (r.matches || []).map(m => normMatch(m, active, d.usesRooms)));
 
@@ -905,7 +905,7 @@ function renderRoundCards(rounds, current) {
   for (const round of rounds) {
     const n = round.roundNumber;
     const state = round.status === 'complete' || round.matches.every(m => m.winner)
-      ? 'Complete' : (n === current ? 'In progress' : 'Upcoming');
+      ? 'Complete' : (DATA && DATA.liveMarkersHidden ? '' : (n === current ? 'In progress' : 'Upcoming'));
     html += `<div class="round-card"><div class="rc-head"><span>Round ${n}</span><span class="state ${state === 'In progress' ? 'active' : ''}">${state}</span></div>`;
     for (const m of round.matches) {
       if (m.isBye || !m.participant2) {
@@ -1063,7 +1063,7 @@ function renderBR(d) {
   });
 
   for (const sec of sections) {
-    html += `<div class="section"><div class="section-title">${esc(sec.title)}${sec.live && d.status === 'active' ? '<span class="live-tag">● live</span>' : ''}${brGameDots(sec.stage)}</div>${renderBRTable(d, sec.stage, sec.cut)}</div>`;
+    html += `<div class="section"><div class="section-title">${esc(sec.title)}${sec.live && d.status === 'active' && !d.liveMarkersHidden ? '<span class="live-tag">● live</span>' : ''}${brGameDots(sec.stage)}</div>${renderBRTable(d, sec.stage, sec.cut)}</div>`;
   }
 
   html += `<div class="br-scoring-note">Scoring: ${esc(b.scoring?.label || 'Placement points')}${b.scoring?.usesKills ? ' — placement points + kills' : ''}</div>`;

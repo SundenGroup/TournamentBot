@@ -351,6 +351,8 @@ router.get('/admin/api/tournaments/:id/manage', requireSession, async (req, res)
     hideSeedsAllowed: (await checkFeature(t.guildId, 'hide_seeds')).allowed,
     hideLiveStrip: !!t.settings.hideLiveStrip,
     hideLiveStripAllowed: (await checkFeature(t.guildId, 'hide_live_strip')).allowed,
+    hideLiveMarkers: !!t.settings.hideLiveMarkers,
+    hideLiveMarkersAllowed: (await checkFeature(t.guildId, 'hide_live_markers')).allowed,
     slugAllowed: (await checkFeature(t.guildId, 'custom_slug')).allowed,
     nickSummary: t.settings.requireGameNick ? getNickSummary(t.game) : null,
     // Column labels for the bulk-add hint (e.g. GOALS Username, GOALS User ID)
@@ -453,6 +455,10 @@ router.post('/admin/api/guilds/:guildId/tournaments', ...mutate, requireGuildAdm
   const hideLiveStrip = !!b.hideLiveStrip;
   if (hideLiveStrip && !(await checkFeature(req.params.guildId, 'hide_live_strip')).allowed) {
     return res.status(400).json({ error: 'Hiding the "Live now" ticker on the public bracket is a Pro feature.' });
+  }
+  const hideLiveMarkers = !!b.hideLiveMarkers;
+  if (hideLiveMarkers && !(await checkFeature(req.params.guildId, 'hide_live_markers')).allowed) {
+    return res.status(400).json({ error: 'Hiding the live markers on the public bracket is a Pro feature.' });
   }
 
   let requiredRoles = [];
@@ -567,6 +573,7 @@ router.post('/admin/api/guilds/:guildId/tournaments', ...mutate, requireGuildAdm
         trackGoals,
         hideSeeds,
         hideLiveStrip,
+        hideLiveMarkers,
         requiredRoles,
         brScoringModel,
         gamesPerStage,
@@ -1112,6 +1119,13 @@ router.post('/admin/api/tournaments/:id/public-options', ...mutate, async (req, 
         return res.status(400).json({ error: 'Hiding the "Live now" ticker on the public bracket is a Pro feature.' });
       }
       t.settings.hideLiveStrip = v; changes.hideLiveStrip = v;
+    }
+    if ('hideLiveMarkers' in (req.body || {})) {
+      const v = !!req.body.hideLiveMarkers;
+      if (v && !(await checkFeature(t.guildId, 'hide_live_markers')).allowed) {
+        return res.status(400).json({ error: 'Hiding the live markers on the public bracket is a Pro feature.' });
+      }
+      t.settings.hideLiveMarkers = v; changes.hideLiveMarkers = v;
     }
     const { updateTournament } = require('../services/tournamentService');
     await updateTournament(t.id, { settings: t.settings });

@@ -100,6 +100,7 @@ async function createTournament(data) {
       trackGoals: data.trackGoals ?? true,
       hideSeeds: !!data.hideSeeds,          // public bracket page shows no seed numbers
       hideLiveStrip: !!data.hideLiveStrip,  // public bracket page shows no 'Live now' ticker
+      hideLiveMarkers: !!data.hideLiveMarkers, // no red LIVE / 'In progress' markers on the public page
 
       // Group Stage format options
       groupSize: data.groupSize ?? 4,

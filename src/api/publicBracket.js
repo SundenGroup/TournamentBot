@@ -222,6 +222,8 @@ function buildPayload(tournament, { admin = false } = {}) {
 
   // Pro option: no 'Live now' ticker (the podium still shows when finished)
   payload.liveStripHidden = !!tournament.settings.hideLiveStrip;
+  // Pro option: no red LIVE chips / outlines / 'In progress' labels either
+  payload.liveMarkersHidden = !!tournament.settings.hideLiveMarkers;
 
   // Pro option: no seed numbers on the public page (admins keep them)
   if (tournament.settings.hideSeeds && !admin) {
