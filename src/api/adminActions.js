@@ -349,6 +349,8 @@ router.get('/admin/api/tournaments/:id/manage', requireSession, async (req, res)
     publicSlug: t.settings.publicSlug || null,
     hideSeeds: !!t.settings.hideSeeds,
     hideSeedsAllowed: (await checkFeature(t.guildId, 'hide_seeds')).allowed,
+    hideLiveStrip: !!t.settings.hideLiveStrip,
+    hideLiveStripAllowed: (await checkFeature(t.guildId, 'hide_live_strip')).allowed,
     slugAllowed: (await checkFeature(t.guildId, 'custom_slug')).allowed,
     nickSummary: t.settings.requireGameNick ? getNickSummary(t.game) : null,
     // Column labels for the bulk-add hint (e.g. GOALS Username, GOALS User ID)
@@ -377,6 +379,8 @@ router.get('/admin/api/tournaments/:id/manage', requireSession, async (req, res)
       correct: !!t.bracket,
       disqualify: t.status === 'active' && !isBR,
       createRooms: t.status === 'active',
+      // Round-based formats know every pairing up front (LAN: all rooms at once)
+      createRoomsAll: t.status === 'active' && (t.settings.format === 'round_robin' || (t.bracket?.type === 'group_stage' && t.bracket.stage === 'groups')),
       end: t.status === 'active',
     },
   });
@@ -445,6 +449,10 @@ router.post('/admin/api/guilds/:guildId/tournaments', ...mutate, requireGuildAdm
   const hideSeeds = !!b.hideSeeds;
   if (hideSeeds && !(await checkFeature(req.params.guildId, 'hide_seeds')).allowed) {
     return res.status(400).json({ error: 'Hiding seed numbers on the public bracket is a Pro feature.' });
+  }
+  const hideLiveStrip = !!b.hideLiveStrip;
+  if (hideLiveStrip && !(await checkFeature(req.params.guildId, 'hide_live_strip')).allowed) {
+    return res.status(400).json({ error: 'Hiding the "Live now" ticker on the public bracket is a Pro feature.' });
   }
 
   let requiredRoles = [];
@@ -558,6 +566,7 @@ router.post('/admin/api/guilds/:guildId/tournaments', ...mutate, requireGuildAdm
         thirdPlaceMatch,
         trackGoals,
         hideSeeds,
+        hideLiveStrip,
         requiredRoles,
         brScoringModel,
         gamesPerStage,
@@ -1089,15 +1098,25 @@ router.post('/admin/api/tournaments/:id/public-options', ...mutate, async (req, 
   const t = await loadOwnedForMutation(req, res);
   if (!t) return;
   try {
-    const hideSeeds = !!req.body?.hideSeeds;
-    if (hideSeeds && !(await checkFeature(t.guildId, 'hide_seeds')).allowed) {
-      return res.status(400).json({ error: 'Hiding seed numbers on the public bracket is a Pro feature.' });
+    const changes = {};
+    if ('hideSeeds' in (req.body || {})) {
+      const v = !!req.body.hideSeeds;
+      if (v && !(await checkFeature(t.guildId, 'hide_seeds')).allowed) {
+        return res.status(400).json({ error: 'Hiding seed numbers on the public bracket is a Pro feature.' });
+      }
+      t.settings.hideSeeds = v; changes.hideSeeds = v;
     }
-    t.settings.hideSeeds = hideSeeds;
+    if ('hideLiveStrip' in (req.body || {})) {
+      const v = !!req.body.hideLiveStrip;
+      if (v && !(await checkFeature(t.guildId, 'hide_live_strip')).allowed) {
+        return res.status(400).json({ error: 'Hiding the "Live now" ticker on the public bracket is a Pro feature.' });
+      }
+      t.settings.hideLiveStrip = v; changes.hideLiveStrip = v;
+    }
     const { updateTournament } = require('../services/tournamentService');
     await updateTournament(t.id, { settings: t.settings });
-    await audit(req, t, 'public-options', { hideSeeds });
-    res.json({ ok: true, hideSeeds });
+    await audit(req, t, 'public-options', changes);
+    res.json({ ok: true, ...changes });
   } catch (err) {
     console.error(`[web-admin] ${req.method} ${req.path} failed:`, err.message);
     res.status(400).json({ error: err.message });
@@ -1379,8 +1398,9 @@ router.post('/admin/api/tournaments/:id/create-rooms', ...mutate, async (req, re
   const guild = getGuildOr503(t.guildId, res);
   if (!guild) return;
   try {
-    const result = await createRoomsFlow({ guild, tournament: t });
-    await audit(req, t, 'create_rooms', result);
+    const allRounds = !!req.body?.allRounds;
+    const result = await createRoomsFlow({ guild, tournament: t, allRounds });
+    await audit(req, t, 'create_rooms', { ...result, allRounds });
     res.json({ ok: true, ...result });
   } catch (err) {
     console.error(`[web-admin] ${req.method} ${req.path} failed:`, err.message);

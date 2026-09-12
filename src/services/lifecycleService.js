@@ -705,7 +705,7 @@ async function removeEntrantFlow({ client, tournament, entrantId }) {
 
 // ─── Create rooms (retry) ────────────────────────────────────────────────────
 
-async function createRoomsFlow({ guild, tournament }) {
+async function createRoomsFlow({ guild, tournament, allRounds = false }) {
   if (!tournament.bracket || tournament.status !== 'active') {
     throw new Error('This tournament is not running, so there are no match rooms to create.');
   }
@@ -743,7 +743,18 @@ async function createRoomsFlow({ guild, tournament }) {
         repaired.map(r => `${r.name}→#${r.matchNumber}`).join(', '));
       await updateTournament(tournament.id, { bracket });
     }
-    for (const match of service.getActiveMatches(bracket)) {
+    // LAN mode: every remaining match of a round-based format at once
+    const targets = allRounds && service.getAllPendingMatches
+      ? service.getAllPendingMatches(bracket)
+      : service.getActiveMatches(bracket);
+    if (allRounds) {
+      const need = targets.filter(m => m.participant1 && m.participant2 && !m.channelId).length;
+      const cap = getChannelCapacity(guild);
+      if (need > cap.available) {
+        throw new Error(`Opening every remaining match needs ${need} rooms but this server has ${cap.available} channel slots free (${cap.used}/${cap.cap}). Archive old rooms first, or open round by round.`);
+      }
+    }
+    for (const match of targets) {
       if (!match.participant1 || !match.participant2) continue;
       if (match.channelId) { existing++; continue; }
       try {

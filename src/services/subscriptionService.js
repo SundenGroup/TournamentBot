@@ -80,6 +80,7 @@ const TIER_LIMITS = {
 const PRO_FEATURES = [
   'seeding',
   'hide_seeds',
+  'hide_live_strip',
   'captain_mode',
   'auto_cleanup',
   'auto_archive',

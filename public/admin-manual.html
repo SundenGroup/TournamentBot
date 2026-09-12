@@ -581,6 +581,10 @@
       advancing, but no new match rooms open — nobody gets summoned to a match you don't intend to play yet.
       Release with <strong>🚪 Open match rooms</strong>. Handy for multi-day events or formats that stop
       after a certain round.</li>
+      <li><strong>🏟 Rooms for all rounds</strong> (round robin and group stages): open a room for every
+      remaining match at once instead of round by round — for LAN play where matches run in any order.
+      Results can be reported in any order; the tables and round markers keep up. Discord:
+      <code>/tournament create-rooms all_rounds:True</code>.</li>
       <li><strong>🏁 End tournament</strong>: closes an active event as <em>Completed</em> without playing
       the rest of the bracket — reporting locks, rooms archive per your cleanup settings, no champion is
       announced, and corrections stay possible. Use it when the played matches WERE the point (e.g. a
@@ -594,6 +598,9 @@
     <p>Don't want spectators reading the seeding off the bracket? Tick <strong>Hide seed numbers</strong> on the
     create form, or later in the Run view's <strong>🌐 Public page</strong> card (any time, even mid-event). The
     public page then shows names only; admins keep seeing seeds in the dashboard and the admin bracket.</p>
+    <p>The same card has <strong>Hide the “Live now” ticker</strong> <span class="tag tag-pro">Pro</span> — removes the
+    scrolling strip of in-progress matches above the bracket for a calmer page. The podium still appears when the
+    event is over.</p>
 
     <h3>Custom bracket link <span class="tag tag-studio">Studio</span></h3>
     <p>Every public bracket lives at an unguessable <code>/b/&lt;id&gt;</code> URL. Want something you can

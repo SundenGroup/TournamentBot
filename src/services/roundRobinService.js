@@ -204,6 +204,22 @@ function updateRoundStatus(bracket) {
 }
 
 /**
+ * Every remaining match, any round — round robin knows all pairings from the
+ * start, so a LAN can open every room at once and play in any order
+ * (advanceWinner doesn't gate on rounds; updateRoundStatus re-derives the
+ * current round from what's been played).
+ */
+function getAllPendingMatches(bracket) {
+  const out = [];
+  for (const round of bracket.rounds) {
+    for (const m of round.matches) {
+      if (!m.winner && m.participant1 && m.participant2) out.push(m);
+    }
+  }
+  return out;
+}
+
+/**
  * Get all active (playable) matches
  * @param {Object} bracket - Round Robin bracket
  * @returns {Array} Active matches
@@ -474,6 +490,7 @@ module.exports = {
   advanceWinner,
   correctResult,
   getActiveMatches,
+  getAllPendingMatches,
   isComplete,
   isRoundComplete,
   getResults,

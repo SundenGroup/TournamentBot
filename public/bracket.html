@@ -817,6 +817,7 @@ function renderHero(d) {
 
 function renderStrip(d) {
   const strip = $('strip');
+  if (d.liveStripHidden && !(d.results && d.status === 'completed')) { strip.style.display = 'none'; return; }
   if (d.results && (d.status === 'completed')) {
     const chips = [];
     const mk = (medal, place, p) => p && chips.push(`<span class="podium-chip"><span>${medal}</span><span><span class="place" style="color:var(--text-faint)">${place}</span><br>${esc(p.name)}</span></span>`);

@@ -140,6 +140,10 @@ module.exports = {
             .setRequired(true)
             .setAutocomplete(true)
         )
+        .addBooleanOption(option =>
+          option.setName('all_rounds')
+            .setDescription('LAN mode: open a room for EVERY remaining match now (round robin / groups)')
+        )
     )
     .addSubcommand(subcommand =>
       subcommand
@@ -1264,7 +1268,7 @@ async function handleCreateRooms(interaction) {
   const { createRoomsFlow } = require('../../services/lifecycleService');
   let result;
   try {
-    result = await createRoomsFlow({ guild: interaction.guild, tournament });
+    result = await createRoomsFlow({ guild: interaction.guild, tournament, allRounds: interaction.options.getBoolean('all_rounds') ?? false });
   } catch (error) {
     return interaction.editReply({ content: `❌ ${error.message}` });
   }

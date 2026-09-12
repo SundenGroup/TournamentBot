@@ -168,6 +168,14 @@ function getActiveMatches(bracket) {
   return bracket.groups.flatMap(g => roundRobin.getActiveMatches(g.bracket));
 }
 
+/** All remaining group matches (any round); in the playoffs, the playable ones. */
+function getAllPendingMatches(bracket) {
+  if (bracket.stage === 'playoffs' && bracket.playoffs) {
+    return playoffEngine(bracket).getActiveMatches(bracket.playoffs);
+  }
+  return bracket.groups.flatMap(g => roundRobin.getAllPendingMatches(g.bracket));
+}
+
 // ── Stage state ─────────────────────────────────────────────────────────────
 
 function groupsComplete(bracket) {
@@ -410,6 +418,7 @@ module.exports = {
   correctResult,
   findMatch,
   getActiveMatches,
+  getAllPendingMatches,
   isComplete,
   getResults,
   // group-stage specific

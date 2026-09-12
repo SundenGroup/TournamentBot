@@ -208,6 +208,9 @@ function buildPayload(tournament, { admin = false } = {}) {
       }));
     });
   }
+  // Pro option: no 'Live now' ticker (the podium still shows when finished)
+  payload.liveStripHidden = !!tournament.settings.hideLiveStrip;
+
   // Pro option: no seed numbers on the public page (admins keep them)
   if (tournament.settings.hideSeeds && !admin) {
     for (const e of payload.participants) e.seed = null;
