@@ -472,7 +472,9 @@ function layout(g, from) {
   const maxCol = Math.max(colOfW(R - 1), LR ? colOfL(LR - 1) : 0);
 
   GFs.forEach((gf, i) => { gf.x = xOf(maxCol + 1 + i); gf.y = yW(R - 1, 0); visible.push(gf); });
-  if (TP) { TP.x = xOf(maxCol + 1); TP.y = yW(R - 1, 0) + cardH + 68; visible.push(TP); }
+  // Third place sits UNDER the final in the same column (double elim has
+  // grand finals to the right instead, and never a third-place match).
+  if (TP) { TP.x = xOf(GFs.length ? maxCol + 1 : colOfW(R - 1)); TP.y = yW(R - 1, 0) + cardH + 68; visible.push(TP); }
 
   const connectors = [];
   const seg = (x, y, w, h) => connectors.push({ x, y, w: Math.max(w, 2), h: Math.max(h, 2) });
